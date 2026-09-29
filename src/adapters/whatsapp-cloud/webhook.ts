@@ -47,14 +47,14 @@ export function isSignatureValid(
  */
 export function parseInboundMessages(payload: unknown): InboundMessage[] {
   const messages: InboundMessage[] = [];
-  for (const change of changesDari(payload)) {
+  for (const change of changesFrom(payload)) {
     const value = (change as { value?: unknown }).value;
-    const daftar = ambil(value, "messages");
+    const daftar = readField(value, "messages");
     if (!Array.isArray(daftar)) {
       continue;
     }
     for (const item of daftar) {
-      const pesan = konversiPesan(item);
+      const pesan = toInboundMessage(item);
       if (pesan) {
         messages.push(pesan);
       }
@@ -63,14 +63,14 @@ export function parseInboundMessages(payload: unknown): InboundMessage[] {
   return messages;
 }
 
-function changesDari(payload: unknown): unknown[] {
-  const entry = ambil(payload, "entry");
+function changesFrom(payload: unknown): unknown[] {
+  const entry = readField(payload, "entry");
   if (!Array.isArray(entry)) {
     return [];
   }
   const changes: unknown[] = [];
   for (const item of entry) {
-    const daftar = ambil(item, "changes");
+    const daftar = readField(item, "changes");
     if (Array.isArray(daftar)) {
       changes.push(...daftar);
     }
@@ -78,15 +78,15 @@ function changesDari(payload: unknown): unknown[] {
   return changes;
 }
 
-function konversiPesan(item: unknown): InboundMessage | null {
-  const id = ambil(item, "id");
-  const from = ambil(item, "from");
-  const timestamp = ambil(item, "timestamp");
+function toInboundMessage(item: unknown): InboundMessage | null {
+  const id = readField(item, "id");
+  const from = readField(item, "from");
+  const timestamp = readField(item, "timestamp");
   if (typeof id !== "string" || typeof from !== "string" || typeof timestamp !== "string") {
     return null;
   }
-  const text = ambil(item, "text");
-  const body = ambil(text, "body");
+  const text = readField(item, "text");
+  const body = readField(text, "body");
   return {
     id,
     from,
@@ -95,7 +95,7 @@ function konversiPesan(item: unknown): InboundMessage | null {
   };
 }
 
-function ambil(obj: unknown, kunci: string): unknown {
+function readField(obj: unknown, kunci: string): unknown {
   if (obj !== null && typeof obj === "object") {
     return (obj as Record<string, unknown>)[kunci];
   }

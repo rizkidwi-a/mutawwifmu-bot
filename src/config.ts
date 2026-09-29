@@ -39,17 +39,17 @@ export function normalizePhoneNumber(raw: string): string {
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const whatsapp: WhatsAppConfig = {
     provider: env.WHATSAPP_PROVIDER ?? "whatsapp-cloud-api",
-    senderNumber: normalizePhoneNumber(wajib(env, "WHATSAPP_SENDER_NUMBER")),
-    phoneNumberId: wajib(env, "WHATSAPP_PHONE_NUMBER_ID"),
+    senderNumber: normalizePhoneNumber(requiredString(env, "WHATSAPP_SENDER_NUMBER")),
+    phoneNumberId: requiredString(env, "WHATSAPP_PHONE_NUMBER_ID"),
     apiBaseUrl: env.WHATSAPP_API_BASE_URL ?? DEFAULT_API_BASE_URL,
-    apiToken: wajib(env, "WHATSAPP_API_TOKEN"),
-    appSecret: wajib(env, "WHATSAPP_APP_SECRET"),
-    webhookVerifyToken: wajib(env, "WHATSAPP_WEBHOOK_VERIFY_TOKEN"),
+    apiToken: requiredString(env, "WHATSAPP_API_TOKEN"),
+    appSecret: requiredString(env, "WHATSAPP_APP_SECRET"),
+    webhookVerifyToken: requiredString(env, "WHATSAPP_WEBHOOK_VERIFY_TOKEN"),
   };
   return { whatsapp, port: Number(env.PORT ?? DEFAULT_PORT) };
 }
 
-function wajib(env: Record<string, string | undefined>, nama: string): string {
+function requiredString(env: Record<string, string | undefined>, nama: string): string {
   const nilai = env[nama];
   if (!nilai) {
     throw new Error(`Konfigurasi tidak lengkap: variabel ${nama} wajib diisi`);
