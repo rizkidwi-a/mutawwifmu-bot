@@ -1,0 +1,15 @@
+{
+  "name": "mutawwifmu-whatsapp-chatbot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Asisten percakapan WhatsApp MUTAWWIFMU untuk pertanyaan pra-pemesanan calon jemaah",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test tests/",
+    "typecheck": "tsc --noEmit"
+  }
+}
