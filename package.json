@@ -9,7 +9,11 @@
   },
   "scripts": {
     "start": "node src/main.ts",
-    "test": "node --test tests/",
+    "test": "node --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
   }
 }
