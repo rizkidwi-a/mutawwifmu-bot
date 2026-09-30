@@ -72,6 +72,8 @@ Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FA
 
 Semua identitas provider dan nomor pengirim berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
 
+Sebelum cutover, jalankan `npm run cutover:check` untuk memastikan konfigurasi provider sudah lengkap dan nomor pengirim bukan lagi nomor pengembangan (perintah keluar dengan kode 1 bila belum siap). Pergantian nomor tidak membawa riwayat percakapan — batasannya dijelaskan di `docs/whatsapp-number-cutover.md` bagian "Batasan migrasi riwayat percakapan".
+
 ## Pengujian
 
 ```bash
@@ -98,6 +100,8 @@ src/
 │   └── whatsapp-cloud/    # transport WhatsApp Cloud API (webhook + pengirim)
 ├── adminChannel.ts        # port kanal penerimaan admin (handoff)
 ├── config.ts              # konfigurasi dari environment
+├── cutoverPreflight.ts    # penilaian kesiapan konfigurasi cutover nomor produksi
+├── cutoverCheck.ts        # entry point npm run cutover:check
 ├── conversationStore.ts   # port penyimpanan konteks percakapan
 ├── inboundTransport.ts    # port penerimaan pesan masuk
 ├── messageSender.ts       # port pengiriman pesan keluar

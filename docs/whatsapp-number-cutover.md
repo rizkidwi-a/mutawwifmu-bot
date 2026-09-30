@@ -9,6 +9,7 @@ Dokumen ini menjelaskan (1) langkah verifikasi provider agar nomor pengembangan 
 | Nomor pengembangan | `+62 895 0700 3830` (dikembangkan dan diverifikasi untuk pengembangan) |
 | Provider | WhatsApp Cloud API (Meta) sebagai pilihan utama, Fonnte (BSP) sebagai alternatif; lihat `docs/adr/0001-provider-whatsapp-cloud-api.md` dan `docs/adr/0003-provider-bsp-fonnte.md` |
 | Nomor konsultasi profil (`+62 877 4587 3159`) | Tidak berada dalam kendali pengguna — **bukan** prasyarat pengembangan |
+| Kanal penerimaan admin | `LoggingAdminChannel` (sementara, mencatat ke log proses) — kanal final adalah keputusan pemilik (gate pra-produksi, lihat README bagian Handoff ke admin) |
 
 Konfigurasi yang mengendalikan identitas pengirim (lihat `.env.example`):
 
@@ -59,8 +60,69 @@ Tiket terkait: `.scratch/whatsapp-customer-service-chatbot/issues/06-production-
    - `WHATSAPP_PHONE_NUMBER_ID=<phone number id baru>`
    - `WHATSAPP_API_TOKEN=<token baru bila ada>`
    - bila WABA berubah, perbarui juga langganan webhook ke WABA baru.
+   - Jalankan `npm run cutover:check` — laporan harus menyatakan **siap**
+     (konfigurasi provider lengkap dan nomor pengirim bukan nomor
+     pengembangan); perintah keluar dengan kode 1 bila belum siap.
 5. **Restart proses bot** (`npm start` atau layanan yang menjalankannya) agar konfigurasi termuat ulang.
-6. **Smoke test end-to-end** — kirim pesan dari nomor pribadi ke nomor produksi, pastikan balasan awal terkirim; jalankan `npm test` untuk memastikan tes transport tetap hijau.
-7. **Pensiunkan nomor pengembangan** (opsional) — hapus dari WABA setelah produksi stabil; jangan hapus sebelum smoke test lolos.
+6. **Smoke test end-to-end** — dari nomor pribadi ke nomor produksi:
+   - kirim pesan apa pun → balasan awal terkirim;
+   - ajukan pertanyaan FAQ (mis. "Apa itu land arrangement?") → dijawab dari
+     materi tanpa handoff, dan `GET /metrics` menunjukkan `faqAnswered` bertambah;
+   - minta berbicara dengan manusia lalu jawab `ya` pada permintaan persetujuan
+     → handoff tercatat pada kanal admin (log proses untuk implementasi
+     sementara) dan `handOffsForwarded` bertambah;
+   - jalankan `npm test` untuk memastikan seluruh tes — termasuk
+     `tests/transport/cutoverParity.test.ts` yang menjaga FAQ dan handoff tetap
+     berfungsi pada konfigurasi nomor produksi — tetap hijau.
+7. **Perbarui informasi kontak publik yang dikendalikan MUTAWWIFMU** agar calon
+   jemaah menghubungi nomor produksi yang aktif:
+   - permukaan yang diketahui: situs `www.mutawwifmu.com` (halaman
+     kontak/footer), akun Instagram `@mutawwifmu` (bio/kontak), serta
+     `BOOKLET MUTAWWIFMU.md` (baris kontak pada sampul, bagian "Konsultasi
+     dengan Admin via WhatsApp", dan blok kontak penutup) beserta materi
+     cetak/digital lain yang memuat nomor;
+   - jangan mencantumkan nomor yang belum aktif dan terverifikasi;
+   - penempatan nomor lain (mis. kanal konsultasi/admin) mengikuti keputusan
+     pemilik tentang kanal admin — keputusan itu tidak dikunci di sini;
+   - nomor konsultasi lama `+62 877 4587 3159` hanya dapat dicantumkan
+     sebagai nomor produksi bila kendalinya sudah benar-benar pindah ke
+     MUTAWWIFMU dan lolos verifikasi (lihat "Kondisi sekarang").
+8. **Pensiunkan nomor pengembangan** (opsional) — hapus dari WABA setelah produksi stabil; jangan hapus sebelum smoke test lolos.
 
-Checklist keberhasilan cutover: pesan masuk ke nomor produksi menghasilkan balasan; tidak ada nilai nomor pengembangan yang tertinggal di konfigurasi; perilaku percakapan identik (tidak ada perubahan kode pada `src/conversation/`).
+## Batasan migrasi riwayat percakapan
+
+Pergantian nomor **tidak membawa riwayat percakapan**. Jangan menjanjikan
+riwayat berpindah ke nomor produksi: provider yang tersedia (WhatsApp Cloud API
+maupun Fonnte) tidak mendukung pemindahan riwayat chat antar nomor.
+
+- Riwayat chat di aplikasi WhatsApp calon jemaah tetap berada pada percakapan
+  dengan nomor sebelumnya; chat dengan nomor produksi dimulai dari kosong. Bila
+  calon jemaah menanyakannya, sampaikan bahwa chat lama tetap ada di aplikasi
+  mereka sedangkan bot kini melayani nomor produksi — cukup memulai percakapan
+  baru di nomor tersebut.
+- Konteks percakapan multi-giliran bot disimpan di balik port `ConversationStore`
+  (implementasi aktif in-memory per nomor calon jemaah); ia tidak ikut berpindah
+  antar-proses maupun antar-nomor, dan keputusan penyimpanan persisten serta
+  kebijakan retensi data belum diambil (spec).
+- Yang tetap tersedia setelah cutover: isi Permintaan Tindak Lanjut/handoff yang
+  sudah diteruskan ke admin tercatat pada kanal admin saat diteruskan (lengkap
+  dengan ringkasan dan konteks percakapan saat itu) — bukan lewat pemindahan
+  riwayat.
+
+## Checklist keberhasilan cutover
+
+- `npm run cutover:check` menyatakan siap: konfigurasi provider lengkap dan
+  nomor pengirim bukan nomor pengembangan.
+- Pesan masuk ke nomor produksi menghasilkan balasan; jalur FAQ dan handoff ke
+  admin tetap berfungsi (uji pada langkah smoke test).
+- Tidak ada nilai nomor pengembangan yang tertinggal di konfigurasi.
+- Perilaku percakapan identik — tidak ada perubahan kode pada
+  `src/conversation/`; dijaga tes `tests/config.test.ts` dan
+  `tests/transport/cutoverParity.test.ts`.
+- Informasi kontak publik yang dikendalikan MUTAWWIFMU sudah menunjuk nomor
+  produksi yang aktif.
+- Batasan migrasi riwayat percakapan dikomunikasikan tanpa menjanjikan riwayat
+  berpindah.
+- Gate pra-produksi terpisah: kanal penerimaan admin dikonfirmasi pemilik dan
+  dicatat sebagai ADR sebelum handoff dipakai di produksi (lihat README bagian
+  Handoff ke admin).
