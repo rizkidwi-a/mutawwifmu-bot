@@ -161,6 +161,7 @@ test("permintaan yang ditolak tidak diteruskan ke kanal admin", async () => {
       followUpRequestsRecorded: 0,
       followUpRequestsForwarded: 0,
       handOffsForwarded: 0,
+      faqAnswered: 0,
     });
   } finally {
     await lingkungan.tutup();
@@ -175,6 +176,7 @@ test("permintaan yang berhasil diteruskan dapat dihitung sebagai metrik utama", 
       followUpRequestsRecorded: 1,
       followUpRequestsForwarded: 1,
       handOffsForwarded: 1,
+      faqAnswered: 0,
     });
 
     const respon = await fetch(`${lingkungan.appUrl}/metrics`);
@@ -183,6 +185,7 @@ test("permintaan yang berhasil diteruskan dapat dihitung sebagai metrik utama", 
       followUpRequestsRecorded: 1,
       followUpRequestsForwarded: 1,
       handOffsForwarded: 1,
+      faqAnswered: 0,
     });
   } finally {
     await lingkungan.tutup();
@@ -201,11 +204,32 @@ test("kegagalan kanal admin tidak menghasilkan klaim penerusan maupun metrik", a
       followUpRequestsRecorded: 0,
       followUpRequestsForwarded: 0,
       handOffsForwarded: 0,
+      faqAnswered: 0,
     });
     const balasanTerakhir = lingkungan.balasanTerkirim.at(-1);
     assert.ok(balasanTerakhir);
     assert.match(balasanTerakhir.text, /maaf|sorry/i);
     assert.doesNotMatch(balasanTerakhir.text, /(teruskan|diteruskan|forward)/i);
+  } finally {
+    await lingkungan.tutup();
+  }
+});
+
+test("pertanyaan FAQ dijawab langsung dan dihitung tanpa handoff ke kanal admin", async () => {
+  const lingkungan = await buatLingkungan();
+  try {
+    await kirimPesan(lingkungan, "Apa itu land arrangement?");
+
+    assert.deepEqual(lingkungan.handoffs, []);
+    const balasanTerakhir = lingkungan.balasanTerkirim.at(-1);
+    assert.ok(balasanTerakhir);
+    assert.match(balasanTerakhir.text, /Private Premium Umrah/);
+    assert.deepEqual(lingkungan.metrics.snapshot(), {
+      followUpRequestsRecorded: 0,
+      followUpRequestsForwarded: 0,
+      handOffsForwarded: 0,
+      faqAnswered: 1,
+    });
   } finally {
     await lingkungan.tutup();
   }

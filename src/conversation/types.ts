@@ -64,6 +64,15 @@ export type HandOffReason =
 export type ConversationAction =
   | { readonly kind: "record-follow-up-request"; readonly request: FollowUpRequest }
   | {
+      /** Jawaban FAQ yang diberikan langsung dari materi (tiket 03). */
+      readonly kind: "record-faq-answer";
+      /**
+       * Topik materi yang dijawab. Disengaja `string` agar tipe seam tidak
+       * bergantung pada modul knowledge; nilainya berasal dari `UmrahFaqTopic`.
+       */
+      readonly topic: string;
+    }
+  | {
       readonly kind: "hand-off-to-admin";
       readonly reason: HandOffReason;
       /** Permintaan Tindak Lanjut bila ada; selain itu null. */

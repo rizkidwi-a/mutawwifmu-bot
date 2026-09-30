@@ -112,8 +112,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
 
 /**
  * Eksekusi tindakan terlihat dari seam: catat Permintaan Tindak Lanjut dan
- * teruskan ke kanal admin. Mengembalikan true bila ada penerusan yang gagal,
- * sehingga balasan tidak mengeklaim informasi telah diteruskan.
+ * jawaban FAQ, lalu teruskan handoff ke kanal admin. Mengembalikan true bila
+ * ada penerusan yang gagal, sehingga balasan tidak mengeklaim informasi telah
+ * diteruskan.
  */
 function runActions(
   deps: AppServerDeps,
@@ -125,6 +126,10 @@ function runActions(
     if (aksi.kind === "record-follow-up-request") {
       deps.metrics.recordFollowUpRequest();
       console.log("Permintaan Tindak Lanjut tercatat dari", from);
+      continue;
+    }
+    if (aksi.kind === "record-faq-answer") {
+      deps.metrics.recordFaqAnswer();
       continue;
     }
     try {

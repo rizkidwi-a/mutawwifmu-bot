@@ -2,7 +2,7 @@
 
 Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
 
-Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), serta handoff ke admin yang selalu diawali persetujuan calon jemaah. FAQ layanan dan harga indikatif dikerjakan tiket berikutnya.
+Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), handoff ke admin yang selalu diawali persetujuan calon jemaah, serta jawaban FAQ layanan dari materi bisnis. Harga indikatif dikerjakan tiket berikutnya.
 
 ## Menjalankan
 
@@ -46,6 +46,12 @@ Keduanya perlu dipasang lebih dulu (`winget install ngrok.ngrok` / `winget insta
 
 Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
+## FAQ layanan
+
+Bot menjawab pertanyaan pra-pemesanan tentang Private Premium Umrah & Land Arrangement langsung dari materi bisnis yang tersedia (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`): definisi layanan, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, serta city tour yang tercantum (umum dan per destinasi). Jawaban disusun hanya dari fakta materi MUTAWWIFMU — rincian paket, layanan, atau ketentuan yang tidak tercantum tidak dikarang — dan diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
+
+Pertanyaan harga/ketersediaan yang memerlukan konfirmasi tidak dijawab sebagai penawaran final; pertanyaan yang tidak didukung materi atau tidak pasti juga tidak dijawab dari asumsi. Keduanya mengalir ke alur handoff yang sama: penjelasan singkat, lalu permintaan persetujuan sebelum diteruskan ke admin. Jawaban FAQ tidak membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
+
 ## Handoff ke admin
 
 Bot meneruskan percakapan ke admin hanya setelah calon jemaah menyetujui penerusan informasinya; bila ditolak, informasi tidak diteruskan. Kasus yang diteruskan: permintaan berbicara dengan manusia, pertanyaan yang tidak didukung/tidak pasti, permintaan penawaran khusus/konfirmasi harga atau ketersediaan, pertanyaan agen/korporasi, booking/pembayaran, perjalanan aktif, dan keadaan darurat. Pesan konfirmasi tidak menjanjikan waktu balasan admin.
@@ -54,7 +60,7 @@ Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) —
 
 > **Gate pra-produksi:** kanal penerimaan admin harus dikonfirmasi pemilik dan dicatat sebagai ADR sebelum handoff dipakai di produksi (lihat tiket 06). Mengganti implementasi `AdminChannel` tidak mengubah perilaku percakapan.
 
-Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
+Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FAQ yang terjawab tanpa handoff (metrik pendamping) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
 
 ## Konfigurasi
 
@@ -75,7 +81,10 @@ Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/convers
 src/
 ├── conversation/          # seam percakapan (provider-agnostic)
 │   ├── handleInbound.ts   # pemrosesan pesan masuk -> balasan + tindakan
+│   ├── classifyInbound.ts # routing pesan masuk: faq / handoff / opener
+│   ├── language.ts        # deteksi bahasa balasan
 │   └── types.ts
+├── knowledge/             # materi FAQ (jawaban disusun dari materi bisnis)
 ├── adapters/
 │   ├── factory.ts         # pemilihan adapter sesuai WHATSAPP_PROVIDER
 │   ├── webhookSupport.ts  # helper HTTP bersama antar adapter webhook

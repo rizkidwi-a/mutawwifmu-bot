@@ -1,3 +1,6 @@
+import { classifyInbound, type HandoffTrigger } from "./classifyInbound.ts";
+import { resolveReplyLanguage, type Language } from "./language.ts";
+import { faqAnswer } from "../knowledge/privatePremiumUmrahFaq.ts";
 import type {
   BotTurn,
   ConversationAction,
@@ -16,17 +19,6 @@ const INITIAL_REPLY_EN =
   "Hello! Thank you for contacting MUTAWWIFMU. " +
   "I'm an automated assistant available anytime to help with early information about our services. " +
   "What would you like to ask?";
-
-/**
- * Penanda bahasa pada pesan Calon Jemaah. Hanya kata fungsi/sapaan — kata
- * domain (umrah, harga, dll.) dipakai di kedua bahasa dan tidak menjadi
- * penanda yang baik. Pesan pendek yang ambigu mengikuti bahasa percakapan.
- */
-const INDONESIAN_MARKERS =
-  /\b(saya|aku|kami|ingin|mau|bertanya|tanya|tentang|untuk|bisa|dapat|apakah|bagaimana|berapa|kak|halo|assalamualaikum|terima kasih|tolong|ini|itu|sudah|belum|juga|adalah|dengan|yang|dan|atau|saja)\b/i;
-
-const ENGLISH_MARKERS =
-  /\b(i|we|my|our|want|would|like|please|hello|hi|hey|thanks|thank you|about|consultation|trip|travel|planning|can you|could you|how much|how many)\b/i;
 
 /**
  * Penanda permintaan konsultasi pra-pemesanan yang menjadi awal Permintaan
@@ -114,39 +106,14 @@ interface FollowUpDraft {
 }
 
 /**
- * Pemicu handoff (spec: kasus yang diteruskan ke admin). Deteksi berbasis
- * penanda teks yang sengaja konservatif; keputusan akhir tetap pada manusia.
+ * Pemicu yang menuntut penanganan manusia (spec: kasus yang diteruskan ke
+ * admin); menyela alur apa pun, termasuk pengumpulan Permintaan Tindak Lanjut.
  */
-const HUMAN_REQUEST =
-  /\b((talk|speak|chat)\s+(to|with)\s+(a\s+|an\s+)?(human|person|someone|real person|staff|manager|admin|customer service|agent)|(bicara|ngobrol|ngomong|chat|telepon|kontak|hubungi|hubungkan|sambungkan)\s+(saya\s+|kami\s+)?(dengan|ke|kepada|to)?\s*(manusia|orang|admin|cs\b|customer service|staff|karyawan|human|person|agent|manager|tim)|(minta|tolong)\s+(bicara|dihubungi|ketemu|ditemui)\s+(dengan\s+)?(admin|cs|manusia|orang))\b/i;
-
-const ACTIVE_TRIP =
-  /\b((sedang|lagi|tengah|saat ini|currently)\s+(berada\s+)?(di|dalam)\s+(mekkah|makkah|madinah|jeddah|tanah suci|arab|saudi|bandara|hotel|perjalanan|penerbangan|pesawat)|(i am|i'm|we are|we're)\s+(currently\s+)?(in|on|at|traveling|travelling))\b/i;
-
-const EMERGENCY =
-  /\b(darurat|emergency|urgent|kecelakaan|musibah|kebakaran|banjir|gempa|bencana|sakit (berat|parah)|masuk (rs|rumah sakit)|meninggal|kecopetan|kehilangan (paspor|barang|dompet|dokumen|bagasi|uang)|terjebak|terdampar|ditipu)\b/i;
-
-const BOOKING_OR_PAYMENT =
-  /\b(booking|book|memesan|pesan|pemesanan|order|pembayaran|bayar|membayar|payment|pay|transfer (dana|uang|bank)|refund|pembatalan|batal|cancel|reschedule|ubah (jadwal|tanggal)|ganti (jadwal|tanggal)|invoice|kwitansi|down payment|\bdp\b)\b/i;
-
-const AGENCY_OR_CORPORATE =
-  /\b(agen travel|travel agent|agent travel|agency|agen\b|korporasi|corporate|institusi|institution|instansi|perusahaan|kantor|reseller|b2b|company|study tour|yayasan|kerja sama|partnership)\b/i;
-
-const CUSTOM_QUOTE_OR_AVAILABILITY =
-  /\b(penawaran (khusus|harga)|special (offer|price)|custom (price|quote)|quote|quotation|konfirmasi (harga|ketersediaan)|harga (final|pasti|fix|net)|diskon|discount|negosiasi|negotiate|ketersediaan|availability|available|masih (tersedia|ada|kosong|buka)|ready (stock|room)|kuota)\b/i;
-
-/**
- * Pertanyaan eksplisit yang belum didukung materi pada tahap ini — diteruskan
- * ke admin (spec: informasi tidak tersedia/tidak pasti jangan dikarang).
- * "ingin bertanya" tanpa pertanyaan konkret sengaja tidak termasuk (pembuka).
- */
-const STRONG_QUESTION =
-  /\?|\b(berapa|bagaimana|gimana|kapan|dimana|di mana|siapa|kenapa|mengapa|bisakah|bolehkah|adakah|apa itu|apakah|what|how|when|where|why|who|can i|can we|can you|could i|could you|would you|do you|does it|is there|are there|tell me|jelaskan|ceritakan|want to know|would like to know)\b/i;
-
-/** Sapaan/pembuka tanpa pertanyaan substantif — dibalas sapaan seperti biasa. */
-const PLEASANTRY = /apa kabar|how are you|gimana kabar|kabar (baik|saja)/i;
-const GREETING_WORDS =
-  /\b(halo|hai|hi\b|hello|hallo|pagi|siang|sore|malam|assalam|salam|permisi|tes|test)\b/i;
+const URGENT_TRIGGERS: ReadonlySet<HandoffTrigger> = new Set([
+  "emergency",
+  "active-trip",
+  "human-request",
+]);
 
 /** State alur percakapan; diturunkan dari riwayat sehingga seam tetap murni. */
 type FlowState =
@@ -166,12 +133,13 @@ const EMPTY_DRAFT: FollowUpDraft = {
 
 interface StepResult {
   readonly reply: string;
-  readonly actions: readonly AksiInternal[];
+  readonly actions: readonly InternalAction[];
   readonly next: FlowState;
 }
 
 /** Tindakan sebelum digabung konteks percakapan menjadi ConversationAction. */
-type AksiInternal =
+type InternalAction =
+  | { readonly kind: "record-faq-answer"; readonly topic: string }
   | { readonly kind: "record-follow-up-request"; readonly request: FollowUpRequest }
   | {
       readonly kind: "hand-off-to-admin";
@@ -193,8 +161,8 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
       state = nextState(state, turn.text);
     }
   }
-  const indonesian = shouldReplyInIndonesian(context.history, message.text);
-  const result = step(state, message.text, indonesian);
+  const language = resolveReplyLanguage(context.history, message.text);
+  const result = step(state, message.text, language);
   const nextHistory = [
     ...context.history,
     { role: "calon-jemaah" as const, text: message.text },
@@ -208,8 +176,9 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
   return { reply: { text: result.reply }, actions };
 }
 
-/** Satu current pemrosesan teks: balasan, tindakan, dan state berikutnya. */
-function step(state: FlowState, text: string, indonesian: boolean): StepResult {
+/** Satu langkah pemrosesan teks: balasan, tindakan, dan state berikutnya. */
+function step(state: FlowState, text: string, language: Language): StepResult {
+  const indonesian = language === "id";
   const next = nextState(state, text);
 
   if (state.kind === "awaiting-handoff-consent" && next.kind === "idle") {
@@ -268,6 +237,14 @@ function step(state: FlowState, text: string, indonesian: boolean): StepResult {
       next,
     };
   }
+  const routing = classifyInbound(text);
+  if (routing.kind === "faq") {
+    return {
+      reply: faqAnswer(routing.topic, language),
+      actions: [{ kind: "record-faq-answer", topic: routing.topic }],
+      next,
+    };
+  }
   return { reply: initialReplyFor(indonesian), actions: [], next };
 }
 
@@ -279,13 +256,16 @@ function nextState(state: FlowState, text: string): FlowState {
     return { kind: "idle" };
   }
 
-  // Kasus yang menuntut manusia selalu menyela, termasuk saat pengumpulan.
-  const alasanMendesak = detectUrgentReason(text);
-  if (alasanMendesak !== null) {
-    return { kind: "awaiting-handoff-consent", reason: alasanMendesak };
+  const routing = classifyInbound(text);
+
+  // Pemicu yang menuntut manusia selalu menyela, termasuk saat pengumpulan.
+  if (routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger)) {
+    return { kind: "awaiting-handoff-consent", reason: routing.trigger };
   }
 
   if (state.kind === "collecting") {
+    // Klasifikasi diabaikan saat pengumpulan: jawaban bidang seperti
+    // "Butuh kamar keluarga" tidak boleh salah jadi pemicu handoff atau FAQ.
     const draft = fillNextField(state.draft, text);
     return draft.budgetResolved
       ? { kind: "awaiting-consent", draft }
@@ -296,48 +276,14 @@ function nextState(state: FlowState, text: string): FlowState {
     return state;
   }
 
-  const alasan = detectHandOffReason(text);
-  if (alasan !== null) {
-    return { kind: "awaiting-handoff-consent", reason: alasan };
+  if (routing.kind === "handoff") {
+    return { kind: "awaiting-handoff-consent", reason: routing.trigger };
   }
   if (FOLLOW_UP_START.test(text)) {
     return { kind: "collecting", draft: EMPTY_DRAFT };
   }
-  if (PLEASANTRY.test(text) || (GREETING_WORDS.test(text) && !STRONG_QUESTION.test(text))) {
-    return state;
-  }
-  if (STRONG_QUESTION.test(text)) {
-    return { kind: "awaiting-handoff-consent", reason: "unsupported-question" };
-  }
+  // FAQ vs sapaan awal dibedakan saat menyusun balasan (lihat `step`).
   return state;
-}
-
-/** Pemicu yang menuntut penanganan manusia; menyela alur apa pun. */
-function detectUrgentReason(text: string): HandOffReason | null {
-  if (HUMAN_REQUEST.test(text)) {
-    return "human-request";
-  }
-  if (ACTIVE_TRIP.test(text)) {
-    return "active-trip";
-  }
-  if (EMERGENCY.test(text)) {
-    return "emergency";
-  }
-  return null;
-}
-
-/** Pemicu handoff lain; hanya ditangani di luar alur pengumpulan. */
-function detectHandOffReason(text: string): HandOffReason | null {
-  if (BOOKING_OR_PAYMENT.test(text)) {
-    return "booking-or-payment";
-  }
-  if (AGENCY_OR_CORPORATE.test(text)) {
-    return "agency-or-corporate";
-  }
-  if (CUSTOM_QUOTE_OR_AVAILABILITY.test(text)) {
-    return "custom-quote-or-availability";
-  }
-  return null;
 }
 
 function isConsentYes(text: string): boolean {
@@ -475,35 +421,4 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
 
 function initialReplyFor(indonesian: boolean): string {
   return indonesian ? INITIAL_REPLY_ID : INITIAL_REPLY_EN;
-}
-
-/** Bahasa balasan: current ini bila terdeteksi, jika tidak bahasa percakapan sejauh ini. */
-function shouldReplyInIndonesian(
-  history: ConversationContext["history"],
-  text: string,
-): boolean {
-  const current = detectTurnLanguage(text);
-  if (current !== null) {
-    return current === "id";
-  }
-  for (const turn of [...history].reverse()) {
-    if (turn.role !== "calon-jemaah") {
-      continue;
-    }
-    const previous = detectTurnLanguage(turn.text);
-    if (previous !== null) {
-      return previous === "id";
-    }
-  }
-  return false;
-}
-
-function detectTurnLanguage(text: string): "id" | "en" | null {
-  if (INDONESIAN_MARKERS.test(text)) {
-    return "id";
-  }
-  if (ENGLISH_MARKERS.test(text)) {
-    return "en";
-  }
-  return null;
 }

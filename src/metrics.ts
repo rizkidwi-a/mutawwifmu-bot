@@ -11,12 +11,16 @@ export interface MetricsSnapshot {
   readonly followUpRequestsForwarded: number;
   /** Semua handoff yang berhasil diteruskan (termasuk tanpa Permintaan Tindak Lanjut). */
   readonly handOffsForwarded: number;
+  /** Metrik pendamping (tiket 03): FAQ yang terjawab langsung tanpa handoff. */
+  readonly faqAnswered: number;
 }
 
 export interface Metrics {
   recordFollowUpRequest(): void;
   /** Catat handoff yang berhasil diteruskan; `withRequest` bila membawa Permintaan Tindak Lanjut. */
   recordHandOffDelivered(withRequest: boolean): void;
+  /** Catat jawaban FAQ yang diberikan langsung dari materi (tiket 03). */
+  recordFaqAnswer(): void;
   snapshot(): MetricsSnapshot;
 }
 
@@ -24,6 +28,7 @@ export class InMemoryMetrics implements Metrics {
   private followUpRequestsRecorded = 0;
   private followUpRequestsForwarded = 0;
   private handOffsForwarded = 0;
+  private faqAnswered = 0;
 
   recordFollowUpRequest(): void {
     this.followUpRequestsRecorded += 1;
@@ -36,11 +41,16 @@ export class InMemoryMetrics implements Metrics {
     }
   }
 
+  recordFaqAnswer(): void {
+    this.faqAnswered += 1;
+  }
+
   snapshot(): MetricsSnapshot {
     return {
       followUpRequestsRecorded: this.followUpRequestsRecorded,
       followUpRequestsForwarded: this.followUpRequestsForwarded,
       handOffsForwarded: this.handOffsForwarded,
+      faqAnswered: this.faqAnswered,
     };
   }
 }
