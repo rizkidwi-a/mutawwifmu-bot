@@ -84,7 +84,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
       }
       const konteks = deps.conversations.load(pesan.from);
       const turn = handleInbound(pesan, konteks);
-      const deliveryFailed = runActions(deps, pesan.from, turn.actions);
+      const deliveryFailed = await runActions(deps, pesan.from, turn.actions);
 
       let sentText: string | null = null;
       if (turn.reply) {
@@ -112,15 +112,15 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
 
 /**
  * Eksekusi tindakan terlihat dari seam: catat Permintaan Tindak Lanjut dan
- * jawaban FAQ, lalu teruskan handoff ke kanal admin. Mengembalikan true bila
- * ada penerusan yang gagal, sehingga balasan tidak mengeklaim informasi telah
- * diteruskan.
+ * jawaban FAQ, lalu teruskan handoff ke kanal admin. Penerusan ditunggu hasilnya
+ * (boleh asinkron) dan mengembalikan true bila gagal, sehingga balasan tidak
+ * mengeklaim informasi telah diteruskan.
  */
-function runActions(
+async function runActions(
   deps: AppServerDeps,
   from: string,
   actions: readonly ConversationAction[],
-): boolean {
+): Promise<boolean> {
   let gagal = false;
   for (const aksi of actions) {
     if (aksi.kind === "record-follow-up-request") {
@@ -133,7 +133,7 @@ function runActions(
       continue;
     }
     try {
-      deps.adminChannel.deliver({
+      await deps.adminChannel.deliver({
         from,
         reason: aksi.reason,
         request: aksi.request,

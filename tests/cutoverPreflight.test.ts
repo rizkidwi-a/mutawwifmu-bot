@@ -12,6 +12,7 @@ import { evaluateCutoverReadiness, formatCutoverReadiness } from "../src/cutover
 const envFonnteProduksi: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
   WHATSAPP_SENDER_NUMBER: "+62 812 9000 1111",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_API_TOKEN: "token-fonnte",
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
 };
@@ -19,6 +20,7 @@ const envFonnteProduksi: Record<string, string> = {
 const envCloudProduksi: Record<string, string> = {
   WHATSAPP_PROVIDER: "whatsapp-cloud-api",
   WHATSAPP_SENDER_NUMBER: "+62 812 9000 1111",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_PHONE_NUMBER_ID: "PNID-PROD-9",
   WHATSAPP_API_TOKEN: "token-cloud",
   WHATSAPP_APP_SECRET: "app-secret",

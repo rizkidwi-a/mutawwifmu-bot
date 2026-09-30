@@ -4,7 +4,6 @@ import { createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { createAppServer } from "../../src/server.ts";
 import { createTransport } from "../../src/adapters/factory.ts";
-import { LoggingAdminChannel } from "../../src/adminChannel.ts";
 import { loadConfig } from "../../src/config.ts";
 import { InMemoryConversationStore } from "../../src/conversationStore.ts";
 import { InMemoryMetrics } from "../../src/metrics.ts";
@@ -13,6 +12,7 @@ const appSecret = "app-secret-untuk-tanda-tangan";
 
 const envKonfigurasi: Record<string, string> = {
   WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_PHONE_NUMBER_ID: "PNID-DEV-1",
   WHATSAPP_API_TOKEN: "token-rahasia",
   WHATSAPP_APP_SECRET: appSecret,
@@ -99,7 +99,7 @@ async function buatLingkungan(): Promise<Lingkungan> {
     config,
     ...createTransport(config.whatsapp),
     conversations: new InMemoryConversationStore(),
-    adminChannel: new LoggingAdminChannel(() => {}),
+    adminChannel: { deliver: () => {} },
     metrics: new InMemoryMetrics(),
   });
   const portApp = await dengarkan(server);

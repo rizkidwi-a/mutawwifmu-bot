@@ -6,6 +6,7 @@ import type { InboundMessage } from "../src/conversation/types.ts";
 
 const envDasar: Record<string, string> = {
   WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_PHONE_NUMBER_ID: "PNID-DEV-1",
   WHATSAPP_API_TOKEN: "token-rahasia",
   WHATSAPP_APP_SECRET: "app-secret",
@@ -25,6 +26,17 @@ test("nomor pengirim dinormalisasi ke format E.164 tanpa tanda plus", () => {
   assert.equal(normalizePhoneNumber("+62 812-3456-7890"), "6281234567890");
 });
 
+test("nomor admin penerima handoff dibaca dan dinormalisasi dari konfigurasi", () => {
+  const config = loadConfig(envDasar);
+  assert.equal(config.adminNumber, "6282283886627");
+});
+
+test("konfigurasi tanpa nomor admin ditolak dengan pesan yang menyebut variabelnya", () => {
+  const envTanpaAdmin: Record<string, string | undefined> = { ...envDasar };
+  delete envTanpaAdmin.WHATSAPP_ADMIN_NUMBER;
+  assert.throws(() => loadConfig(envTanpaAdmin), /WHATSAPP_ADMIN_NUMBER/);
+});
+
 test("konfigurasi tanpa variabel wajib gagal dengan pesan yang menyebut variabelnya", () => {
   const envTanpaToken: Record<string, string | undefined> = { ...envDasar };
   delete envTanpaToken.WHATSAPP_API_TOKEN;
@@ -35,6 +47,7 @@ test("provider BSP hanya membutuhkan token API dan token webhook, tanpa phone nu
   const config = loadConfig({
     WHATSAPP_PROVIDER: "fonnte",
     WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
     WHATSAPP_API_TOKEN: "token-fonnte",
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
   });
@@ -49,6 +62,7 @@ test("kode negara BSP dapat diatur lewat konfigurasi", () => {
   const config = loadConfig({
     WHATSAPP_PROVIDER: "fonnte",
     WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
     WHATSAPP_API_TOKEN: "token-fonnte",
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
     WHATSAPP_COUNTRY_CODE: "60",
@@ -93,6 +107,7 @@ test("kontrak yang dipakai server tersedia pada kedua provider", () => {
   const bsp = loadConfig({
     WHATSAPP_PROVIDER: "fonnte",
     WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
     WHATSAPP_API_TOKEN: "token-fonnte",
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
   });

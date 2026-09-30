@@ -1,6 +1,15 @@
+/**
+ * Tes perilaku terlihat pada port `AdminChannel` (ADR-0006): isi handoff
+ * diterima admin sebagai pesan WhatsApp ke nomor admin yang dikonfigurasi,
+ * dan kegagalan pengiriman provider diteruskan sebagai error — bukan ditelan.
+ */
+
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LoggingAdminChannel, type AdminHandoff } from "../src/adminChannel.ts";
+import { WhatsAppAdminChannel, type AdminHandoff } from "../src/adminChannel.ts";
+import type { MessageSender } from "../src/messageSender.ts";
+
+const NOMOR_ADMIN = "6282283886627";
 
 const handoff: AdminHandoff = {
   from: "628123456789",
@@ -18,39 +27,66 @@ const handoff: AdminHandoff = {
   ],
 };
 
-test("kanal admin menerima ringkasan Permintaan Tindak Lanjut", () => {
-  const diterima: string[] = [];
-  new LoggingAdminChannel((text: string) => diterima.push(text)).deliver(handoff);
-  assert.equal(diterima.length, 1);
-  const teks = diterima[0];
-  assert.ok(teks);
-  assert.match(teks, /Umrah premium, tujuan Mekkah/);
-  assert.match(teks, /Rencana Desember 2025/);
-  assert.match(teks, /4 orang/);
-  assert.match(teks, /kamar keluarga/);
-  assert.match(teks, /50 juta/);
+/** Stub port MessageSender: mencatat pesan keluar, atau menolak bila diminta. */
+function buatPengirim(opsi: { gagal?: boolean } = {}): {
+  sender: MessageSender;
+  terkirim: Array<{ readonly to: string; readonly text: string }>;
+} {
+  const terkirim: Array<{ readonly to: string; readonly text: string }> = [];
+  const sender: MessageSender = {
+    sendText: async (to: string, text: string): Promise<void> => {
+      if (opsi.gagal) {
+        throw new Error("provider menolak pengiriman");
+      }
+      terkirim.push({ to, text });
+    },
+  };
+  return { sender, terkirim };
+}
+
+test("kanal admin menerima ringkasan Permintaan Tindak Lanjut sebagai pesan WhatsApp", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  assert.equal(terkirim.length, 1);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.equal(pesan.to, NOMOR_ADMIN);
+  assert.match(pesan.text, /Umrah premium, tujuan Mekkah/);
+  assert.match(pesan.text, /Rencana Desember 2025/);
+  assert.match(pesan.text, /4 orang/);
+  assert.match(pesan.text, /kamar keluarga/);
+  assert.match(pesan.text, /50 juta/);
 });
 
-test("kanal admin menerima konteks percakapan dan alasan penerusan", () => {
-  const diterima: string[] = [];
-  new LoggingAdminChannel((text: string) => diterima.push(text)).deliver(handoff);
-  const teks = diterima[0];
-  assert.ok(teks);
-  assert.match(teks, /calon-jemaah: Umrah premium, tujuan Mekkah/);
-  assert.match(teks, /asisten: Terima kasih/);
-  assert.match(teks, /follow-up-request/);
-  assert.match(teks, /628123456789/);
+test("pesan untuk admin memuat konteks percakapan dan alasan penerusan", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /calon-jemaah: Umrah premium, tujuan Mekkah/);
+  assert.match(pesan.text, /asisten: Terima kasih/);
+  assert.match(pesan.text, /follow-up-request/);
+  assert.match(pesan.text, /628123456789/);
 });
 
-test("anggaran yang tidak disampaikan ditandai apa adanya", () => {
-  const diterima: string[] = [];
+test("anggaran yang tidak disampaikan ditandai apa adanya", async () => {
+  const { sender, terkirim } = buatPengirim();
   const request = handoff.request;
   assert.ok(request);
-  new LoggingAdminChannel((text: string) => diterima.push(text)).deliver({
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver({
     ...handoff,
     request: { ...request, budgetRange: null },
   });
-  const teks = diterima[0];
-  assert.ok(teks);
-  assert.match(teks, /tidak disampaikan/);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /tidak disampaikan/);
+});
+
+test("kegagalan pengiriman provider diteruskan sebagai error, bukan ditelan", async () => {
+  const { sender, terkirim } = buatPengirim({ gagal: true });
+  await assert.rejects(
+    () => new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff),
+    /provider menolak pengiriman/,
+  );
+  assert.deepEqual(terkirim, []);
 });

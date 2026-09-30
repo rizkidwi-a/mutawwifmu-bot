@@ -49,3 +49,7 @@ Sisa tindakan manusia:
 4. ~~Smoke test live~~ — selesai: pesan dari nomor lain mendapat balasan bot, ditandai "Sent via Fonnte" di WhatsApp.
 5. Keputusan provider untuk produksi ditunda; Fonnte dipakai untuk membuktikan alur sampai akun Meta bisa diakses kembali.
 6. Sebelum handoff ke produksi, proses bot harus dipindah ke server/VPS dengan domain sendiri: quick tunnel tidak punya jaminan uptime dan URL-nya berubah setiap restart, sedangkan URL webhook di Fonnte harus stabil.
+
+### Pembaruan: (a) kanal admin sudah diputuskan (agent)
+
+Pemilik memutuskan kanal penerimaan handoff: **pesan WhatsApp ke `+62 822 8388 6627`** (`WHATSAPP_ADMIN_NUMBER`) — dicatat di `docs/adr/0006-kanal-admin-whatsapp.md` dan diimplementasikan `WhatsAppAdminChannel`. Sisa penghalang tiket ini tinggal **(b) penempatan proses bot di server/VPS dengan URL webhook stabil**. Konsekuensi untuk tiket ini: `LoggingAdminChannel` sudah dihapus; adapter Fonnte tetap menjadi jalur aktif sampai keputusan provider produksi diambil ulang (lihat ADR-0003).

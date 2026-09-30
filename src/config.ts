@@ -47,6 +47,8 @@ export type WhatsAppConfig = WhatsAppCloudConfig | FonnteConfig;
 
 export interface AppConfig {
   readonly whatsapp: WhatsAppConfig;
+  /** Nomor WhatsApp admin penerima handoff (E.164 tanpa tanda '+'), lihat ADR-0006. */
+  readonly adminNumber: string;
   readonly port: number;
 }
 
@@ -66,6 +68,7 @@ export function normalizePhoneNumber(raw: string): string {
 
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const senderNumber = normalizePhoneNumber(requiredString(env, "WHATSAPP_SENDER_NUMBER"));
+  const adminNumber = normalizePhoneNumber(requiredString(env, "WHATSAPP_ADMIN_NUMBER"));
   const webhookVerifyToken = requiredString(env, "WHATSAPP_WEBHOOK_VERIFY_TOKEN");
   const provider = env.WHATSAPP_PROVIDER ?? CLOUD_API_PROVIDER;
   const port = Number(env.PORT ?? DEFAULT_PORT);
@@ -82,6 +85,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
           apiToken: requiredString(env, "WHATSAPP_API_TOKEN"),
           appSecret: requiredString(env, "WHATSAPP_APP_SECRET"),
         },
+        adminNumber,
         port,
       };
     case FONNTE_PROVIDER:
@@ -94,6 +98,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
           apiToken: requiredString(env, "WHATSAPP_API_TOKEN"),
           countryCode: env.WHATSAPP_COUNTRY_CODE ?? DEFAULT_COUNTRY_CODE,
         },
+        adminNumber,
         port,
       };
     default:

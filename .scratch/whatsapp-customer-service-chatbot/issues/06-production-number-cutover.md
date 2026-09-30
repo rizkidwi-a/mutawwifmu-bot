@@ -39,3 +39,23 @@ Sisa tindakan manusia (alasan status `ready-for-human`):
 5. Keputusan kanal admin (gate pra-produksi, terpisah dari cutover nomor).
 
 Setelah poin 1–4 terpenuhi dan dikonfirmasi, tiket dapat ditinjau ulang untuk dinyatakan `resolved`.
+
+### Keputusan pemilik masuk — nomor produksi & kanal admin (agent)
+
+Pemilik menetapkan: **nomor produksi `+62 877 4587 3159`** (mantan nomor konsultasi profil; kini di bawah kendali MUTAWWIFMU) dan **kanal admin = pesan WhatsApp ke `+62 822 8388 6627`**.
+
+Hasil kerja sesi ini:
+
+- `docs/adr/0006-kanal-admin-whatsapp.md` — keputusan kanal admin dicatat sebagai ADR (gate pra-produksi tiket 02 terpenuhi).
+- `src/adminChannel.ts` — `WhatsAppAdminChannel` mengirim isi handoff (alasan + ringkasan + konteks percakapan) sebagai pesan WhatsApp ke nomor `WHATSAPP_ADMIN_NUMBER` via port `MessageSender` provider yang sama; `LoggingAdminChannel` (sementara) dihapus. Isi handoff selalu dicatat ke log proses sebagai jejak audit sebelum dikirim.
+- `src/server.ts` — penerusan kini **ditunggu** hasilnya sebelum balasan mengklaim "diteruskan"; kegagalan pengiriman async tetap memicu pemberitahuan gangguan + metrik tidak naik (sebelumnya rejection async bisa lolos dari try/catch).
+- `src/config.ts` + `.env(.example)` — `WHATSAPP_ADMIN_NUMBER` wajib diisi, ternormalisasi E.164.
+- Tes: `tests/adminChannel.test.ts` (isi pesan ke admin + penolakan provider), `tests/transport/adminHandoffDelivery.test.ts` (wiring: handoff terkirim ke nomor admin + kegagalan tidak diklaim), `tests/config.test.ts` (konfigurasi nomor admin). **167 tes hijau**, typecheck bersih.
+- Runbook `docs/whatsapp-number-cutover.md` diperbarui: status nomor produksi, kanal admin, dan langkah kontak publik (nomor produksi sama dengan nomor yang sudah tercantum di materi publik — tugasnya memastikan konsistensi, bukan mengganti).
+
+Sisa tindakan manusia (poin 1, 2, 4 checklist):
+
+1. Verifikasi nomor produksi `+62 877 4587 3159` pada provider terpilih (Fonnte: tambah/hubungkan perangkat, auto read ON, daftarkan webhook; atau jalur WABA bila memakai Cloud API) dan catat identitas/token barunya.
+2. Ganti `WHATSAPP_SENDER_NUMBER` (+ token bila berubah) ke nomor produksi, jalankan `npm run cutover:check` sampai "siap", restart proses bot.
+3. Smoke test end-to-end (langkah 6 runbook): balasan awal + FAQ + handoff ke nomor admin + metrik.
+4. Pastikan permukaan kontak publik konsisten menampilkan `+62 877 4587 3159` setelah nomor aktif.

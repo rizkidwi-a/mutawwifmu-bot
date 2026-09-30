@@ -62,15 +62,13 @@ Untuk harga hotel, materi memuat keterangan satuan yang bertentangan — per ora
 
 Bot meneruskan percakapan ke admin hanya setelah calon jemaah menyetujui penerusan informasinya; bila ditolak, informasi tidak diteruskan. Kasus yang diteruskan: permintaan berbicara dengan manusia, pertanyaan yang tidak didukung/tidak pasti, permintaan penawaran khusus/konfirmasi harga atau ketersediaan, pertanyaan agen/korporasi, booking/pembayaran, perjalanan aktif, dan keadaan darurat. Pesan konfirmasi tidak menjanjikan waktu balasan admin.
 
-Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) — spec melarang mengasumsikan CRM/shared inbox tertentu. Implementasi aktif saat ini `LoggingAdminChannel` **bersifat sementara** (mencatat ringkasan + konteks percakapan ke log proses).
-
-> **Gate pra-produksi:** kanal penerimaan admin harus dikonfirmasi pemilik dan dicatat sebagai ADR sebelum handoff dipakai di produksi (lihat tiket 06). Mengganti implementasi `AdminChannel` tidak mengubah perilaku percakapan.
+Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) — spec melarang mengasumsikan CRM/shared inbox tertentu. Keputusan pemilik (lihat `docs/adr/0006-kanal-admin-whatsapp.md`): handoff dikirim sebagai **pesan WhatsApp ke nomor admin** yang dibaca dari `WHATSAPP_ADMIN_NUMBER`, melalui provider yang sama dengan bot; isi handoff juga dicatat ke log proses sebagai jejak audit. Mengganti implementasi `AdminChannel` tidak mengubah perilaku percakapan.
 
 Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FAQ yang terjawab tanpa handoff (metrik pendamping) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
 
 ## Konfigurasi
 
-Semua identitas provider dan nomor pengirim berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
+Semua identitas provider, nomor pengirim, dan nomor admin penerima handoff berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
 
 Sebelum cutover, jalankan `npm run cutover:check` untuk memastikan konfigurasi provider sudah lengkap dan nomor pengirim bukan lagi nomor pengembangan (perintah keluar dengan kode 1 bila belum siap). Pergantian nomor tidak membawa riwayat percakapan — batasannya dijelaskan di `docs/whatsapp-number-cutover.md` bagian "Batasan migrasi riwayat percakapan".
 

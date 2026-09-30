@@ -21,6 +21,7 @@ import type { InboundMessage } from "../../src/conversation/types.ts";
 const envNomorPengembangan: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
   WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_API_TOKEN: "token-fonnte",
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
 };
@@ -28,6 +29,7 @@ const envNomorPengembangan: Record<string, string> = {
 const envNomorProduksi: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
   WHATSAPP_SENDER_NUMBER: "+62 812 9000 1111",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_API_TOKEN: "token-fonnte",
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
 };

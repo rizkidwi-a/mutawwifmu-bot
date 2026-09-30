@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { createAppServer } from "../../src/server.ts";
 import { createTransport } from "../../src/adapters/factory.ts";
-import { LoggingAdminChannel } from "../../src/adminChannel.ts";
 import { loadConfig } from "../../src/config.ts";
 import { InMemoryConversationStore } from "../../src/conversationStore.ts";
 import { InMemoryMetrics } from "../../src/metrics.ts";
@@ -11,6 +10,7 @@ import { InMemoryMetrics } from "../../src/metrics.ts";
 const envKonfigurasi: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
   WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+  WHATSAPP_ADMIN_NUMBER: "+62 822 8388 6627",
   WHATSAPP_API_TOKEN: "token-fonnte",
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
 };
@@ -75,7 +75,7 @@ async function buatLingkungan(balasanFonnte: unknown = { detail: "success! messa
     config,
     ...createTransport(config.whatsapp),
     conversations: new InMemoryConversationStore(),
-    adminChannel: new LoggingAdminChannel(() => {}),
+    adminChannel: { deliver: () => {} },
     metrics: new InMemoryMetrics(),
   });
   const portApp = await dengarkan(server);

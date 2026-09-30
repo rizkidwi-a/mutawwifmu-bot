@@ -7,14 +7,15 @@ Dokumen ini menjelaskan (1) langkah verifikasi provider agar nomor pengembangan 
 | Nilai | Sumber |
 | --- | --- |
 | Nomor pengembangan | `+62 895 0700 3830` (dikembangkan dan diverifikasi untuk pengembangan) |
+| Nomor produksi | `+62 877 4587 3159` — **ditetapkan pemilik** (mantan nomor konsultasi profil); swap konfigurasi dilakukan setelah verifikasi dan identitas provider untuk nomor ini tersedia |
 | Provider | WhatsApp Cloud API (Meta) sebagai pilihan utama, Fonnte (BSP) sebagai alternatif; lihat `docs/adr/0001-provider-whatsapp-cloud-api.md` dan `docs/adr/0003-provider-bsp-fonnte.md` |
-| Nomor konsultasi profil (`+62 877 4587 3159`) | Tidak berada dalam kendali pengguna — **bukan** prasyarat pengembangan |
-| Kanal penerimaan admin | `LoggingAdminChannel` (sementara, mencatat ke log proses) — kanal final adalah keputusan pemilik (gate pra-produksi, lihat README bagian Handoff ke admin) |
+| Kanal penerimaan admin | WhatsApp ke nomor admin `+62 822 8388 6627` lewat `WHATSAPP_ADMIN_NUMBER` (keputusan pemilik, lihat `docs/adr/0006-kanal-admin-whatsapp.md`) |
 
 Konfigurasi yang mengendalikan identitas pengirim (lihat `.env.example`):
 
 - `WHATSAPP_PROVIDER` — provider yang dipakai: `whatsapp-cloud-api` (default) atau `fonnte`.
 - `WHATSAPP_SENDER_NUMBER` — nomor pengirim (E.164, mis. `+62 895 0700 3830`)
+- `WHATSAPP_ADMIN_NUMBER` — nomor WhatsApp admin penerima handoff (lihat ADR-0006)
 - `WHATSAPP_WEBHOOK_VERIFY_TOKEN` — rahasia endpoint webhook; maknanya mengikuti provider (handshake pada Cloud API, token URL pada Fonnte)
 - `WHATSAPP_API_TOKEN` — token provider
 - `WHATSAPP_API_BASE_URL` — dasar API, default per provider
@@ -52,7 +53,7 @@ Langkah ini dipakai bila akun Meta for Developers belum dapat dibuat (lihat `doc
 
 Tiket terkait: `.scratch/whatsapp-customer-service-chatbot/issues/06-production-number-cutover.md`.
 
-1. **Pilih dan miliki nomor produksi** — nomor yang dapat menerima OTP dan sudah disetujui untuk WhatsApp Business Platform. Nomor konsultasi pada profil perusahaan hanya dapat dipakai bila pemiliknya menyerahkan kendali dan lolos migrasi/verifikasi.
+1. **Pilih dan miliki nomor produksi** — nomor yang dapat menerima OTP dan sudah disetujui untuk WhatsApp Business Platform. Untuk cutover berjalan nomor sudah ditetapkan pemilik: `+62 877 4587 3159`; syaratnya tetap: kendali penuh di tangan MUTAWWIFMU dan lolos verifikasi provider.
 2. **Verifikasi provider untuk nomor produksi** — daftarkan nomor ke WABA yang sama (atau WABA baru), verifikasi via OTP, lalu setujui nama tampilan bisnis. Untuk volume/fitur produksi, lengkapi **Business Verification** Meta (dokumen legal bisnis).
 3. **Dapatkan identitas baru** — catat Phone Number Id baru dan perbarui token bila diperlukan.
 4. **Ganti konfigurasi saja** (tanpa perubahan kode):
@@ -69,24 +70,26 @@ Tiket terkait: `.scratch/whatsapp-customer-service-chatbot/issues/06-production-
    - ajukan pertanyaan FAQ (mis. "Apa itu land arrangement?") → dijawab dari
      materi tanpa handoff, dan `GET /metrics` menunjukkan `faqAnswered` bertambah;
    - minta berbicara dengan manusia lalu jawab `ya` pada permintaan persetujuan
-     → handoff tercatat pada kanal admin (log proses untuk implementasi
-     sementara) dan `handOffsForwarded` bertambah;
+     → pesan handoff masuk ke nomor admin WhatsApp (`WHATSAPP_ADMIN_NUMBER`)
+     dan `handOffsForwarded` bertambah;
    - jalankan `npm test` untuk memastikan seluruh tes — termasuk
      `tests/transport/cutoverParity.test.ts` yang menjaga FAQ dan handoff tetap
      berfungsi pada konfigurasi nomor produksi — tetap hijau.
-7. **Perbarui informasi kontak publik yang dikendalikan MUTAWWIFMU** agar calon
-   jemaah menghubungi nomor produksi yang aktif:
+7. **Perbarui/pastikan informasi kontak publik yang dikendalikan MUTAWWIFMU**
+   mengarahkan calon jemaah ke nomor produksi yang aktif (`+62 877 4587 3159`):
+   - nomor produksi saat ini **sama dengan** nomor konsultasi yang sudah tercantum
+     di materi publik, jadi permukaan umumnya tidak perlu diubah — yang perlu
+     dilakukan adalah memastikan semuanya konsisten menampilkan nomor tersebut
+     dan tidak ada yang menampilkan nomor pengembangan;
    - permukaan yang diketahui: situs `www.mutawwifmu.com` (halaman
      kontak/footer), akun Instagram `@mutawwifmu` (bio/kontak), serta
      `BOOKLET MUTAWWIFMU.md` (baris kontak pada sampul, bagian "Konsultasi
      dengan Admin via WhatsApp", dan blok kontak penutup) beserta materi
      cetak/digital lain yang memuat nomor;
-   - jangan mencantumkan nomor yang belum aktif dan terverifikasi;
-   - penempatan nomor lain (mis. kanal konsultasi/admin) mengikuti keputusan
-     pemilik tentang kanal admin — keputusan itu tidak dikunci di sini;
-   - nomor konsultasi lama `+62 877 4587 3159` hanya dapat dicantumkan
-     sebagai nomor produksi bila kendalinya sudah benar-benar pindah ke
-     MUTAWWIFMU dan lolos verifikasi (lihat "Kondisi sekarang").
+   - jangan mengaktifkan publikasi nomor sebelum nomor terverifikasi dan bot
+     sudah menjawab dari nomor tersebut;
+   - nomor admin handoff (`+62 822 8388 6627`) bukan untuk publik — jangan
+     dicantumkan sebagai kontak calon jemaah.
 8. **Pensiunkan nomor pengembangan** (opsional) — hapus dari WABA setelah produksi stabil; jangan hapus sebelum smoke test lolos.
 
 ## Batasan migrasi riwayat percakapan
@@ -123,6 +126,6 @@ maupun Fonnte) tidak mendukung pemindahan riwayat chat antar nomor.
   produksi yang aktif.
 - Batasan migrasi riwayat percakapan dikomunikasikan tanpa menjanjikan riwayat
   berpindah.
-- Gate pra-produksi terpisah: kanal penerimaan admin dikonfirmasi pemilik dan
-  dicatat sebagai ADR sebelum handoff dipakai di produksi (lihat README bagian
-  Handoff ke admin).
+- Gate pra-produksi kanal admin **terpenuhi**: keputusan pemilik sudah ada
+  (pesan WhatsApp ke nomor admin, ADR-0006) dan dipakai implementasi
+  `WhatsAppAdminChannel`.

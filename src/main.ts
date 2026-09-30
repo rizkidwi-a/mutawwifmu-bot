@@ -3,7 +3,7 @@
  */
 
 import { createTransport } from "./adapters/factory.ts";
-import { LoggingAdminChannel } from "./adminChannel.ts";
+import { WhatsAppAdminChannel } from "./adminChannel.ts";
 import { loadConfig } from "./config.ts";
 import { InMemoryConversationStore } from "./conversationStore.ts";
 import { InMemoryMetrics } from "./metrics.ts";
@@ -12,10 +12,9 @@ import { createAppServer } from "./server.ts";
 const config = loadConfig(process.env);
 const { sender, inbound } = createTransport(config.whatsapp);
 
-// Kanal admin masih sementara (logging). Gate pra-produksi: kanal penerimaan
-// admin harus dikonfirmasi pemilik (dicatat sebagai ADR) sebelum handoff
-// dipakai di produksi — lihat tiket 06 cutover produksi.
-const adminChannel = new LoggingAdminChannel();
+// Kanal admin sesuai keputusan pemilik (ADR-0006): handoff dikirim sebagai
+// pesan WhatsApp ke nomor admin yang dikonfigurasi, melalui provider yang sama.
+const adminChannel = new WhatsAppAdminChannel(sender, config.adminNumber);
 const conversations = new InMemoryConversationStore();
 const metrics = new InMemoryMetrics();
 

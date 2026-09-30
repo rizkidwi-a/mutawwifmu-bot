@@ -1,10 +1,11 @@
 /**
  * Port kanal penerimaan admin untuk handoff (spec: "jangan mengasumsikan
- * adanya CRM atau shared inbox tertentu"). Implementasi `LoggingAdminChannel`
- * bersifat sementara; kanal final adalah keputusan pemilik dan dicatat sebagai
- * ADR sebelum handoff dipakai di produksi (gate pra-produksi, lihat tiket 06).
+ * adanya CRM atau shared inbox tertentu"). Keputusan pemilik (ADR-0006):
+ * handoff dikirim sebagai pesan WhatsApp ke nomor admin yang dikonfigurasi
+ * (`WHATSAPP_ADMIN_NUMBER`) melalui provider yang sama dengan bot.
  */
 
+import type { MessageSender } from "./messageSender.ts";
 import type { ConversationTurn, FollowUpRequest, HandOffReason } from "./conversation/types.ts";
 
 /** Isi yang diteruskan ke admin: alasan, ringkasan permintaan, dan konteks percakapan. */
@@ -18,24 +19,38 @@ export interface AdminHandoff {
 }
 
 export interface AdminChannel {
-  /** Teruskan handoff ke kanal admin; lempar error bila penerusan gagal. */
-  deliver(handoff: AdminHandoff): void;
+  /**
+   * Teruskan handoff ke kanal admin; lempar error bila penerusan gagal.
+   * Boleh sinkron maupun asinkron (pengiriman provider) — pemanggil wajib
+   * menunggu hasilnya sebelum mengklaim informasi telah diteruskan.
+   */
+  deliver(handoff: AdminHandoff): void | Promise<void>;
 }
 
 /**
- * Implementasi sementara: mencatat handoff lewat penulis teks (default stdout).
- * Penerima nyata (mis. WhatsApp admin, email, dsb.) menggantikan implementasi
- * ini tanpa mengubah perilaku percakapan.
+ * Kanal handoff ke nomor admin WhatsApp (ADR-0006). Isi handoff selalu dicatat
+ * ke log proses lebih dulu (jejak audit dan pemulihan bila pengiriman gagal),
+ * lalu dikirim sebagai pesan teks ke nomor admin lewat port `MessageSender`.
  */
-export class LoggingAdminChannel implements AdminChannel {
+export class WhatsAppAdminChannel implements AdminChannel {
+  private readonly sender: MessageSender;
+  private readonly adminNumber: string;
   private readonly write: (text: string) => void;
 
-  constructor(write: (text: string) => void = (text) => console.log(text)) {
+  constructor(
+    sender: MessageSender,
+    adminNumber: string,
+    write: (text: string) => void = (text) => console.log(text),
+  ) {
+    this.sender = sender;
+    this.adminNumber = adminNumber;
     this.write = write;
   }
 
-  deliver(handoff: AdminHandoff): void {
-    this.write(formatAdminHandoff(handoff));
+  async deliver(handoff: AdminHandoff): Promise<void> {
+    const text = formatAdminHandoff(handoff);
+    this.write(text);
+    await this.sender.sendText(this.adminNumber, text);
   }
 }
 
