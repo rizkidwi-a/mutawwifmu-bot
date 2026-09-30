@@ -1,28 +1,72 @@
-# Handoff Sesi — Tiket 06 Menunggu Verifikasi Nomor Produksi di Provider
+# Handoff Sesi — Besok: Cutover Nomor Produksi (Playbook Siap Jalan)
 
-**Untuk sesi baru:** baca file ini lebih dulu, lalu kerjakan langkah berikutnya.
+**Untuk sesi baru:** baca file ini lebih dulu. Pemilik akan mengerjakan cutover
+mengikuti `docs/tutorial-cutover-nomor-produksi.md` (Fase 1–5, checklist
+dicentang). Tugas sesi baru: jalankan **playbook di bagian "Alur esok hari"**
+saat pemilik datang membawa hasil/ token nomor produksi.
 **Aturan aktif:** bila konteks window sudah melewati 25%, buat handoff baru (perbarui
-file ini) dan minta pengguna pindah ke sesi baru — jangan memaksakan sampai kehabisan konteks.
+file ini) dan minta pengguna pindah ke sesi baru.
 
 ## Status repo (branch `main`, working tree bersih)
 
 | Commit | Isi |
 | --- | --- |
+| `e523b1d` | Tutorial cutover untuk pemilik (`docs/tutorial-cutover-nomor-produksi.md`) + tautan README/runbook |
+| `b5f8b92` | Handoff sesi sebelumnya |
 | `fa30764` | Kanal admin WhatsApp (keputusan pemilik) + ADR-0006; `LoggingAdminChannel` dihapus; server menunggu hasil penerusan |
-| `a6c2c83` | Handoff sesi sebelumnya |
-| `bca8260` | Tiket 06 software (`ready-for-human`): `npm run cutover:check` + tes cutover parity + dokumen kontak publik & batasan migrasi riwayat |
-| `7159880` | Handoff; tiket 05 selesai sebelumnya (`9b03e21`) |
+| `bca8260` | Tiket 06 software: `npm run cutover:check` + tes cutover parity + dokumen kontak publik & batasan migrasi riwayat |
 
 Terakhir diverifikasi: **167 tes hijau**, `npm run typecheck` bersih.
 
 ## Keputusan pemilik yang sudah masuk (jangan ditanya ulang)
 
-- **Nomor produksi: `+62 877 4587 3159`** (mantan nomor konsultasi profil; pemilik
-  menetapkannya sebagai nomor produksi). Sudah dicatat di runbook; **swap konfigurasi
-  `.env` BELUM dilakukan** karena token/identitas provider untuk nomor ini belum ada.
+- **Nomor produksi: `+62 877 4587 3159`** (mantan nomor konsultasi profil). Sudah
+  dicatat di runbook + tutorial; **swap `.env` BELUM dilakukan** karena token
+  perangkat produksi belum ada.
 - **Kanal admin: pesan WhatsApp ke `+62 822 8388 6627`** (`WHATSAPP_ADMIN_NUMBER`,
-  wajib di konfigurasi) — diimplementasikan `WhatsAppAdminChannel`, dicatat di
-  `docs/adr/0006-kanal-admin-whatsapp.md`. Gate pra-produksi kanal admin **tertutup**.
+  wajib di konfigurasi, sudah di `.env`) — `WhatsAppAdminChannel`, ADR-0006.
+  Gate pra-produksi kanal admin **tertutup**.
+
+## Alur esok hari (playbook agent)
+
+**Skenario utama — pemilik datang dengan token perangkat produksi** (kata kunci:
+"token perangkat produksi", "lanjutkan cutover", "sudah sampai Fase 2"):
+
+1. Edit `.env` — **hanya dua baris ini**:
+   - `WHATSAPP_SENDER_NUMBER=+62 877 4587 3159`
+   - `WHATSAPP_API_TOKEN=<token perangkat produksi dari pemilik>`
+   - Jangan sentuh baris lain (termasuk `WHATSAPP_ADMIN_NUMBER` dan
+     `WHATSAPP_WEBHOOK_VERIFY_TOKEN` — terakhir ini bagian dari URL webhook yang
+     sudah didaftarkan). Ingat jebakan: variabel shell **menimpa** `.env`
+     (PowerShell: cek `$env:WHATSAPP_API_TOKEN`, `$env:WHATSAPP_SENDER_NUMBER`).
+2. `npm run cutover:check` — wajib lapor **"Status: siap untuk uji end-to-end pada
+   nomor produksi."**; bila belum, perbaiki sesuai baris `[GAGAL]` (biasanya nomor
+   pengembangan masih tertinggal / token belum terbaca).
+3. `npm test` + `npm run typecheck` — harus **167 hijau** dan bersih.
+4. Minta pemilik menjalankan ulang `npm start` (atau jalankan bila prosesnya di
+   tangan agent) — cek log: `nomor pengirim 6287745873159`.
+5. Dampingi smoke test Fase 4 tutorial: pemilik mengirim pesan dari ponselnya
+   ("Halo" → sapaan; "Apa itu land arrangement?" → FAQ; "Saya mau bicara dengan
+   manusia saja" + "ya" → handoff masuk ke `+62 822 8388 6627`). Dari sisi agent:
+   `curl http://localhost:3000/metrics` — `faqAnswered` dan `handOffsForwarded`
+   naik; bila ada yang gagal, periksa log proses (jejak audit handoff ada di sana).
+6. Bila semua lolos + pemilik mengonfirmasi kontak publik konsisten (Fase 5):
+   centang checklist poin 1, 2, 4 di tiket 06, tambah komentar hasil, ubah
+   `Status:` → `resolved`.
+
+**Skenario lain:**
+
+- Pemilik datang **tanpa token** (baru di tengah tutorial): lanjutkan dari fase
+  tutorial yang tersisa; **jangan swap `.env` sebelum token perangkat produksi
+  benar-benar ada** — swap parsial membuat bot mengaku nomor produksi tapi
+  mengirim lewat perangkat lama.
+- Pemilik hanya ingin **uji kanal admin dulu** (Fase 1 tutorial): cukup restart
+  `npm start` (nomor admin sudah di `.env`) lalu alur "minta manusia" + "ya" dari
+  nomor lain → pesan handoff harus muncul di `+62 822 8388 6627`.
+- **Setelah tiket 06 `resolved`:** sisa penghalang hanya tiket 07
+  (`needs-info`) — penempatan proses bot di server/VPS dengan URL webhook stabil;
+  kerjakan bila pemilik menyiapkan VPS. Keputusan provider produksi diambil ulang
+  lewat ADR (ADR-0003).
 
 ## Konteks singkat
 
@@ -55,10 +99,10 @@ Terakhir diverifikasi: **167 tes hijau**, `npm run typecheck` bersih.
   mencatat isi handoff ke log proses (jejak audit) lalu `sender.sendText(adminNumber, text)`.
   `AdminChannel.deliver` boleh `void | Promise<void>` dan **wajib ditunggu** pemanggil —
   `src/server.ts` `runActions` sudah `await`; jangan kembalikan ke pola tanpa-`await`
-  (rejection async bisa lolos dan menghasilkan klaim palsu + metrik salah).
+  (rejection async bisa lolos → klaim palsu + metrik salah).
 - Konfigurasi (`src/config.ts`): `WHATSAPP_SENDER_NUMBER`, `WHATSAPP_ADMIN_NUMBER`
-  (keduanya wajib, ternormalisasi E.164), `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, plus
-  kredensial per provider (`WHATSAPP_PROVIDER`: `whatsapp-cloud-api` / `fonnte`).
+  (wajib, ternormalisasi E.164), `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, plus kredensial
+  per provider (`WHATSAPP_PROVIDER`: `whatsapp-cloud-api` / `fonnte`).
   `npm run cutover:check` (`src/cutoverPreflight.ts`) menilai kelengkapan + memastikan
   nomor pengirim bukan nomor pengembangan `6289507003830`.
 - Metrik (`src/metrics.ts`): `faqAnswered` ikut menghitung jawaban harga (`price-*`);
@@ -95,22 +139,8 @@ Terakhir diverifikasi: **167 tes hijau**, `npm run typecheck` bersih.
 - Variabel yang sudah ada di shell **menimpa** isi `.env` saat `npm start` / `npm run cutover:check`.
 - Saat menambah variabel konfigurasi wajib: fixture tes ikut diperbarui (tests/config,
   tests/cutoverPreflight, tests/transport/*) — preseden `WHATSAPP_ADMIN_NUMBER`.
-
-## Sisa langkah
-
-1. **Tiket 06 — verifikasi nomor produksi di provider (aksi pemilik):**
-   (a) hubungkan `+62 877 4587 3159` ke Fonnte sebagai perangkat (QR/Sinkit, auto read ON,
-   daftarkan URL webhook) atau jalur WABA bila memakai Cloud API; (b) berikan token/identitas
-   perangkat barunya ke agent → agent swap `.env` (`WHATSAPP_SENDER_NUMBER` + token),
-   jalankan `npm run cutover:check` sampai "siap", restart proses; (c) smoke test end-to-end
-   (balasan awal + FAQ + handoff ke `+62 822 8388 6627` + metrik); (d) pastikan permukaan
-   kontak publik konsisten (nomor produksi = nomor yang sudah tercantum di materi).
-   Setelah itu tiket 06 dapat `resolved`.
-2. **Tes kanal admin bisa dimulai sekarang** (tanpa cutover): restart proses bot agar
-   `WHATSAPP_ADMIN_NUMBER` termuat, kirim "Saya mau bicara dengan manusia" ke nomor
-   pengembangan, jawab `ya`, lalu cek pesan handoff masuk ke nomor admin.
-3. **Tiket 07** (`needs-info`) — sisa penghalang: penempatan proses bot di server/VPS
-   dengan URL webhook stabil. Keputusan provider produksi diambil ulang lewat ADR (ADR-0003).
+- Fonnte: tanpa **Auto Read** webhook tidak pernah dipanggil; URL webhook berubah bila
+  tunnel berubah → daftarkan ulang.
 
 ## Konvensi repo (wajib)
 
@@ -121,12 +151,14 @@ Terakhir diverifikasi: **167 tes hijau**, `npm run typecheck` bersih.
   (lihat `docs/agents/triage-labels.md`); sisa aksi manusia → `ready-for-human`.
 - Perubahan yang bertentangan dengan ADR wajib dinyatakan eksplisit (ADR baru + catatan di
   ADR lama) — jangan mengubah ADR diam-diam.
+- Selesai kerja: `/code-review` dulu, baru commit ke `main`; perbarui file handoff ini
+  sebagai commit `docs(handoff)` terpisah.
 
 ## Riwayat insiden (jangan diulang)
 
 - Sesi paralel yang menulis tiket 03 sudah mati; kerjanya diamanatkan di `7566989`.
 - Tiket 03 selesai di `ebd9ef5`; tiket 04 di `02aed86`; tiket 05 di `7159880`; software
-  tiket 06 di `bca8260`; kanal admin di sesi ini (`fa30764`).
+  tiket 06 di `bca8260`; kanal admin di `fa30764`; tutorial pemilik di `e523b1d`.
 - Jebakan yang sudah diperbaiki: `runActions` tidak menunggu `deliver` async → rejection
   lolos dari try/catch dan balasan mengklaim "diteruskan" palsu. Sudah diperbaiki + diuji
   (`tests/transport/adminHandoffDelivery.test.ts`) — jangan dikembalikan.
