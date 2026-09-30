@@ -2,6 +2,10 @@
 
 Dokumen ini menjelaskan (1) langkah verifikasi provider agar nomor pengembangan dapat dipakai, dan (2) jalur penggantian ke nomor produksi kelak. Perilaku percakapan tidak ikut berubah saat nomor diganti — nomor pengirim dan identitas provider sepenuhnya berasal dari konfigurasi (lihat ADR-0001 dan tes "perilaku percakapan tidak berubah saat nomor pengirim dan identitas provider diganti").
 
+> Untuk cutover yang sedang berjalan, panduan praktis berupa checklist yang dapat
+> dicentang ada di `docs/tutorial-cutover-nomor-produksi.md` — ikuti tutorial itu;
+> dokumen ini menjadi referensi teknis di belakangnya.
+
 ## Kondisi sekarang
 
 | Nilai | Sumber |

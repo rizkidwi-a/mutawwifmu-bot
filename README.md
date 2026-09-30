@@ -72,6 +72,8 @@ Semua identitas provider, nomor pengirim, dan nomor admin penerima handoff beras
 
 Sebelum cutover, jalankan `npm run cutover:check` untuk memastikan konfigurasi provider sudah lengkap dan nomor pengirim bukan lagi nomor pengembangan (perintah keluar dengan kode 1 bila belum siap). Pergantian nomor tidak membawa riwayat percakapan — batasannya dijelaskan di `docs/whatsapp-number-cutover.md` bagian "Batasan migrasi riwayat percakapan".
 
+**Panduan langkah demi langkah untuk pemilik (checklist cutover yang dapat dicentang):** `docs/tutorial-cutover-nomor-produksi.md`.
+
 ## Pengujian
 
 ```bash
