@@ -6,7 +6,7 @@ Simpan spesifikasi dan tiket sebagai file Markdown di `.scratch/<feature-slug>/`
 
 ### Triage labels
 
-Gunakan lima label triase default yang tercantum di `docs/agents/triage-labels.md`.
+Gunakan label triase default yang tercantum di `docs/agents/triage-labels.md`, termasuk status akhir `resolved` untuk tiket yang selesai.
 
 ### Domain docs
 

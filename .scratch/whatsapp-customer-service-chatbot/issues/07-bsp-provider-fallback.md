@@ -4,7 +4,9 @@
 
 **Blocked by:** 01 (transport provider sudah ada)
 
-**Status:** ready-for-agent (pekerjaan kode selesai; handoff ke admin dan pemindahan ke server Menunggu keputusan manusia)
+**Status:** needs-info
+
+Pekerjaan kode selesai dan terverifikasi. Sisa pekerjaan memerlukan keputusan manusia, sehingga tiket menunggu: (a) kanal penerimaan handoff admin untuk tiket 02, (b) penempatan proses bot di server dengan URL webhook stabil. Keduanya tidak bisa diputuskan agent.
 
 - [x] Keputusan provider BSP alternatif tercatat sebagai ADR, berikut konsekuensi dan alasan penolakan kandidat lain.
 - [x] Adapter pengirim pesan dan pembacaan webhook untuk provider baru ada di `src/adapters/`, tanpa menambah dependency runtime.

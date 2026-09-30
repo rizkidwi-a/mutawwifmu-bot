@@ -30,7 +30,7 @@ Hasil kerja:
 - Jalur verifikasi nomor pengembangan dan cutover ke nomor produksi: `docs/whatsapp-number-cutover.md`.
 - Tes: 23 tes hijau (`npm test`) — perilaku pada seam percakapan + kontrak/transport yang membuktikan pesan masuk dan balasan keluar melalui kanal provider (webhook masuk → API keluar pada server provider palsu), tanpa menggantikan tes perilaku seam. `npm run typecheck` bersih.
 
-Sisa tindakan manusia (alasan status `ready-for-human`):
+Sisa tindakan manusia saat tiket ini pertama selesai diimplementasikan (alasan status `ready-for-human` pada waktu itu; telah diselesaikan — lihat komentar di bawah):
 
 1. Verifikasi nomor pengembangan `+62 895 0700 3830` di WhatsApp Cloud API (akun Meta, WABA, OTP SMS/telepon) — langkah di `docs/whatsapp-number-cutover.md` bagian "Langkah verifikasi nomor pengembangan".
 2. Isi kredensial nyata pada `.env` (Phone Number Id, access token, app secret, verify token) dan daftarkan URL webhook HTTPS publik.

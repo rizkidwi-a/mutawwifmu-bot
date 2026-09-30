@@ -8,6 +8,9 @@ Spesifikasi dan tiket untuk direktori ini disimpan sebagai file Markdown di `.sc
 - Spesifikasi fitur: `.scratch/<feature-slug>/spec.md`
 - Setiap tiket implementasi adalah file tersendiri di `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, bernomor mulai `01`. Jangan gabungkan beberapa tiket dalam satu file.
 - Status triase dicatat sebagai baris `Status:` di dekat bagian atas file tiket. Lihat `triage-labels.md` untuk nama label.
+- Ada dua gaya tiket dengan kosakata status yang berbeda; jangan mencampur keduanya pada satu file:
+  - Tiket fitur (punya `What to build:` dan `Blocked by:`) memakai label triase, dan ditutup dengan `resolved`.
+  - Tiket gaya wayfinding (punya `Type:` dan `Answer:`) memakai `claimed` dan `resolved`, serta tetap memakai label triase bila perlu menunda ke pelapor lewat `needs-info`.
 - Komentar dan riwayat percakapan ditambahkan di bagian bawah file, di bawah judul `## Comments`.
 
 ## Saat skill meminta untuk menerbitkan ke issue tracker
