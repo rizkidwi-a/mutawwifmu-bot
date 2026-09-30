@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] Provider integrasi dipilih dan nomor pengembangan `+62 895 0700 3830` dapat menerima serta mengirim pesan setelah verifikasi yang diperlukan.
 - [x] Pesan masuk menghasilkan balasan awal yang aman melalui WhatsApp secara end-to-end.
@@ -45,4 +45,8 @@ Konteks baru: pemilik akun tidak dapat membuat akun Meta for Developers, sehingg
 - `docs/adr/0003-provider-bsp-fonnte.md` — Fonnte (BSP) ditambahkan sebagai provider aktif lewat konfigurasi; Cloud API dipertahankan sebagai pilihan (lihat juga tiket 07).
 - Konsekuensi untuk tiket ini: poin "provider integrasi dipilih" kini terpenuhi lewat Fonnte; sisa langkah verifikasi berubah dari OTP Meta menjadi onboarding Fonnte — daftar akun, hubungkan nomor `+62 895 0700 3830` sebagai perangkat, aktifkan **auto read**, daftarkan URL webhook `https://<host>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN>`. Langkah lengkap: `docs/whatsapp-number-cutover.md` bagian Fonnte.
 - Kriteria penerimaan tiket ini tidak berubah: perilaku percakapan tetap di seam yang sama dan provider-agnostic; hanya transport yang berganti. Tes dijalankan ulang setelah migrasi: **45 tes hijau**, `npm run typecheck` bersih.
-- Status tetap `ready-for-human`: onboarding Fonnte + smoke test live masih tindakan manusia. Bila kelak akun Meta dapat diakses, jalur Cloud API tetap tersedia tanpa perubahan kode.
+- Status kini `resolved`: onboarding Fonnte dan smoke test live selesai — lihat komentar berikut. Bila kelak akun Meta dapat diakses, jalur Cloud API tetap tersedia tanpa perubahan kode.
+
+### Tiket 01 dinyatakan selesai (agent)
+
+Smoke test live dikonfirmasi pengguna: jalur pesan ke nomor pengembangan `+62 895 0700 3830` lewat Fonnte berfungsi. Pada saat pemeriksaan: proses bot aktif (provider `fonnte`), tunnel publik hidup, probe `POST /webhook?token=...` membalas `200 {"status":"ok"}`, permintaan tanpa/token salah ditolak `401`, dan `npm test` 45 hijau. Seluruh kriteria penerimaan tiket ini terpenuhi — Status `resolved`, sehingga tiket 02 dan seterusnya resmi tidak terblokir.
