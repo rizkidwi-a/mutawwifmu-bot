@@ -31,6 +31,42 @@ test("konfigurasi tanpa variabel wajib gagal dengan pesan yang menyebut variabel
   assert.throws(() => loadConfig(envTanpaToken), /WHATSAPP_API_TOKEN/);
 });
 
+test("provider BSP hanya membutuhkan token API dan token webhook, tanpa phone number id atau app secret", () => {
+  const config = loadConfig({
+    WHATSAPP_PROVIDER: "fonnte",
+    WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_API_TOKEN: "token-fonnte",
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
+  });
+  assert.equal(config.whatsapp.provider, "fonnte");
+  assert.equal(config.whatsapp.apiBaseUrl, "https://api.fonnte.com");
+  assert.equal(config.whatsapp.apiToken, "token-fonnte");
+  assert.equal(config.whatsapp.senderNumber, "6289507003830");
+  assert.equal("countryCode" in config.whatsapp && config.whatsapp.countryCode, "62");
+});
+
+test("kode negara BSP dapat diatur lewat konfigurasi", () => {
+  const config = loadConfig({
+    WHATSAPP_PROVIDER: "fonnte",
+    WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_API_TOKEN: "token-fonnte",
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
+    WHATSAPP_COUNTRY_CODE: "60",
+  });
+  assert.equal("countryCode" in config.whatsapp && config.whatsapp.countryCode, "60");
+});
+
+test("provider yang tidak dikenal ditolak dengan pesan yang menyebut pilihannya", () => {
+  assert.throws(
+    () =>
+      loadConfig({
+        ...envDasar,
+        WHATSAPP_PROVIDER: "provider-ngawur",
+      }),
+    /whatsapp-cloud-api.*fonnte/s,
+  );
+});
+
 test("perilaku percakapan tidak berubah saat nomor pengirim dan identitas provider diganti", () => {
   const configPengembangan = loadConfig(envDasar);
   const configProduksi = loadConfig({
@@ -50,4 +86,18 @@ test("perilaku percakapan tidak berubah saat nomor pengirim dan identitas provid
   const balasanPengembangan = handleInbound(pesan, { history: [] });
   const balasanProduksi = handleInbound(pesan, { history: [] });
   assert.deepEqual(balasanPengembangan, balasanProduksi);
+});
+
+test("kontrak yang dipakai server tersedia pada kedua provider", () => {
+  const cloudApi = loadConfig(envDasar);
+  const bsp = loadConfig({
+    WHATSAPP_PROVIDER: "fonnte",
+    WHATSAPP_SENDER_NUMBER: "+62 895 0700 3830",
+    WHATSAPP_API_TOKEN: "token-fonnte",
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: "token-webhook",
+  });
+  for (const config of [cloudApi, bsp]) {
+    assert.equal(config.whatsapp.senderNumber, "6289507003830");
+    assert.equal(config.whatsapp.webhookVerifyToken.length > 0, true);
+  }
 });

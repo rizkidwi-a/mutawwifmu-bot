@@ -10,20 +10,41 @@ Prasyarat: Node.js >= 22.18.
 
 ```bash
 npm install
-cp .env.example .env   # isi kredensial WhatsApp Cloud API
+cp .env.example .env   # isi kredensial provider yang dipilih
 npm start              # proses bot berjalan setiap saat di PORT (default 3000)
 ```
 
 Proses bot dirancang berjalan 24/7 sebagai layanan panjang (mis. via systemd/container), sehingga balasan otomatis tidak bergantung pada jam kerja admin.
 
+`npm start` membaca `.env` sendiri lewat flag Node `--env-file-if-exists`, jadi tidak perlu alat pemuat environment tambahan. Perlu diketahui: **variabel yang sudah ada di shell menimpa isi `.env`**. Kalau bot start dengan nilai yang tidak sesuai `.env`, periksa dulu `echo $WHATSAPP_API_TOKEN` (PowerShell: `$env:WHATSAPP_API_TOKEN`).
+
+### Provider
+
+`WHATSAPP_PROVIDER` memilih integrasi; hanya variabel milik provider terpilih yang wajib diisi.
+
+| Provider | Kredensial | Catatan |
+| --- | --- | --- |
+| `whatsapp-cloud-api` (default) | Phone Number Id, token, app secret | Memerlukan akun Meta for Developers + WABA + OTP nomor. Lihat `docs/adr/0001-provider-whatsapp-cloud-api.md`. |
+| `fonnte` | token perangkat Fonnte | Onboarding tanpa Meta for Developers. Lihat `docs/adr/0003-provider-bsp-fonnte.md`. |
+
 ### Webhook
 
-Provider WhatsApp (lihat `docs/adr/0001-provider-whatsapp-cloud-api.md`) mengirim pesan masuk sebagai webhook HTTPS publik ke `GET/POST /webhook` proses ini:
+Provider WhatsApp mengirim pesan masuk sebagai webhook HTTPS publik ke `GET/POST /webhook` proses ini. Bentuk autentikasinya berbeda per provider:
 
-- `GET /webhook` — handshake verifikasi Meta (`hub.verify_token` harus cocok dengan `WHATSAPP_WEBHOOK_VERIFY_TOKEN`).
-- `POST /webhook` — pesan masuk; ditandatangani `X-Hub-Signature-256` (HMAC-SHA256 dengan `WHATSAPP_APP_SECRET`), tanpa tanda tangan sah permintaan ditolak.
+- **Cloud API** — `GET /webhook` menjalankan handshake Meta (`hub.verify_token` harus cocok dengan `WHATSAPP_WEBHOOK_VERIFY_TOKEN`); `POST /webhook` ditandatangani `X-Hub-Signature-256` (HMAC-SHA256 dengan `WHATSAPP_APP_SECRET`) dan ditolak tanpa tanda tangan sah.
+- **Fonnte** — tidak ada handshake; `GET /webhook` berakhir 404. `POST /webhook` harus dipanggil pada URL yang memuat token: `https://<host>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN>`, karena Fonnte tidak menandatangani badan permintaan. Token juga boleh menjadi segmen terakhir path (`/webhook/<token>`).
 
-Untuk pengembangan lokal, teruskan port proses ke URL HTTPS publik (mis. `ngrok http 3000`) lalu daftarkan URL tersebut di dashboard Meta. Langkah verifikasi nomor lengkap: `docs/whatsapp-number-cutover.md`.
+Pada dashboard Fonnte, webhook diisi di menu perangkat dengan **auto read aktif**, karena tanpa itu webhook tidak terpanggil.
+
+Untuk pengembangan lokal, teruskan port proses ke URL HTTPS publik (lalu daftarkan URL tersebut di dashboard provider):
+
+```bash
+ngrok http 3000        # atau: cloudflared tunnel --url http://localhost:3000
+```
+
+Keduanya perlu dipasang lebih dulu (`winget install ngrok.ngrok` / `winget install Cloudflare.cloudflared`). Tunnel hanya untuk pembuktian awal; untuk bot yang berjalan terus-menerus, jalankan proses bot di server/VPS dengan domain sendiri agar URL webhook stabil.
+
+Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
 ## Konfigurasi
 
@@ -46,8 +67,12 @@ src/
 │   ├── handleInbound.ts   # pemrosesan pesan masuk -> balasan + tindakan
 │   └── types.ts
 ├── adapters/
+│   ├── factory.ts         # pemilihan adapter sesuai WHATSAPP_PROVIDER
+│   ├── webhookSupport.ts  # helper HTTP bersama antar adapter webhook
+│   ├── fonnte/            # transport BSP Fonnte (webhook + pengirim)
 │   └── whatsapp-cloud/    # transport WhatsApp Cloud API (webhook + pengirim)
 ├── config.ts              # konfigurasi dari environment
+├── inboundTransport.ts    # port penerimaan pesan masuk
 ├── messageSender.ts       # port pengiriman pesan keluar
 ├── server.ts              # server webhook
 └── main.ts                # entry point proses bot

@@ -7,19 +7,21 @@ Dokumen ini menjelaskan (1) langkah verifikasi provider agar nomor pengembangan 
 | Nilai | Sumber |
 | --- | --- |
 | Nomor pengembangan | `+62 895 0700 3830` (dikembangkan dan diverifikasi untuk pengembangan) |
-| Provider | WhatsApp Cloud API (Meta), lihat `docs/adr/0001-provider-whatsapp-cloud-api.md` |
+| Provider | WhatsApp Cloud API (Meta) sebagai pilihan utama, Fonnte (BSP) sebagai alternatif; lihat `docs/adr/0001-provider-whatsapp-cloud-api.md` dan `docs/adr/0003-provider-bsp-fonnte.md` |
 | Nomor konsultasi profil (`+62 877 4587 3159`) | Tidak berada dalam kendali pengguna — **bukan** prasyarat pengembangan |
 
 Konfigurasi yang mengendalikan identitas pengirim (lihat `.env.example`):
 
+- `WHATSAPP_PROVIDER` — provider yang dipakai: `whatsapp-cloud-api` (default) atau `fonnte`.
 - `WHATSAPP_SENDER_NUMBER` — nomor pengirim (E.164, mis. `+62 895 0700 3830`)
-- `WHATSAPP_PHONE_NUMBER_ID` — Phone Number Id Cloud API untuk nomor tersebut
-- `WHATSAPP_API_TOKEN` — token Graph API
-- `WHATSAPP_APP_SECRET` — app secret untuk verifikasi tanda tangan webhook
-- `WHATSAPP_WEBHOOK_VERIFY_TOKEN` — token handshake webhook
-- `WHATSAPP_API_BASE_URL` — dasar API (default `https://graph.facebook.com/v21.0`)
+- `WHATSAPP_WEBHOOK_VERIFY_TOKEN` — rahasia endpoint webhook; maknanya mengikuti provider (handshake pada Cloud API, token URL pada Fonnte)
+- `WHATSAPP_API_TOKEN` — token provider
+- `WHATSAPP_API_BASE_URL` — dasar API, default per provider
+- `WHATSAPP_PHONE_NUMBER_ID` — Phone Number Id Cloud API (khusus Cloud API)
+- `WHATSAPP_APP_SECRET` — app secret untuk verifikasi tanda tangan webhook (khusus Cloud API)
+- `WHATSAPP_COUNTRY_CODE` — kode negara tujuan pada Fonnte (opsional, default `62`)
 
-## Langkah verifikasi nomor pengembangan (sekali di awal)
+## Langkah verifikasi nomor pengembangan pada WhatsApp Cloud API (sekali di awal)
 
 Langkah ini hanya dapat dilakukan oleh pemilik akun bisnis (manual, di dashboard Meta):
 
@@ -33,6 +35,17 @@ Langkah ini hanya dapat dilakukan oleh pemilik akun bisnis (manual, di dashboard
 7. Uji kirim dan terima pesan ke nomor pengembangan, lalu cocokkan dengan tes transport (`npm test`).
 
 Status verifikasi nomor ada di dashboard WhatsApp > Phone Numbers (status harus **Verified/Connected**).
+
+## Langkah verifikasi nomor pengembangan pada Fonnte (alternatif)
+
+Langkah ini dipakai bila akun Meta for Developers belum dapat dibuat (lihat `docs/adr/0003-provider-bsp-fonnte.md`). Hanya kredensial Fonnte yang perlu diisi; `WHATSAPP_PHONE_NUMBER_ID` dan `WHATSAPP_APP_SECRET` tidak relevan.
+
+1. Daftar akun di Fonnte, tambahkan perangkat WhatsApp dengan nomor `+62 895 0700 3830`, lalu hubungkan lewat QR atau kode Sinkit.
+2. Pastikan perangkat berstatus **connected** dan **auto read** aktif; tanpa auto read, webhook tidak pernah dipanggil.
+3. Salin token perangkat ke `WHATSAPP_API_TOKEN`, lalu isi `WHATSAPP_SENDER_NUMBER` dan `WHATSAPP_WEBHOOK_VERIFY_TOKEN` (token acak yang hanya kamu tahu).
+4. Daftarkan webhook di menu perangkat: `https://<host-publik>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN>`.
+5. Jalankan proses bot, lalu smoke test: kirim pesan ke nomor pengembangan dan pastikan balasan bot masuk.
+6. Jalankan `npm test` dan `npm run typecheck` untuk memastikan kontrak transport tetap hijau.
 
 ## Jalur cutover ke nomor produksi
 

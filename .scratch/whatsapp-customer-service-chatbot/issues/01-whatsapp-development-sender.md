@@ -37,3 +37,12 @@ Sisa tindakan manusia (alasan status `ready-for-human`):
 3. Smoke test live: pesan ke nomor pengembangan harus dibalas bot end-to-end.
 
 Catatan repo: direktori ini belum berupa git repo, sehingga diinisialisasi (`git init`, branch `main`) untuk memenuhi kewajiban commit.
+
+### Sinkronisasi provider: Fonnte menggantikan jalur Meta (agent)
+
+Konteks baru: pemilik akun tidak dapat membuat akun Meta for Developers, sehingga verifikasi nomor via OTP Meta tidak dapat dijalankan. Jalur provider dialihkan:
+
+- `docs/adr/0003-provider-bsp-fonnte.md` — Fonnte (BSP) ditambahkan sebagai provider aktif lewat konfigurasi; Cloud API dipertahankan sebagai pilihan (lihat juga tiket 07).
+- Konsekuensi untuk tiket ini: poin "provider integrasi dipilih" kini terpenuhi lewat Fonnte; sisa langkah verifikasi berubah dari OTP Meta menjadi onboarding Fonnte — daftar akun, hubungkan nomor `+62 895 0700 3830` sebagai perangkat, aktifkan **auto read**, daftarkan URL webhook `https://<host>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN>`. Langkah lengkap: `docs/whatsapp-number-cutover.md` bagian Fonnte.
+- Kriteria penerimaan tiket ini tidak berubah: perilaku percakapan tetap di seam yang sama dan provider-agnostic; hanya transport yang berganti. Tes dijalankan ulang setelah migrasi: **45 tes hijau**, `npm run typecheck` bersih.
+- Status tetap `ready-for-human`: onboarding Fonnte + smoke test live masih tindakan manusia. Bila kelak akun Meta dapat diakses, jalur Cloud API tetap tersedia tanpa perubahan kode.

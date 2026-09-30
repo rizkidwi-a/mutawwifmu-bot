@@ -7,22 +7,27 @@
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { isSignatureValid, parseInboundMessages, verifySubscriptionQuery } from "./adapters/whatsapp-cloud/webhook.ts";
 import type { AppConfig } from "./config.ts";
 import { handleInbound } from "./conversation/handleInbound.ts";
 import type { ConversationContext } from "./conversation/types.ts";
+import type { InboundTransport } from "./inboundTransport.ts";
 import type { MessageSender } from "./messageSender.ts";
 
 export interface AppServerDeps {
   readonly config: AppConfig;
   readonly sender: MessageSender;
+  /** Autentikasi dan konversi payload provider; provider-agnostic bagi server. */
+  readonly inbound: InboundTransport;
 }
 
 const emptyContext: ConversationContext = { history: [] };
 
 export function createAppServer(deps: AppServerDeps): Server {
   return createServer((req, res) => {
-    void handleRequest(req, res, deps).catch(() => {
+    void handleRequest(req, res, deps).catch((error: unknown) => {
+      // Kegagalan di sini (mis. provider menolak pengiriman) tidak boleh senyap:
+      // tanpa log, timeout Fonnte atau token kedaluwarsa sulit ditelusuri.
+      console.error("Permintaan webhook gagal:", error);
       if (!res.headersSent) {
         res.writeHead(500, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "internal" }));
@@ -33,29 +38,27 @@ export function createAppServer(deps: AppServerDeps): Server {
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: AppServerDeps): Promise<void> {
   const url = new URL(req.url ?? "/", "http://localhost");
-  if (req.method === "GET" && url.pathname === "/webhook") {
-    const challenge = verifySubscriptionQuery(url.searchParams, deps.config.whatsapp.webhookVerifyToken);
-    if (challenge === null) {
-      sendJson(res, 403, { error: "verify-token tidak cocok" });
+  if (url.pathname === "/webhook" && req.method === "GET") {
+    const handshake = deps.inbound.handleSubscription(url);
+    if (handshake === null) {
+      sendJson(res, 404, { error: "tidak ditemukan" });
       return;
     }
-    res.writeHead(200, { "content-type": "text/plain" });
-    res.end(challenge);
+    res.writeHead(handshake.status, { "content-type": "text/plain" });
+    res.end(handshake.body);
     return;
   }
 
-  if (req.method === "POST" && url.pathname === "/webhook") {
+  if (url.pathname === "/webhook" && req.method === "POST") {
     const rawBody = await readBody(req);
-    const tandaTangan = req.headers["x-hub-signature-256"];
-    if (!isSignatureValid(rawBody, Array.isArray(tandaTangan) ? tandaTangan[0] : tandaTangan, deps.config.whatsapp.appSecret)) {
-      sendJson(res, 401, { error: "tanda tangan tidak sah" });
+    const hasil = await deps.inbound.readInbound({ method: req.method, url, headers: req.headers, rawBody });
+    if (!hasil.ok) {
+      sendJson(res, hasil.status, { error: hasil.reason });
       return;
     }
 
-    const payload: unknown = JSON.parse(rawBody.toString("utf8"));
-    const pesanMasuk = parseInboundMessages(payload);
     let jumlahBalasan = 0;
-    for (const pesan of pesanMasuk) {
+    for (const pesan of hasil.messages) {
       if (pesan.from === deps.config.whatsapp.senderNumber) {
         continue;
       }

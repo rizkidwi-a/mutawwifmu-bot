@@ -8,6 +8,9 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { InboundMessage } from "../../conversation/types.ts";
+import type { WhatsAppCloudConfig } from "../../config.ts";
+import type { InboundTransport } from "../../inboundTransport.ts";
+import { firstHeaderValue, parseJsonBody } from "../webhookSupport.ts";
 
 /**
  * Handshake langganan webhook (GET /webhook). Mengembalikan hub.challenge bila
@@ -100,4 +103,31 @@ function readField(obj: unknown, kunci: string): unknown {
     return (obj as Record<string, unknown>)[kunci];
   }
   return undefined;
+}
+
+/**
+ * Transport masuk WhatsApp Cloud API: handshake hub.verify_token dan pemeriksaan
+ * tanda tangan X-Hub-Signature-256 sebelum payload dibaca.
+ */
+export function createCloudApiInboundTransport(config: WhatsAppCloudConfig): InboundTransport {
+  return {
+    handleSubscription(url: URL) {
+      const challenge = verifySubscriptionQuery(url.searchParams, config.webhookVerifyToken);
+      if (challenge === null) {
+        return { status: 403, body: "verify-token tidak cocok" };
+      }
+      return { status: 200, body: challenge };
+    },
+    async readInbound(request) {
+      const signature = firstHeaderValue(request.headers["x-hub-signature-256"]);
+      if (!isSignatureValid(request.rawBody, signature, config.appSecret)) {
+        return { ok: false, status: 401, reason: "tanda tangan tidak sah" };
+      }
+      const payload = parseJsonBody(request.rawBody);
+      if (payload === null) {
+        return { ok: false, status: 400, reason: "badan permintaan bukan JSON" };
+      }
+      return { ok: true, messages: parseInboundMessages(payload) };
+    },
+  };
 }

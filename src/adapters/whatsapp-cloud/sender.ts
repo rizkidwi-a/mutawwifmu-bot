@@ -3,10 +3,10 @@
  * dengan bearer token dari konfigurasi.
  */
 
-import type { WhatsAppConfig } from "../../config.ts";
+import type { WhatsAppCloudConfig } from "../../config.ts";
 import type { MessageSender } from "../../messageSender.ts";
 
-export function createCloudApiSender(config: WhatsAppConfig, fetchImpl: typeof fetch = fetch): MessageSender {
+export function createCloudApiSender(config: WhatsAppCloudConfig, fetchImpl: typeof fetch = fetch): MessageSender {
   return {
     async sendText(to: string, text: string): Promise<void> {
       const url = `${config.apiBaseUrl}/${config.phoneNumberId}/messages`;

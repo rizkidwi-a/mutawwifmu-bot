@@ -2,6 +2,8 @@
 
 Status: accepted
 
+Catatan: dilengkapi oleh [ADR-0003](0003-provider-bsp-fonnte.md) yang menambahkan Fonnte sebagai alternatif saat akun Meta for Developers tidak dapat diakses. ADR-0003 melengkapi, bukan menggantikan, keputusan ini.
+
 ## Konteks
 
 Tiket `.scratch/whatsapp-customer-service-chatbot/issues/01-whatsapp-development-sender.md` memilih provider integrasi WhatsApp agar nomor pengembangan `+62 895 0700 3830` dapat mengirim dan menerima pesan. Spec melarang mengasumsikan provider sebelum diputuskan; keputusan ini dibuat untuk tiket tersebut.

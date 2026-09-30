@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { createAppServer } from "../../src/server.ts";
-import { createCloudApiSender } from "../../src/adapters/whatsapp-cloud/sender.ts";
+import { createTransport } from "../../src/adapters/factory.ts";
 import { loadConfig } from "../../src/config.ts";
 
 const appSecret = "app-secret-untuk-tanda-tangan";
@@ -92,7 +92,7 @@ async function buatLingkungan(): Promise<Lingkungan> {
     ...envKonfigurasi,
     WHATSAPP_API_BASE_URL: `http://127.0.0.1:${portProvider}/v21.0`,
   });
-  const server = createAppServer({ config, sender: createCloudApiSender(config.whatsapp) });
+  const server = createAppServer({ config, ...createTransport(config.whatsapp) });
   const portApp = await dengarkan(server);
 
   return {
