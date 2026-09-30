@@ -18,6 +18,20 @@ const SEMUA_TOPIK: readonly FaqTopic[] = [
   "city-tour-madinah",
   "city-tour-thaif",
   "city-tour-alula",
+  "tour-guide",
+  "charity-program",
+  "multi-language-support",
+  "photographer-videographer",
+  "custom-itinerary",
+];
+
+/** Topik layanan lain dalam profil perusahaan (tiket 04). */
+const LAYANAN_LAIN: readonly FaqTopic[] = [
+  "tour-guide",
+  "charity-program",
+  "multi-language-support",
+  "photographer-videographer",
+  "custom-itinerary",
 ];
 
 test("setiap topik FAQ memiliki jawaban Bahasa Indonesia dan Inggris", () => {
@@ -90,6 +104,55 @@ test("matchFaqTopic mengenali city tour per destinasi lebih dahulu", () => {
   assert.equal(matchFaqTopic("Wisata ziarah di Al Ula ada?"), "city-tour-alula");
   assert.equal(matchFaqTopic("Ziarah di Makkah ke mana saja?"), "city-tour-makkah");
   assert.equal(matchFaqTopic("Apakah ada city tour?"), "city-tour");
+});
+
+test("matchFaqTopic mengenali layanan lain dalam profil", () => {
+  assert.equal(matchFaqTopic("Apakah ada tour guide untuk ke luar negeri?"), "tour-guide");
+  assert.equal(matchFaqTopic("Do you provide tour guides in other countries?"), "tour-guide");
+  assert.equal(matchFaqTopic("Bagaimana dengan charity program?"), "charity-program");
+  assert.equal(matchFaqTopic("Do you run a charity program during the trip?"), "charity-program");
+  assert.equal(matchFaqTopic("Bahasa apa saja yang didukung?"), "multi-language-support");
+  assert.equal(matchFaqTopic("What languages do you support?"), "multi-language-support");
+  assert.equal(matchFaqTopic("Apakah ada fotografer dan videografer?"), "photographer-videographer");
+  assert.equal(matchFaqTopic("Do you provide a photographer and videographer?"), "photographer-videographer");
+  assert.equal(matchFaqTopic("Apakah itinerary bisa disesuaikan?"), "custom-itinerary");
+  assert.equal(matchFaqTopic("Can you build a custom itinerary for us?"), "custom-itinerary");
+});
+
+test("jawaban layanan lain hanya memuat fakta yang tercantum materi", () => {
+  // Tour guide: jaringan 190 negara dan pemahaman budaya/bahasa ada di materi.
+  assert.match(faqAnswer("tour-guide", "id"), /190 negara/);
+  assert.match(faqAnswer("tour-guide", "id"), /budaya, bahasa/);
+  assert.match(faqAnswer("tour-guide", "en"), /190 countries/);
+  // Charity program: program sosial yang memberdayakan komunitas lokal.
+  assert.match(faqAnswer("charity-program", "id"), /program sosial/);
+  assert.match(faqAnswer("charity-program", "id"), /komunitas lokal/);
+  assert.match(faqAnswer("charity-program", "en"), /local communities/);
+  // Multibahasa: hanya bahasa yang tercantum materi.
+  assert.match(faqAnswer("multi-language-support", "id"), /Indonesia, Arab, Inggris/);
+  assert.match(faqAnswer("multi-language-support", "en"), /Indonesian, Arabic, English/);
+  // Fotografer/videografer: lokasi sesi yang tercantum materi + editing.
+  assert.match(faqAnswer("photographer-videographer", "id"), /Masjidil Haram/);
+  assert.match(faqAnswer("photographer-videographer", "id"), /Masjid Nabawi/);
+  assert.match(faqAnswer("photographer-videographer", "id"), /editing profesional/);
+  // Custom itinerary: personal sesuai kebutuhan, preferensi, dan anggaran.
+  assert.match(faqAnswer("custom-itinerary", "id"), /sesuai kebutuhan, preferensi, dan anggaran/);
+  assert.match(faqAnswer("custom-itinerary", "en"), /needs, preferences, and budget/);
+});
+
+test("jawaban layanan lain tidak menjanjikan ketersediaan atau mengarang destinasi", () => {
+  for (const topic of LAYANAN_LAIN) {
+    for (const language of ["id", "en"] as const) {
+      const answer = faqAnswer(topic, language);
+      assert.doesNotMatch(
+        answer,
+        /(pasti tersedia|selalu tersedia|dijamin|guaranteed|always available|available (in|for) all)/i,
+        `${topic}/${language} menjanjikan ketersediaan`,
+      );
+      // Destinasi tertentu tidak dicantumkan materi — jangan dikarang.
+      assert.doesNotMatch(answer, /(Jepang|Japan|Eropa|Europe|Korea|Turki|Turkey)/i, `${topic}/${language} mengarang destinasi`);
+    }
+  }
 });
 
 test("matchFaqTopic tidak mengenali pesan yang tidak didukung materi", () => {

@@ -48,7 +48,7 @@ Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
 ## FAQ layanan
 
-Bot menjawab pertanyaan pra-pemesanan tentang Private Premium Umrah & Land Arrangement langsung dari materi bisnis yang tersedia (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`): definisi layanan, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, serta city tour yang tercantum (umum dan per destinasi). Jawaban disusun hanya dari fakta materi MUTAWWIFMU — rincian paket, layanan, atau ketentuan yang tidak tercantum tidak dikarang — dan diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
+Bot menjawab pertanyaan pra-pemesanan langsung dari materi bisnis yang tersedia (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`): definisi Private Premium Umrah & Land Arrangement, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, city tour yang tercantum (umum dan per destinasi), serta layanan lain dalam profil perusahaan — tour guide 190 negara, charity program, dukungan multibahasa, fotografer/videografer, dan custom itinerary. Jawaban disusun hanya dari fakta materi MUTAWWIFMU — rincian paket, layanan, atau ketentuan yang tidak tercantum tidak dikarang — dan diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
 
 Pertanyaan harga/ketersediaan yang memerlukan konfirmasi tidak dijawab sebagai penawaran final; pertanyaan yang tidak didukung materi atau tidak pasti juga tidak dijawab dari asumsi. Keduanya mengalir ke alur handoff yang sama: penjelasan singkat, lalu permintaan persetujuan sebelum diteruskan ke admin. Jawaban FAQ tidak membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
 

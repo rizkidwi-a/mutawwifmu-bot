@@ -17,11 +17,16 @@ import type { Language } from "../conversation/language.ts";
 /** Topik FAQ yang didukung materi bisnis MUTAWWIFMU. */
 export type FaqTopic =
   | "land-arrangement"
+  | "tour-guide"
   | "mutawwif"
+  | "multi-language-support"
   | "visa-documents"
   | "hotel-accommodation"
   | "transport-fleet"
   | "airport-handling"
+  | "charity-program"
+  | "photographer-videographer"
+  | "custom-itinerary"
   | "city-tour"
   | "city-tour-makkah"
   | "city-tour-madinah"
@@ -53,6 +58,22 @@ const ENTRIES: readonly FaqEntry[] = [
       en:
         "Private Premium Umrah & Land Arrangement is MUTAWWIFMU's premium service for an exclusive, personal, and refined worship experience. " +
         "Through this service we manage your land arrangements in the Holy Land — from accommodation, transportation, and worship guidance to documentation and document handling — with premium standards and professional assistance, and everything can be customized to your needs.",
+    },
+  },
+  {
+    topic: "tour-guide",
+    patterns: [
+      /\b(tour guides?|pemandu wisata|guide (wisata|lokal|profesional)|190 negara|luar negeri|manca negara|negara lain|ke berbagai negara|di berbagai negara|ke luar negri|worldwide|seluruh dunia|other countries|countries)\b/i,
+    ],
+    answer: {
+      id:
+        "Tour Guide MUTAWWIFMU adalah pemandu wisata profesional di 190 negara yang memahami budaya, bahasa, dan karakteristik setiap destinasi. " +
+        "Jaringan mitra tour guide, hotel, dan transportasi kami tersebar di seluruh dunia — untuk umrah, haji, wisata religi, maupun perjalanan ke berbagai negara. " +
+        "Untuk destinasi tertentu, ketersediaan pemandu perlu dikonfirmasi terlebih dahulu oleh tim kami.",
+      en:
+        "MUTAWWIFMU's Tour Guide service provides professional tour guides in 190 countries who understand the culture, language, and characteristics of each destination. " +
+        "Our network of tour guide, hotel, and transportation partners spans the world — for umrah, hajj, religious tourism, and trips to many countries. " +
+        "For specific destinations, guide availability needs to be confirmed by our team first.",
     },
   },
   {
@@ -130,6 +151,20 @@ const ENTRIES: readonly FaqEntry[] = [
     },
   },
   {
+    topic: "multi-language-support",
+    patterns: [
+      /\b(multibahasa|multi[- ]?language(s)?|multilingual|bilingual|interpreter(s)?|translator(s)?|penerjemah|pilihan bahasa|bahasa (apa|apa saja)|what languages|languages? (do|does|yang|supported|available|speak)|language support|support(ed)? (in )?(other )?languages?)\b/i,
+    ],
+    answer: {
+      id:
+        "MUTAWWIFMU menyediakan layanan multibahasa untuk jemaah internasional: Bahasa Indonesia, Arab, Inggris, dan berbagai bahasa lainnya. " +
+        "Untuk kebutuhan bahasa tertentu, silakan dikonfirmasikan lebih dahulu kepada tim kami.",
+      en:
+        "MUTAWWIFMU provides multi-language support for international guests: Indonesian, Arabic, English, and various other languages. " +
+        "For a specific language need, please confirm it with our team first.",
+    },
+  },
+  {
     topic: "visa-documents",
     patterns: [/\b(visa|dokumen|document|asuransi|insurance)\b/i],
     answer: {
@@ -179,6 +214,50 @@ const ENTRIES: readonly FaqEntry[] = [
         "We have a network of trusted hotel partners in Makkah and Madinah, from affordable 3-star hotels to international-standard 5-star hotels, strategically located near Masjidil Haram and Masjid Nabawi. " +
         "The room types listed are Double (2 guests), Triple (3 guests), Quad (4 guests), and Junior Suite/Executive Suite, with the Fullboard Fareast meal plan (3 meals a day with Southeast Asian/Indonesian cuisine) unless stated otherwise. " +
         "Price details and availability need to be confirmed by our team.",
+    },
+  },
+  {
+    topic: "charity-program",
+    patterns: [/\b(charity|charities|amal|donasi|donation(s)?|program sosial|social program|kegiatan sosial|social (activity|activities|impact))\b/i],
+    answer: {
+      id:
+        "Charity Program MUTAWWIFMU adalah program sosial yang terintegrasi dalam perjalanan — berbagi dan memberdayakan komunitas lokal di destinasi. " +
+        "Untuk penyelenggaraan pada perjalanan tertentu, silakan dikonfirmasikan lebih dahulu bersama tim kami.",
+      en:
+        "MUTAWWIFMU's Charity Program is a social program integrated into the journey — sharing with and empowering local communities at the destination. " +
+        "For its arrangement on a particular trip, please confirm it with our team first.",
+    },
+  },
+  {
+    topic: "photographer-videographer",
+    patterns: [
+      /\b(fotografer|videografer|photograph(y|ers?)?|videograph(y|ers?)?|kameraman|dokumentasi|documentation|sesi foto|photo(s| shoot)?|video(s| shoot)?)\b/i,
+    ],
+    answer: {
+      id:
+        "MUTAWWIFMU menyediakan fotografer dan videografer profesional untuk dokumentasi selama perjalanan, mengabadikan momen ibadah dan wisata dalam kualitas premium. " +
+        "Lokasi sesi yang tercantum dalam materi kami meliputi Pelataran Masjidil Haram, Masjid Nabawi, Jabal Kudai & Khandama, serta Al-Ula, termasuk momen spesial seperti akad nikah. " +
+        "Hasil foto dan video disertai editing profesional. Rincian sesi dan penawarannya perlu dikonfirmasi oleh tim kami.",
+      en:
+        "MUTAWWIFMU provides professional photographers and videographers for documentation during your journey, capturing worship and travel moments in premium quality. " +
+        "The session locations listed in our materials include the courtyard of Masjidil Haram, Masjid Nabawi, Jabal Kudai & Khandama, and Al-Ula, including special moments such as the akad nikah. " +
+        "Photo and video results include professional editing. Session details and pricing need to be confirmed by our team.",
+    },
+  },
+  {
+    topic: "custom-itinerary",
+    patterns: [
+      /\b(itinerary|itineraries|itinerari|rencana perjalanan|custom (itinerary|itineraries|trip|perjalanan)|personalized (itinerary|trip)|dikustomisasi|kustomisasi)\b/i,
+    ],
+    answer: {
+      id:
+        "Custom Itinerary MUTAWWIFMU adalah itinerary personal sesuai kebutuhan, preferensi, dan anggaran Anda — dari umrah hingga wisata ke 190 negara. " +
+        "Paket layanan dapat dikustomisasi sepenuhnya, misalnya destinasi, durasi, akomodasi, maupun fasilitas tambahan, dengan jadwal keberangkatan yang fleksibel. " +
+        "Penyusunan itinerary dilakukan bersama tim kami setelah kebutuhan Anda dipahami.",
+      en:
+        "MUTAWWIFMU's Custom Itinerary is a personalized itinerary according to your needs, preferences, and budget — from umrah to trips across 190 countries. " +
+        "The service package can be fully customized, for example destination, duration, accommodation, and additional facilities, with flexible departure scheduling. " +
+        "The itinerary is prepared together with our team once your needs are understood.",
     },
   },
 ];
