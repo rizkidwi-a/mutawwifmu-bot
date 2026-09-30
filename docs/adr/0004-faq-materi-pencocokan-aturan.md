@@ -19,5 +19,5 @@ Jawaban FAQ disusun **manual dari materi bisnis** (`BOOKLET MUTAWWIFMU.md`, `HOT
 
 - Jawaban tidak dapat mengarang fakta baru karena teksnya disusun dan ditinjau dari materi; tes memeriksa groundedness jawaban (tanpa angka harga final, tanpa durasi paket, tanpa klaim di luar materi).
 - Pencocokan aturan memiliki batas: parafrase atau pertanyaan ambigu mungkin tidak dikenali. Konsekuensinya aman — pesan tersebut jatuh ke alur handoff, bukan ke jawaban yang salah.
-- Pembaruan materi bisnis berarti memperbarui basis pengetahuan; tiket 04 (layanan lain) dan tiket 05 (harga indikatif) menambah atau mengubah entri pada modul pengetahuan yang sama tanpa menyentuh logika klasifikasi.
+- Pembaruan materi bisnis berarti memperbarui basis pengetahuan; tiket 04 (layanan lain) dan tiket 05 (harga indikatif) menambah atau mengubah entri pada modul pengetahuan yang sama tanpa menyentuh logika klasifikasi. **Catatan tiket 05:** asumsi terakhir ini tidak bertahan — tiket 05 menyempitkan pola harga/ketersediaan di `classifyInbound.ts` dan menambah jalur `indicative-price`; lihat ADR-0005.
 - Bila kelak jawaban generatif dipertimbangkan, keputusan itu wajib dicatat ADR baru dan harus tetap memenuhi larangan mengarang fakta dari spec.

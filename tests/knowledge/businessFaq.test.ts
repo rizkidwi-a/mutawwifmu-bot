@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   faqAnswer,
+  isPriceTopic,
   matchFaqTopic,
   type FaqTopic,
 } from "../../src/knowledge/businessFaq.ts";
@@ -23,6 +24,24 @@ const SEMUA_TOPIK: readonly FaqTopic[] = [
   "multi-language-support",
   "photographer-videographer",
   "custom-itinerary",
+  "price-mutawwif",
+  "price-document-arrangement",
+  "price-airport-handling",
+  "price-transport",
+  "price-city-tour",
+  "price-photographer-videographer",
+  "price-hotel",
+];
+
+/** Topik Harga Indikatif (tiket 05) — jawabannya justru memuat angka harga materi. */
+const TOPIK_HARGA: readonly FaqTopic[] = [
+  "price-mutawwif",
+  "price-document-arrangement",
+  "price-airport-handling",
+  "price-transport",
+  "price-city-tour",
+  "price-photographer-videographer",
+  "price-hotel",
 ];
 
 /** Topik layanan lain dalam profil perusahaan (tiket 04). */
@@ -44,11 +63,78 @@ test("setiap topik FAQ memiliki jawaban Bahasa Indonesia dan Inggris", () => {
 
 test("jawaban tidak memuat angka harga yang dapat dianggap penawaran final", () => {
   for (const topic of SEMUA_TOPIK) {
+    // Invarian dilonggarkan untuk topik harga (tiket 05): jawaban Harga
+    // Indikatif justru memuat angka materi, dijaga tes Harga Indikatif di bawah.
+    if (isPriceTopic(topic)) {
+      assert.ok(TOPIK_HARGA.includes(topic), `${topic} bukan topik harga yang terdaftar`);
+      continue;
+    }
     for (const language of ["id", "en"] as const) {
       const answer = faqAnswer(topic, language);
       assert.doesNotMatch(answer, /(SAR|IDR|Rp)\s?\d/i, `${topic}/${language} memuat angka harga`);
     }
   }
+});
+
+test("jawaban Harga Indikatif menyebut statusnya dan tidak mengklaim harga final", () => {
+  for (const topic of TOPIK_HARGA) {
+    assert.ok(isPriceTopic(topic), `${topic} harus diakui sebagai topik harga`);
+    assert.match(faqAnswer(topic, "id"), /Harga Indikatif/i, `${topic}/id`);
+    assert.match(faqAnswer(topic, "en"), /Indicative Price/i, `${topic}/en`);
+    assert.match(faqAnswer(topic, "id"), /bukan penawaran final/i, `${topic}/id`);
+    assert.match(faqAnswer(topic, "en"), /not a final offer/i, `${topic}/en`);
+  }
+});
+
+test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
+  // Angka di bawah dikutip dari BOOKLET MUTAWWIFMU.md / HOTEL RATES MUTAWWIFMU (2).md.
+  assert.match(faqAnswer("price-mutawwif", "id"), /SAR 300/);
+  assert.match(faqAnswer("price-mutawwif", "id"), /SAR 350/);
+  assert.match(faqAnswer("price-mutawwif", "id"), /SAR 400/);
+  assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 3\.200\.000/);
+  assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 100\.000/);
+  assert.match(faqAnswer("price-airport-handling", "id"), /IDR 350\.000/);
+  assert.match(faqAnswer("price-airport-handling", "id"), /SAR 300/);
+  assert.match(faqAnswer("price-airport-handling", "id"), /SAR 900/);
+  assert.match(faqAnswer("price-transport", "id"), /SAR 500/);
+  assert.match(faqAnswer("price-transport", "id"), /SAR 1\.650/);
+  assert.match(faqAnswer("price-city-tour", "id"), /SAR 820/);
+  assert.match(faqAnswer("price-city-tour", "id"), /SAR 1\.705/);
+  assert.match(faqAnswer("price-city-tour", "id"), /SAR 2\.095/);
+  assert.match(faqAnswer("price-photographer-videographer", "id"), /SAR 600/);
+  assert.match(faqAnswer("price-photographer-videographer", "id"), /SAR 4\.500/);
+  // Visa Umrah Express tidak memuat angka di materi — jangan dikarang.
+  assert.doesNotMatch(faqAnswer("price-document-arrangement", "id"), /Express[\s\S]*?IDR/);
+});
+
+test("jawaban harga hotel menyatakan konflik satuan materi dan tidak memilih satuan sendiri", () => {
+  for (const language of ["id", "en"] as const) {
+    const answer = faqAnswer("price-hotel", language);
+    assert.match(answer, /per orang|per person/i, `${language} tidak menyebut klaim sampul`);
+    assert.match(answer, /per kamar|per room/i, `${language} tidak menyebut klaim tabel`);
+    assert.match(answer, /bertentangan|berbeda|conflict|contradict/i, `${language} tidak menyatakan konflik`);
+    assert.match(answer, /belum terverifikasi|not (yet )?verified/i, `${language} tidak menyatakan status verifikasi`);
+    assert.match(answer, /admin|tim kami|our team/i, `${language} tidak mengarahkan konfirmasi admin`);
+    // Angka tidak boleh dilabeli sendiri sebagai per orang atau per kamar.
+    assert.doesNotMatch(
+      answer,
+      /(SAR|IDR|Rp)\s?[\d.,]+\s*(per|\/)\s*(orang|kamar|person|room)/i,
+      `${language} melabeli angka dengan satuan yang belum terverifikasi`,
+    );
+  }
+});
+
+test("matchFaqTopic mengenali pertanyaan harga yang tercantum materi sebagai topik harga", () => {
+  assert.equal(matchFaqTopic("Berapa harga fotografer?"), "price-photographer-videographer");
+  assert.equal(matchFaqTopic("Berapa harga dokumentasi perjalanan?"), "price-photographer-videographer");
+  assert.equal(matchFaqTopic("Berapa harga hotel di Mekkah?"), "price-hotel");
+  assert.equal(matchFaqTopic("How much is the mutawwif per group?"), "price-mutawwif");
+  assert.equal(matchFaqTopic("Biaya visa umrah berapa?"), "price-document-arrangement");
+  assert.equal(matchFaqTopic("Berapa harga city tour Madinah?"), "price-city-tour");
+  assert.equal(matchFaqTopic("Berapa tarif transportasi dari Jeddah?"), "price-transport");
+  assert.equal(matchFaqTopic("Berapa harga airport handling di Jeddah?"), "price-airport-handling");
+  // Harga yang tidak tercantum materi tidak menjadi topik harga.
+  assert.equal(matchFaqTopic("Berapa harga tour guide ke Jepang?"), "tour-guide");
 });
 
 test("jawaban tidak mengarang rincian yang tidak ada di materi", () => {

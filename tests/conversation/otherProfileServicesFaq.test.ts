@@ -11,9 +11,9 @@ import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
  * Pertanyaan layanan lain dalam profil beserta kata kunci jawaban topiknya.
- * Pertanyaan yang memuat kata "tersedia" atau "harga" sengaja tidak dijadikan
- * baris: keduanya adalah pertanyaan ketersediaan/harga yang perlu konfirmasi
- * admin (lihat tes penjaga di bawah), bukan FAQ.
+ * Pertanyaan yang memuat kata "tersedia" atau "penawaran" sengaja tidak
+ * dijadikan baris: keduanya adalah pertanyaan ketersediaan/penawaran yang perlu
+ * konfirmasi admin (lihat tes penjaga di bawah), bukan FAQ.
  */
 const PERTANYAAN_LAYANAN_LAIN: ReadonlyArray<
   readonly [pesan: string, topik: string, kataKunci: readonly RegExp[]]
@@ -106,9 +106,24 @@ test("informasi yang tidak tersedia memakai alur handoff tiket 02", () => {
   assert.equal(handoff.reason, "unsupported-question");
 });
 
-test("pertanyaan harga layanan lain tidak dijawab sebagai FAQ dan tetap ke alur admin", () => {
+test("pertanyaan angka harga layanan lain yang tercantum materi dijawab sebagai Harga Indikatif", () => {
   const percakapan = new Percakapan();
   const turn = percakapan.kirim("Berapa harga fotografer?");
+  const balasan = teksBalasan(turn);
+  assert.match(balasan, /Harga Indikatif/);
+  assert.match(balasan, /SAR 600/);
+  const catat = turn.actions.find((aksi) => aksi.kind === "record-faq-answer");
+  assert.ok(catat && catat.kind === "record-faq-answer");
+  assert.equal(catat.topic, "price-photographer-videographer");
+  assert.deepEqual(
+    turn.actions.filter((aksi) => aksi.kind === "hand-off-to-admin"),
+    [],
+  );
+});
+
+test("permintaan penawaran harga layanan lain tetap ke alur admin, bukan Harga Indikatif", () => {
+  const percakapan = new Percakapan();
+  const turn = percakapan.kirim("Saya ingin minta penawaran harga untuk fotografer");
   const balasan = teksBalasan(turn);
   assert.match(balasan, /teruskan|diteruskan/i);
   assert.match(balasan, /setuju/i);

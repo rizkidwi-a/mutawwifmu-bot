@@ -2,7 +2,7 @@
 
 Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
 
-Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), handoff ke admin yang selalu diawali persetujuan calon jemaah, serta jawaban FAQ layanan dari materi bisnis. Harga indikatif dikerjakan tiket berikutnya.
+Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), handoff ke admin yang selalu diawali persetujuan calon jemaah, jawaban FAQ layanan dari materi bisnis, serta Harga Indikatif dari angka harga yang tercantum materi.
 
 ## Menjalankan
 
@@ -50,7 +50,13 @@ Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
 Bot menjawab pertanyaan pra-pemesanan langsung dari materi bisnis yang tersedia (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`): definisi Private Premium Umrah & Land Arrangement, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, city tour yang tercantum (umum dan per destinasi), serta layanan lain dalam profil perusahaan — tour guide 190 negara, charity program, dukungan multibahasa, fotografer/videografer, dan custom itinerary. Jawaban disusun hanya dari fakta materi MUTAWWIFMU — rincian paket, layanan, atau ketentuan yang tidak tercantum tidak dikarang — dan diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
 
-Pertanyaan harga/ketersediaan yang memerlukan konfirmasi tidak dijawab sebagai penawaran final; pertanyaan yang tidak didukung materi atau tidak pasti juga tidak dijawab dari asumsi. Keduanya mengalir ke alur handoff yang sama: penjelasan singkat, lalu permintaan persetujuan sebelum diteruskan ke admin. Jawaban FAQ tidak membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
+Pertanyaan yang memerlukan konfirmasi tidak dijawab dari asumsi; pertanyaan yang tidak didukung materi atau tidak pasti mengalir ke alur handoff: penjelasan singkat, lalu permintaan persetujuan sebelum diteruskan ke admin. Jawaban FAQ tidak membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
+
+## Harga Indikatif
+
+Pertanyaan angka harga yang tercantum materi dijawab sebagai Harga Indikatif (lihat `docs/adr/0005-harga-indikatif-penyempitan-pola-harga.md`): mutawwif per grup, dokumen/visa per pax, airport handling, transportasi per rute/armada, city tour per jumlah peserta, serta fotografer/videografer per sesi. Setiap jawaban menyatakan bahwa angka tersebut bukan penawaran final dan mengarahkan konfirmasi harga terkini ke tim MUTAWWIFMU.
+
+Untuk harga hotel, materi memuat keterangan satuan yang bertentangan — per orang pada sampul dan per kamar pada bagian tabel — sehingga bot menyebutkan konflik tersebut, menyatakan satuannya belum terverifikasi, dan tidak menafsirkan angkanya sebagai harga per orang maupun per kamar. Satuan yang tidak tercantum materi (mis. per malam) juga tidak ditafsirkan sendiri. Permintaan penawaran khusus, konfirmasi harga/ketersediaan, serta pertanyaan harga yang angkanya tidak tercantum materi tetap diarahkan ke alur admin; bot tidak menjanjikan ketersediaan hotel/layanan dan tidak melakukan transaksi.
 
 ## Handoff ke admin
 
@@ -81,7 +87,7 @@ Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/convers
 src/
 ├── conversation/          # seam percakapan (provider-agnostic)
 │   ├── handleInbound.ts   # pemrosesan pesan masuk -> balasan + tindakan
-│   ├── classifyInbound.ts # routing pesan masuk: faq / handoff / opener
+│   ├── classifyInbound.ts # routing pesan masuk: faq / indicative-price / handoff / opener
 │   ├── language.ts        # deteksi bahasa balasan
 │   └── types.ts
 ├── knowledge/             # materi FAQ (jawaban disusun dari materi bisnis)

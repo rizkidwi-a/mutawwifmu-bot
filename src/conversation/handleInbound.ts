@@ -238,7 +238,7 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     };
   }
   const routing = classifyInbound(text);
-  if (routing.kind === "faq") {
+  if (routing.kind === "faq" || routing.kind === "indicative-price") {
     return {
       reply: faqAnswer(routing.topic, language),
       actions: [{ kind: "record-faq-answer", topic: routing.topic }],

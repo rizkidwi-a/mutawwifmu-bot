@@ -56,9 +56,9 @@ test("pertanyaan FAQ dalam Bahasa Inggris dijawab dalam Bahasa Inggris", () => {
   assert.equal(catat.topic, "land-arrangement");
 });
 
-test("pertanyaan harga tidak dijawab sebagai penawaran dan mengalir ke persetujuan handoff", () => {
+test("permintaan penawaran harga tidak dijawab sebagai penawaran dan mengalir ke persetujuan handoff", () => {
   const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Berapa harga hotel di Mekkah?");
+  const turn = percakapan.kirim("Saya ingin minta penawaran harga hotel di Mekkah");
   const balasan = teksBalasan(turn);
   assert.match(balasan, /teruskan|diteruskan/i);
   assert.match(balasan, /setuju/i);

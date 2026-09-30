@@ -1,22 +1,37 @@
 /**
- * Klasifikasi pesan masuk Calon Jemaah untuk routing percakapan (tiket 03).
+ * Klasifikasi pesan masuk Calon Jemaah untuk routing percakapan (tiket 03,
+ * disempit oleh tiket 05 sesuai ADR-0005).
  *
  * Hasil klasifikasi hanya menentukan jalur percakapan:
  * - `faq` — pertanyaan yang didukung materi, dijawab langsung;
+ * - `indicative-price` (tiket 05) — pertanyaan angka harga yang tercantum
+ *   materi, dijawab sebagai Harga Indikatif dengan peringatan satuan/periode
+ *   yang belum terverifikasi;
  * - `handoff` — kasus yang harus diteruskan ke admin melalui alur handoff
  *   (tiket 02: pengumpulan Permintaan Tindak Lanjut + persetujuan); pemicunya
- *   mencakup pertanyaan harga/ketersediaan yang memerlukan konfirmasi,
- *   kasus booking/pembayaran, permintaan manusia, segmen agen/korporasi,
- *   perjalanan aktif/keadaan darurat, serta pertanyaan yang tidak didukung
- *   materi atau tidak pasti;
+ *   mencakup permintaan penawaran khusus atau konfirmasi harga/ketersediaan,
+ *   pertanyaan harga yang angkanya tidak tercantum materi atau satuannya tidak
+ *   tercantum, kasus booking/pembayaran, permintaan manusia, segmen agen/
+ *   korporasi, perjalanan aktif/keadaan darurat, serta pertanyaan yang tidak
+ *   didukung materi atau tidak pasti;
  * - `opener` — sapaan atau pembuka percakapan tanpa pertanyaan substantif.
  *
  * Alur handoff sendiri (persetujuan, penerusan, kanal admin) dimiliki tiket 02;
  * modul ini tidak meneruskan informasi apa pun. Nilai `trigger` sengaja sama
  * dengan `HandOffReason` pada types.ts agar dapat langsung dipakai sebagai
  * alasan pada tindakan `hand-off-to-admin`.
+ *
+ * Hubungan dengan ADR-0004 (dinyatakan eksplisit, tidak diubah diam-diam):
+ * ADR-0004 mengasumsikan tiket 05 "menambah atau mengubah entri pada modul
+ * pengetahuan yang sama tanpa menyentuh logika klasifikasi". Tiket 05 justru
+ * menyempitkan pola harga/ketersediaan di modul ini agar angka yang tercantum
+ * materi dapat disebut sebagai Harga Indikatif — lihat ADR-0005.
  */
-import { matchFaqTopic, type FaqTopic } from "../knowledge/businessFaq.ts";
+import {
+  isPriceTopic,
+  matchFaqTopic,
+  type FaqTopic,
+} from "../knowledge/businessFaq.ts";
 
 /** Alasan sebuah pesan perlu diteruskan ke admin. */
 export type HandoffTrigger =
@@ -31,6 +46,7 @@ export type HandoffTrigger =
 /** Hasil klasifikasi pesan masuk. */
 export type InboundRouting =
   | { readonly kind: "faq"; readonly topic: FaqTopic }
+  | { readonly kind: "indicative-price"; readonly topic: FaqTopic }
   | { readonly kind: "handoff"; readonly trigger: HandoffTrigger }
   | { readonly kind: "opener" };
 
@@ -57,11 +73,32 @@ const BOOKING_OR_PAYMENT =
   /\b(booking|book|memesan|pesan|pemesanan|order|membooking|bayar|membayar|pembayaran|payment|pay|dp|down payment|invoice|transfer (dana|uang|bank)|refund|pembatalan|cancel|reschedule|ubah (jadwal|tanggal)|ganti (jadwal|tanggal))\b/i;
 
 /**
- * Pertanyaan harga atau ketersediaan yang memerlukan konfirmasi admin — tidak
- * boleh dijawab sebagai penawaran final (spec: Harga Indikatif, tiket 05).
+ * Permintaan penawaran khusus atau konfirmasi harga/ketersediaan (spec, tiket
+ * 05): kasus ini tidak boleh dijawab sebagai Harga Indikatif karena hanya tim
+ * yang berwenang memberikan konfirmasi akhir. Pola ini disempitkan oleh tiket
+ * 05 — kata harga umum tidak lagi berada di sini; pertanyaan angka harga yang
+ * tercantum materi dijawab lebih dahulu sebagai Harga Indikatif.
+ */
+const QUOTE_OR_AVAILABILITY_REQUEST =
+  /\b(penawaran|quote|quotation|promo|diskon|discount|harga (khusus|spesial|pasti|final|fixed|terbaik)|special (price|offer)|best (price|quote)|konfirmasi (harga|ketersediaan)|confirm (the )?(price|availability)|ketersediaan|ketersediaannya|tersedia|available|availability|kuota|slot|ready|masih (kosong|buka|berlaku)|still (valid|applicable))\b/i;
+
+/**
+ * Sisa pertanyaan harga/biaya yang tidak dapat dijawab dari daftar Harga
+ * Indikatif — angkanya tidak tercantum materi (mis. paket umrah) atau
+ * pertanyaannya lebih bersifat permintaan penawaran (mis. murah/mahal,
+ * anggaran) — tetap diteruskan ke admin dengan alasan
+ * `custom-quote-or-availability`.
  */
 const CUSTOM_QUOTE_OR_AVAILABILITY =
-  /\b(harga|biaya|tarif|ongkos|price|cost|rate|how much|quote|quotation|penawaran|promo|diskon|discount|budget|anggaran|murah|mahal|cheap|expensive|ketersediaan|tersedia|available|availability|kuota|slot|ready|masih (kosong|buka))\b/i;
+  /\b(harga|biaya|tarif|ongkos|price|priced|pricing|costs?|rates?|how much|budget|anggaran|murah|mahal|cheap|expensive|affordable)\b/i;
+
+/**
+ * Satuan harga yang tidak tercantum materi (mis. "per malam" pada daftar hotel
+ * yang menyebut periode dengan satuan yang masih bertentangan). Bot tidak
+ * menafsirkan satuan sendiri (spec, tiket 05) — pesan diteruskan ke admin.
+ */
+const UNVERIFIED_UNIT_REQUEST =
+  /\b(per|\/)\s?(malam|night|hari|day|jam|hour|minggu|week|bulan|month|tahun|year)s?\b|\b(nightly|hourly|daily|weekly|monthly|yearly)\b/i;
 
 /**
  * Rincian yang tidak tercantum dalam materi (syarat, durasi, masa berlaku)
@@ -89,7 +126,6 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
   { trigger: "human-request", pattern: HUMAN_REQUEST },
   { trigger: "agency-or-corporate", pattern: AGENCY_OR_CORPORATE },
   { trigger: "booking-or-payment", pattern: BOOKING_OR_PAYMENT },
-  { trigger: "custom-quote-or-availability", pattern: CUSTOM_QUOTE_OR_AVAILABILITY },
   { trigger: "unsupported-question", pattern: UNSUPPORTED_DETAIL },
 ];
 
@@ -104,7 +140,19 @@ export function classifyInbound(text: string): InboundRouting {
       return { kind: "handoff", trigger };
     }
   }
+  // Permintaan penawaran/konfirmasi menyelap Harga Indikatif apa pun isinya.
+  if (QUOTE_OR_AVAILABILITY_REQUEST.test(text)) {
+    return { kind: "handoff", trigger: "custom-quote-or-availability" };
+  }
   const topic = matchFaqTopic(text);
+  // Harga Indikatif hanya untuk angka yang tercantum materi dengan satuan yang
+  // tercantum materi; selain itu tetap ke admin (ADR-0005).
+  if (topic !== null && isPriceTopic(topic) && !UNVERIFIED_UNIT_REQUEST.test(text)) {
+    return { kind: "indicative-price", topic };
+  }
+  if (CUSTOM_QUOTE_OR_AVAILABILITY.test(text)) {
+    return { kind: "handoff", trigger: "custom-quote-or-availability" };
+  }
   if (topic !== null) {
     return { kind: "faq", topic };
   }
