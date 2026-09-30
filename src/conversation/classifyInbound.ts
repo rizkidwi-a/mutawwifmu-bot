@@ -39,7 +39,7 @@ export type InboundRouting =
  * bantuan langsung.
  */
 const HUMAN_REQUEST =
-  /\b((talk|speak|chat)\s+(to|with)\s+(a\s+)?(human|agent|person|someone|staff|manager|admin|cs)|(bicara|ngobrol|ngomong|chat|kontak|hubungi|telepon|sambungkan|sambung)\s+(dengan|ke|kepada|to)?\s*(manusia|orang|admin|cs|customer service|human|agent|person|staff|tim|team)|(masalah|keluhan|komplain|complain|problem|rusak|hilang|kecewa))\b/i;
+  /\b((talk|speak|chat)\s+(to|with)\s+(a\s+)?(human|agent|person|someone|staff|manager|admin|cs)|(bicara|ngobrol|ngomong|chat|kontak|hubungi|telepon|sambungkan|sambung|hubungkan)\s+(saya\s+|kami\s+)?(dengan|ke|kepada|to)?\s*(manusia|orang|admin|cs|customer service|human|agent|person|staff|tim|team)|(masalah|keluhan|komplain|complain|problem|rusak|hilang|kecewa))\b/i;
 
 /** Pertanyaan dari segmen agen travel, korporasi, atau institusi. */
 const AGENCY_OR_CORPORATE =
@@ -54,7 +54,7 @@ const EMERGENCY = /\b(darurat|emergency|urgent|kecelakaan|musibah)\b/i;
 
 /** Kasus booking, pembayaran, atau perubahan transaksi. */
 const BOOKING_OR_PAYMENT =
-  /\b(booking|book|pesan|pemesanan|order|bayar|pembayaran|payment|pay|dp|down payment|invoice|transfer (dana|uang|bank)|refund|pembatalan|cancel|reschedule|ubah (jadwal|tanggal)|ganti (jadwal|tanggal))\b/i;
+  /\b(booking|book|memesan|pesan|pemesanan|order|membooking|bayar|membayar|pembayaran|payment|pay|dp|down payment|invoice|transfer (dana|uang|bank)|refund|pembatalan|cancel|reschedule|ubah (jadwal|tanggal)|ganti (jadwal|tanggal))\b/i;
 
 /**
  * Pertanyaan harga atau ketersediaan yang memerlukan konfirmasi admin — tidak
@@ -69,6 +69,9 @@ const CUSTOM_QUOTE_OR_AVAILABILITY =
  */
 const UNSUPPORTED_DETAIL =
   /\b(syarat|persyaratan|requirements?|berapa lama|masa berlaku|validity|expired|kadaluarsa|harus (bawa|siapkan|urus|persiapkan)|perlu (bawa|siapkan)|what do i need|what documents|how long)\b/i;
+
+/** Basa-basi/sapaan tanpa pertanyaan substantif — tetap dibalas pembuka yang hangat. */
+const PLEASANTRY = /apa kabar|how are you|gimana kabar|kabar (baik|saja)|what'?s up/i;
 
 /** Pertanyaan eksplisit yang tidak cocok dengan topik mana pun. */
 const QUESTION_LIKE =
@@ -105,7 +108,7 @@ export function classifyInbound(text: string): InboundRouting {
   if (topic !== null) {
     return { kind: "faq", topic };
   }
-  if (QUESTION_LIKE.test(text)) {
+  if (!PLEASANTRY.test(text) && QUESTION_LIKE.test(text)) {
     return { kind: "handoff", trigger: "unsupported-question" };
   }
   return { kind: "opener" };

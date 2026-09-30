@@ -133,3 +133,23 @@ test("pertanyaan harga tidak terjawab sebagai FAQ meski memuat kata topik", () =
   const routing = classifyInbound("Berapa harga hotel di Mekkah?");
   assert.notEqual(routing.kind, "faq");
 });
+
+test("sapaan basa-basi tetap menjadi opener", () => {
+  for (const text of ["Halo, apa kabar?", "Hello, how are you?"]) {
+    assert.deepEqual(classifyInbound(text), { kind: "opener" }, text);
+  }
+});
+
+test("permintaan menghubungkan ke admin diteruskan ke handoff", () => {
+  assert.deepEqual(classifyInbound("tolong hubungkan saya dengan admin MUTAWWIFMU"), {
+    kind: "handoff",
+    trigger: "human-request",
+  });
+});
+
+test("kata kerja memesan diperlakukan sebagai booking", () => {
+  assert.deepEqual(classifyInbound("bisakah saya memesan paket umrah bulan depan?"), {
+    kind: "handoff",
+    trigger: "booking-or-payment",
+  });
+});
