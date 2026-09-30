@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (transport provider sudah ada)
 
-**Status:** ready-for-human
+**Status:** ready-for-agent (pekerjaan kode selesai; handoff ke admin dan pemindahan ke server Menunggu keputusan manusia)
 
 - [x] Keputusan provider BSP alternatif tercatat sebagai ADR, berikut konsekuensi dan alasan penolakan kandidat lain.
 - [x] Adapter pengirim pesan dan pembacaan webhook untuk provider baru ada di `src/adapters/`, tanpa menambah dependency runtime.
@@ -39,10 +39,11 @@ Temuan saat verifikasi lokal (setelah kredensial diisi dan verifikasi lokal dija
 - Kegagalan di `src/server.ts` ditangkap tanpa log sehingga penolakan provider tidak terlihat. Sekarang error dicatat ke log proses; respons ke pemanggil tetap `500 {"error":"internal"}` agar isi provider tidak bocor ke luar.
 - `WHATSAPP_API_BASE_URL` pada `.env` masih mengarah ke domain Meta; sudah dinonaktifkan agar default per provider (`https://api.fonnte.com`) yang dipakai.
 
-Sisa tindakan manusia (alasan status `ready-for-human`):
+Sisa tindakan manusia:
 
-1. Daftar akun Fonnte dan hubungkan nomor `+62 895 0700 3830` sebagai perangkat; pastikan **auto read** aktif (tanpa itu webhook tidak terpanggil).
-2. Isi `.env`: `WHATSAPP_PROVIDER=fonnte`, `WHATSAPP_SENDER_NUMBER`, `WHATSAPP_API_TOKEN` (token perangkat), `WHATSAPP_WEBHOOK_VERIFY_TOKEN`. `WHATSAPP_API_BASE_URL` dibiarkan kosong agar default Fonnte yang dipakai.
-3. Daftarkan webhook di dashboard Fonnte: `https://<host-publik>/webhook?token=<token>`.
-4. Smoke test live: pesan ke nomor pengembangan harus dibalas bot end-to-end.
+1. ~~Daftar akun Fonnte dan hubungkan nomor `+62 895 0700 3830`~~ — selesai. Awalnya gagal karena perangkat berstatus `disconnected`: nomor tersebut belum terdaftar di WhatsApp, jadi tidak ada QR yang bisa dipindai. Setelah nomor didaftarkan ke WhatsApp dan devices ditautkan, `POST /validate` membalas `registered: ["6289507003830"]` dan pengiriman masuk antrean dengan kuota terpakai 1 dari 999.
+2. ~~Isi `.env`~~ — selesai.
+3. ~~Daftarkan webhook di dashboard Fonnte~~ — selesai (Auto Read ON + URL webhook dengan token).
+4. ~~Smoke test live~~ — selesai: pesan dari nomor lain mendapat balasan bot, ditandai "Sent via Fonnte" di WhatsApp.
 5. Keputusan provider untuk produksi ditunda; Fonnte dipakai untuk membuktikan alur sampai akun Meta bisa diakses kembali.
+6. Sebelum handoff ke produksi, proses bot harus dipindah ke server/VPS dengan domain sendiri: quick tunnel tidak punya jaminan uptime dan URL-nya berubah setiap restart, sedangkan URL webhook di Fonnte harus stabil.
