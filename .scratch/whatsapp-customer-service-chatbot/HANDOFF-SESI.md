@@ -1,4 +1,4 @@
-# Handoff Sesi — Tiket 03 Selesai, Lanjut Tiket 04
+# Handoff Sesi — Tiket 04 Selesai, Lanjut Tiket 05
 
 **Untuk sesi baru:** baca file ini lebih dulu, lalu kerjakan tiket berikutnya.
 **Aturan aktif:** bila konteks window sudah melewati 25%, buat handoff baru (perbarui
@@ -8,12 +8,11 @@ file ini) dan minta pengguna pindah ke sesi baru — jangan memaksakan sampai ke
 
 | Commit | Isi |
 | --- | --- |
-| `7566989` | Modul tiket 03 dari sesi paralel (knowledge FAQ + `classifyInbound` + `language.ts` + tesnya) |
-| `27ff422` | Fix 3 celah `classifyInbound` (sapaan basa-basi, "hubungkan saya dengan admin", "memesan") |
-| `e28b78c` | Handoff sesi sebelumnya |
-| `ebd9ef5` | Tiket 03 selesai (`resolved`): FAQ pada seam + `record-faq-answer` + `classifyInbound` sebagai satu sumber klasifikasi + `resolveReplyLanguage` + metrik `faqAnswered` + wiring `runActions` + README |
+| `fe184e8` | Refactor: rename `src/knowledge/privatePremiumUmrahFaq.ts` → `src/knowledge/businessFaq.ts` (tipe `UmrahFaqTopic` → `FaqTopic`); perilaku tidak berubah, path ADR-0004 diselaraskan |
+| 8b52c2e | Tiket 04 selesai (`resolved`): 5 entri FAQ layanan lain profil + tes seam & knowledge + README |
+| `0703405` | Handoff sesi sebelumnya |
 
-Terakhir diverifikasi: **121 tes hijau**, `npm run typecheck` bersih.
+Terakhir diverifikasi: **134 tes hijau**, `npm run typecheck` bersih.
 
 ## Konteks singkat
 
@@ -22,7 +21,7 @@ Terakhir diverifikasi: **121 tes hijau**, `npm run typecheck` bersih.
   balasan + tindakan terlihat). State multi-giliran diturunkan dari riwayat percakapan —
   **seam tetap murni, jangan ubah bentuk `BotTurn`**.
 - Tindakan di `src/conversation/types.ts`: `record-follow-up-request`,
-  `record-faq-answer` (`topic: string`, nilai dari `UmrahFaqTopic`),
+  `record-faq-answer` (`topic: string`, nilai dari `FaqTopic`),
   `hand-off-to-admin` (payload `reason: HandOffReason`, `request`, `history`).
 - Routing pesan masuk: **satu sumber** `src/conversation/classifyInbound.ts`
   (`faq`/`handoff`/`opener`). Urutan `nextState`/`step` yang teruji (JANGAN diubah
@@ -36,29 +35,64 @@ Terakhir diverifikasi: **121 tes hijau**, `npm run typecheck` bersih.
   5. Routing `handoff` (non-mendesak) → `awaiting-handoff-consent` (`reason` = trigger);
   6. `FOLLOW_UP_START` (tetap di `handleInbound` — intent konsultasi) → `collecting`;
   7. Di `step` untuk `idle`: routing `faq` → jawab FAQ; `opener`/lainnya → sapaan awal.
-- Modul pendukung: `src/knowledge/privatePremiumUmrahFaq.ts` (`matchFaqTopic`,
-  `faqAnswer(topic, language)`; 11 topik) dan `src/conversation/language.ts`
-  (`detectLanguage`, `resolveReplyLanguage(history, text)` — penanda lebar + fallback
-  bahasa percakapan dari riwayat).
+- Modul pengetahuan: `src/knowledge/businessFaq.ts` (`matchFaqTopic`,
+  `faqAnswer(topic, language)`, tipe `FaqTopic`; **16 topik**: 11 dari tiket 03 +
+  `tour-guide`, `charity-program`, `multi-language-support`,
+  `photographer-videographer`, `custom-itinerary` dari tiket 04). Modul pendukung:
+  `src/conversation/language.ts` (`detectLanguage`, `resolveReplyLanguage(history, text)`).
 - Metrik (`src/metrics.ts`, `GET /metrics`): `followUpRequestsRecorded`,
-  `followUpRequestsForwarded`, `handOffsForwarded`, `faqAnswered`.
+  `followUpRequestsForwarded`, `handOffsForwarded`, `faqAnswered` — wiring generik,
+  topik FAQ baru tidak perlu perubahan metrik.
+
+## Pengaturan urutan entri di `businessFaq.ts` (jangan diacak)
+
+- `tour-guide` **sebelum** entri city tour: pola `tour guides?` lebih spesifik daripada
+  `tour`; city tour per destinasi tetap menang untuk "City tour di Madinah ...".
+- `multi-language-support` **setelah** `mutawwif`: "Do you provide bilingual worship
+  guides?" harus tetap terjawab `mutawwif` (pola multibahasa mengandung `bilingual`).
+- Tes `tests/knowledge/businessFaq.test.ts` ("mengenali city tour per destinasi lebih
+  dahulu", "Apakah ada mutawwif yang bisa berbahasa Arab?" → `mutawwif`) menjaga urutan ini.
 
 ## Jebakan yang sudah diketahui (jangan diulang)
 
 - **Jangan panggil `matchFaqTopic` tanpa cek pola handoff.** "Berapa harga hotel di
   Mekkah?" dan "Apakah tersedia city tour?" cocok topik FAQ di level knowledge, tetapi
-  `classifyInbound` mendahulukan pola handoff (`custom-quote-or-availability`) —
-  hasil akhirnya alur persetujuan handoff, sesuai spec (harga/ketersediaan perlu
-  konfirmasi admin; tiket 05 yang mengatur Harga Indikatif).
-- Jawaban FAQ tidak boleh memuat angka harga final; materi harga indikatif masuk
-  lewat tiket 05.
+  `classifyInbound` mendahulukan pola handoff (`custom-quote-or-availability`).
+- Kata `tersedia`/`available`/`harga`/`price` pada pesan = routing handoff, bukan FAQ —
+  tes FAQ tidak boleh memuat kata tersebut pada pesannya.
+- Kata `document` (kata kerja) jatuh ke topik `visa-documents`; untuk pertanyaan
+  dokumentasi perjalanan gunakan "dokumentasi"/"photographer" pada tes dan pola.
+- Jawaban FAQ tidak boleh memuat angka harga final; **tiket 05 justru akan mengizinkan
+  angka harga sebagai Harga Indikatif** — lihat "Pekerjaan tiket 05" di bawah.
+
+## Pekerjaan tiket 05 (baca dulu sebelum mengubah apapun)
+
+Tiket 05 = `.scratch/whatsapp-customer-service-chatbot/issues/05-transparent-indicative-pricing.md`.
+Materi harga ada di `BOOKLET MUTAWWIFMU.md` (mutawwif per grup, dokumen per pax, airport
+handling, transportasi per grup, city tour, fotografi/videografi) dan
+`HOTEL RATES MUTAWWIFMU (2).md` (daftar hotel dengan **konflik satuan**: per orang di
+sampul, per kamar di tabel — wajib disampaikan sebagai hal belum terverifikasi).
+
+Batas sadar yang harus diubah **secara sadar** oleh tiket 05 (saat ini dijaga tes):
+
+1. `tests/conversation/otherProfileServicesFaq.test.ts` — tes "pertanyaan harga layanan
+   lain tidak dijawab sebagai FAQ ... tetap ke alur admin" mengunci routing
+   `custom-quote-or-availability` untuk semua pertanyaan harga. Tiket 05 harus
+   mendistingsi: pertanyaan angka harga yang tercantum materi → jawab Harga Indikatif;
+   permintaan penawaran khusus / konfirmasi harga / ketersediaan → tetap handoff.
+2. `tests/knowledge/businessFaq.test.ts` — invarian "jawaban tidak memuat angka harga"
+   (`/(SAR|IDR|Rp)\s?\d/`) atas `SEMUA_TOPIK` harus dilonggarkan untuk topik harga;
+   invarian "tanpa klaim harga final / tanpa durasi karangan" dipertahankan.
+3. Pola `CUSTOM_QUOTE_OR_AVAILABILITY` di `classifyInbound.ts` perlu penyempitan;
+   perubahan itu menyentuh logika klasifikasi — **nyatakan eksplisit hubungannya dengan
+   ADR-0004** (jangan diubah diam-diam) dan pastikan tes
+   `tests/conversation/classifyInbound.test.ts` yang ada tetap hijau.
 
 ## Sisa langkah (TDD: tes merah dulu → implementasi; typecheck berkala; file tes tunggal
 sering; full suite sekali di akhir; lalu `/code-review`; commit ke `main`)
 
-1. **Tiket 04** — `.scratch/whatsapp-customer-service-chatbot/issues/04-other-profile-services-faq.md`.
-2. **Tiket 05** — `05-transparent-indicative-pricing.md`.
-3. **Tiket 06** — `06-production-number-cutover.md` (butuh akses nomor produksi dari pemilik).
+1. **Tiket 05** — `05-transparent-indicative-pricing.md` (lihat bagian sebelumnya).
+2. **Tiket 06** — `06-production-number-cutover.md` (butuh akses nomor produksi dari pemilik).
 
 ## Konvensi repo (wajib)
 
@@ -74,5 +108,6 @@ sering; full suite sekali di akhir; lalu `/code-review`; commit ke `main`)
 ## Riwayat insiden (jangan diulang)
 
 Sesi paralel yang dulu menulis tiket 03 sudah mati dan kerjanya diamanatkan di commit
-`7566989`. Integrasi tiket 03 selesai pada sesi `ebd9ef5`; tidak ada proses paralel lain
-yang diketahui berjalan saat handoff ini ditulis.
+`7566989`. Integrasi tiket 03 selesai pada sesi `ebd9ef5`; tiket 04 selesai pada sesi
+ini (commit `fe184e8` + commit tiket 04). Tidak ada proses paralel lain yang diketahui
+berjalan saat handoff ini ditulis.
