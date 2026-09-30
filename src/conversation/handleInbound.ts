@@ -1,6 +1,6 @@
 import { classifyInbound, type HandoffTrigger } from "./classifyInbound.ts";
 import { resolveReplyLanguage, type Language } from "./language.ts";
-import { faqAnswer } from "../knowledge/privatePremiumUmrahFaq.ts";
+import { faqAnswer } from "../knowledge/businessFaq.ts";
 import type {
   BotTurn,
   ConversationAction,

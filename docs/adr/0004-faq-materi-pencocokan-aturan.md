@@ -10,7 +10,7 @@ Spec menetapkan bahwa bot hanya boleh menjawab berdasarkan materi bisnis yang te
 
 Jawaban FAQ disusun **manual dari materi bisnis** (`BOOKLET MUTAWWIFMU.md`, `HOTEL RATES MUTAWWIFMU (2).md`) dan disimpan sebagai basis pengetahuan di `src/knowledge/`, lalu dipilih melalui **pencocokan aturan (pola kata)** pada pesan masuk:
 
-- `src/knowledge/privatePremiumUmrahFaq.ts` memuat entri FAQ: topik, pola pencocok, dan jawaban dwibahasa (ID/EN) yang hanya berisi fakta materi. Tidak ada teks jawaban yang dihasilkan saat runtime.
+- `src/knowledge/businessFaq.ts` memuat entri FAQ: topik, pola pencocok, dan jawaban dwibahasa (ID/EN) yang hanya berisi fakta materi. Tidak ada teks jawaban yang dihasilkan saat runtime.
 - `src/conversation/classifyInbound.ts` mengklasifikasikan pesan ke `faq`, `handoff` (dengan alasan yang sama dengan `HandOffReason`), atau `opener`. Pemicu handoff (harga/ketersediaan, booking/pembayaran, permintaan manusia, agen/korporasi, perjalanan aktif/darurat, rincian tak didukung) **diperiksa sebelum** pencocokan FAQ, sehingga pertanyaan yang memerlukan konfirmasi tidak pernah dijawab sebagai penawaran final.
 - Pesan yang tidak cocok dengan topik mana pun tidak dijawab dari asumsi: pertanyaan eksplisit diteruskan ke alur handoff tiket 02, sapaan/pembuka memperoleh balasan awal.
 - Bahasa balasan mengikuti bahasa Calon Jemaah (`src/conversation/language.ts`).

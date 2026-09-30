@@ -16,7 +16,7 @@
  * dengan `HandOffReason` pada types.ts agar dapat langsung dipakai sebagai
  * alasan pada tindakan `hand-off-to-admin`.
  */
-import { matchFaqTopic, type UmrahFaqTopic } from "../knowledge/privatePremiumUmrahFaq.ts";
+import { matchFaqTopic, type FaqTopic } from "../knowledge/businessFaq.ts";
 
 /** Alasan sebuah pesan perlu diteruskan ke admin. */
 export type HandoffTrigger =
@@ -30,7 +30,7 @@ export type HandoffTrigger =
 
 /** Hasil klasifikasi pesan masuk. */
 export type InboundRouting =
-  | { readonly kind: "faq"; readonly topic: UmrahFaqTopic }
+  | { readonly kind: "faq"; readonly topic: FaqTopic }
   | { readonly kind: "handoff"; readonly trigger: HandoffTrigger }
   | { readonly kind: "opener" };
 

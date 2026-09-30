@@ -1,5 +1,6 @@
 /**
- * Pengetahuan FAQ Private Premium Umrah & Land Arrangement (tiket 03).
+ * Pengetahuan FAQ dari materi bisnis MUTAWWIFMU (tiket 03: Private Premium
+ * Umrah & Land Arrangement; tiket 04: layanan lain dalam profil perusahaan).
  *
  * Setiap jawaban disusun hanya dari fakta yang tercantum dalam materi bisnis:
  * - "BOOKLET MUTAWWIFMU.md" — profil perusahaan: layanan, armada, city tour.
@@ -13,8 +14,8 @@
  */
 import type { Language } from "../conversation/language.ts";
 
-/** Topik FAQ yang didukung materi untuk Private Premium Umrah & Land Arrangement. */
-export type UmrahFaqTopic =
+/** Topik FAQ yang didukung materi bisnis MUTAWWIFMU. */
+export type FaqTopic =
   | "land-arrangement"
   | "mutawwif"
   | "visa-documents"
@@ -28,7 +29,7 @@ export type UmrahFaqTopic =
   | "city-tour-alula";
 
 interface FaqEntry {
-  readonly topic: UmrahFaqTopic;
+  readonly topic: FaqTopic;
   /** Semua pola harus cocok; sinonim satu topik dirangkai dalam satu alternatif. */
   readonly patterns: readonly RegExp[];
   readonly answer: { readonly id: string; readonly en: string };
@@ -187,7 +188,7 @@ const ENTRIES: readonly FaqEntry[] = [
  * Mengembalikan `null` bila tidak ada topik yang benar-benar didukung —
  * pemanggil yang menentukan apakah pesan diteruskan ke alur admin.
  */
-export function matchFaqTopic(text: string): UmrahFaqTopic | null {
+export function matchFaqTopic(text: string): FaqTopic | null {
   for (const entry of ENTRIES) {
     if (entry.patterns.every((pattern) => pattern.test(text))) {
       return entry.topic;
@@ -197,7 +198,7 @@ export function matchFaqTopic(text: string): UmrahFaqTopic | null {
 }
 
 /** Ambil jawaban FAQ sebuah topik dalam bahasa Calon Jemaah. */
-export function faqAnswer(topic: UmrahFaqTopic, language: Language): string {
+export function faqAnswer(topic: FaqTopic, language: Language): string {
   const entry = ENTRIES.find((candidate) => candidate.topic === topic);
   if (entry === undefined) {
     throw new Error(`Topik FAQ tidak dikenal: ${topic}`);

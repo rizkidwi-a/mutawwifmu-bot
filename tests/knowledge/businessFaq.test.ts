@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import {
   faqAnswer,
   matchFaqTopic,
-  type UmrahFaqTopic,
-} from "../../src/knowledge/privatePremiumUmrahFaq.ts";
+  type FaqTopic,
+} from "../../src/knowledge/businessFaq.ts";
 
-const SEMUA_TOPIK: readonly UmrahFaqTopic[] = [
+const SEMUA_TOPIK: readonly FaqTopic[] = [
   "land-arrangement",
   "mutawwif",
   "visa-documents",

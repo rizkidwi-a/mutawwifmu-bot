@@ -68,7 +68,7 @@ export type ConversationAction =
       readonly kind: "record-faq-answer";
       /**
        * Topik materi yang dijawab. Disengaja `string` agar tipe seam tidak
-       * bergantung pada modul knowledge; nilainya berasal dari `UmrahFaqTopic`.
+       * bergantung pada modul knowledge; nilainya berasal dari `FaqTopic`.
        */
       readonly topic: string;
     }
