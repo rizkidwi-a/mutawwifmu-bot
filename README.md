@@ -2,7 +2,7 @@
 
 Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
 
-Saat ini baru tahap 01: transport WhatsApp melalui nomor pengembangan `+62 895 0700 3830` dengan balasan awal yang aman. Perilaku FAQ, penanganan Permintaan Tindak Lanjut, dan handoff ke admin dikerjakan tiket berikutnya.
+Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), serta handoff ke admin yang selalu diawali persetujuan calon jemaah. FAQ layanan dan harga indikatif dikerjakan tiket berikutnya.
 
 ## Menjalankan
 
@@ -46,6 +46,16 @@ Keduanya perlu dipasang lebih dulu (`winget install ngrok.ngrok` / `winget insta
 
 Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
+## Handoff ke admin
+
+Bot meneruskan percakapan ke admin hanya setelah calon jemaah menyetujui penerusan informasinya; bila ditolak, informasi tidak diteruskan. Kasus yang diteruskan: permintaan berbicara dengan manusia, pertanyaan yang tidak didukung/tidak pasti, permintaan penawaran khusus/konfirmasi harga atau ketersediaan, pertanyaan agen/korporasi, booking/pembayaran, perjalanan aktif, dan keadaan darurat. Pesan konfirmasi tidak menjanjikan waktu balasan admin.
+
+Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) — spec melarang mengasumsikan CRM/shared inbox tertentu. Implementasi aktif saat ini `LoggingAdminChannel` **bersifat sementara** (mencatat ringkasan + konteks percakapan ke log proses).
+
+> **Gate pra-produksi:** kanal penerimaan admin harus dikonfirmasi pemilik dan dicatat sebagai ADR sebelum handoff dipakai di produksi (lihat tiket 06). Mengganti implementasi `AdminChannel` tidak mengubah perilaku percakapan.
+
+Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
+
 ## Konfigurasi
 
 Semua identitas provider dan nomor pengirim berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
@@ -57,7 +67,7 @@ npm test          # seluruh tes (perilaku seam + kontrak transport)
 npm run typecheck # pemeriksaan tipe
 ```
 
-Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/conversation/handleInbound.ts`): pesan + konteks percakapan → balasan + tindakan terlihat, provider-agnostic. Tes transport memastikan pesan masuk dan balasan keluar benar-benar melalui kanal provider (webhook + API Graph) dan tidak menggantikan tes perilaku pada seam tersebut.
+Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/conversation/handleInbound.ts`): pesan + konteks percakapan → balasan + tindakan terlihat, provider-agnostic. Tes perilaku pada seam tersebut (pengumpulan bidang Permintaan Tindak Lanjut, anggaran opsional, larangan meminta data sensitif, permintaan persetujuan, penolakan, pemicu handoff) adalah tes utama. Tes transport memastikan pesan masuk dan balasan keluar benar-benar melalui kanal provider, dan tes wiring memastikan handoff diteruskan ke kanal admin serta terhitung sebagai metrik — keduanya tidak menggantikan tes perilaku pada seam tersebut.
 
 ## Struktur
 
@@ -71,10 +81,13 @@ src/
 │   ├── webhookSupport.ts  # helper HTTP bersama antar adapter webhook
 │   ├── fonnte/            # transport BSP Fonnte (webhook + pengirim)
 │   └── whatsapp-cloud/    # transport WhatsApp Cloud API (webhook + pengirim)
+├── adminChannel.ts        # port kanal penerimaan admin (handoff)
 ├── config.ts              # konfigurasi dari environment
+├── conversationStore.ts   # port penyimpanan konteks percakapan
 ├── inboundTransport.ts    # port penerimaan pesan masuk
 ├── messageSender.ts       # port pengiriman pesan keluar
-├── server.ts              # server webhook
+├── metrics.ts             # port metrik keberhasilan
+├── server.ts              # server webhook (+ GET /metrics)
 └── main.ts                # entry point proses bot
 docs/
 ├── adr/                   # keputusan arsitektur (lihat CONTEXT.md)

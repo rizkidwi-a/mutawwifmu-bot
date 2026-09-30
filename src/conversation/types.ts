@@ -32,13 +32,45 @@ export interface Reply {
 }
 
 /**
+ * Bidang Permintaan Tindak Lanjut yang dikumpulkan untuk admin (spec:
+ * layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama, anggaran
+ * opsional). Nilai disimpan apa adanya dari calon jemaah.
+ */
+export interface FollowUpRequest {
+  readonly serviceOrDestination: string;
+  readonly travelDateOrPeriod: string;
+  readonly travellerCount: string;
+  readonly mainNeeds: string;
+  /** Kisaran anggaran bila diberikan; null bila calon jemaah melewatinya. */
+  readonly budgetRange: string | null;
+}
+
+/** Alasan percakapan diteruskan kepada admin (spec: kasus yang diteruskan ke admin). */
+export type HandOffReason =
+  | "follow-up-request"
+  | "human-request"
+  | "unsupported-question"
+  | "custom-quote-or-availability"
+  | "agency-or-corporate"
+  | "booking-or-payment"
+  | "active-trip"
+  | "emergency";
+
+/**
  * Tindakan terlihat yang dihasilkan seam — sesuai spec: "mencatat permintaan
  * atau meneruskan percakapan". Varian baru hanya ditambahkan saat tiket yang
  * membutuhkannya dikerjakan.
  */
 export type ConversationAction =
-  | { readonly kind: "record-follow-up-request" }
-  | { readonly kind: "hand-off-to-admin" };
+  | { readonly kind: "record-follow-up-request"; readonly request: FollowUpRequest }
+  | {
+      readonly kind: "hand-off-to-admin";
+      readonly reason: HandOffReason;
+      /** Permintaan Tindak Lanjut bila ada; selain itu null. */
+      readonly request: FollowUpRequest | null;
+      /** Konteks percakapan yang diteruskan bersama handoff. */
+      readonly history: readonly ConversationTurn[];
+    };
 
 /** Hasil satu pemrosesan pesan masuk pada seam percakapan. */
 export interface BotTurn {

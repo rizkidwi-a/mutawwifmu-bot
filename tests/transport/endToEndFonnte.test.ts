@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { createAppServer } from "../../src/server.ts";
 import { createTransport } from "../../src/adapters/factory.ts";
+import { LoggingAdminChannel } from "../../src/adminChannel.ts";
 import { loadConfig } from "../../src/config.ts";
+import { InMemoryConversationStore } from "../../src/conversationStore.ts";
+import { InMemoryMetrics } from "../../src/metrics.ts";
 
 const envKonfigurasi: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
@@ -68,7 +71,13 @@ async function buatLingkungan(balasanFonnte: unknown = { detail: "success! messa
   const portFonnte = await dengarkan(apiFonntePalsu);
 
   const config = loadConfig({ ...envKonfigurasi, WHATSAPP_API_BASE_URL: `http://127.0.0.1:${portFonnte}` });
-  const server = createAppServer({ config, ...createTransport(config.whatsapp) });
+  const server = createAppServer({
+    config,
+    ...createTransport(config.whatsapp),
+    conversations: new InMemoryConversationStore(),
+    adminChannel: new LoggingAdminChannel(() => {}),
+    metrics: new InMemoryMetrics(),
+  });
   const portApp = await dengarkan(server);
 
   return {
