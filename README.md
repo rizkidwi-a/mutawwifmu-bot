@@ -66,6 +66,10 @@ Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) —
 
 Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FAQ yang terjawab tanpa handoff (metrik pendamping) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
 
+## Transkrip percakapan
+
+Selain handoff, setiap pesan teks masuk dan balasan yang benar-benar terkirim dicatat sebagai baris CSV agar riwayat mudah dibaca di Excel/Google Sheets (lihat `docs/adr/0007-transkrip-percakapan-csv.md`). Berkasnya di `data/transkrip-percakapan.csv` (dibuat otomatis, kolom `waktu`, `nomor`, `peran`, `pesan`; waktu WIB). `data/` diabaikan git karena memuat data pribadi — jangan di-commit atau disalin ke tempat publik. Penulisan bersifat best-effort: bila berkas gagal ditulis, balasan bot tetap terkirim dan kegagalannya hanya tercatat di log proses. Mengganti tujuan transkrip cukup mengganti implementasi port `ConversationTranscript` (`src/conversationTranscript.ts`).
+
 ## Konfigurasi
 
 Semua identitas provider, nomor pengirim, dan nomor admin penerima handoff berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
@@ -103,6 +107,7 @@ src/
 ├── cutoverPreflight.ts    # penilaian kesiapan konfigurasi cutover nomor produksi
 ├── cutoverCheck.ts        # entry point npm run cutover:check
 ├── conversationStore.ts   # port penyimpanan konteks percakapan
+├── conversationTranscript.ts # port transkrip percakapan (CSV untuk pemilik)
 ├── inboundTransport.ts    # port penerimaan pesan masuk
 ├── messageSender.ts       # port pengiriman pesan keluar
 ├── metrics.ts             # port metrik keberhasilan
@@ -111,4 +116,5 @@ src/
 docs/
 ├── adr/                   # keputusan arsitektur (lihat CONTEXT.md)
 └── whatsapp-number-cutover.md
+data/                      # transkrip percakapan (diabaikan git; data pribadi)
 ```

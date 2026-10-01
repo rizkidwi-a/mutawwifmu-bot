@@ -72,6 +72,7 @@ async function buatLingkungan(): Promise<Lingkungan> {
     conversations: new InMemoryConversationStore(),
     adminChannel,
     metrics,
+    transcript: { record: () => {} },
   });
   const port = await dengarkan(server);
 

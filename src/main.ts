@@ -6,6 +6,7 @@ import { createTransport } from "./adapters/factory.ts";
 import { WhatsAppAdminChannel } from "./adminChannel.ts";
 import { loadConfig } from "./config.ts";
 import { InMemoryConversationStore } from "./conversationStore.ts";
+import { CsvConversationTranscript } from "./conversationTranscript.ts";
 import { InMemoryMetrics } from "./metrics.ts";
 import { createAppServer } from "./server.ts";
 
@@ -17,8 +18,10 @@ const { sender, inbound } = createTransport(config.whatsapp);
 const adminChannel = new WhatsAppAdminChannel(sender, config.adminNumber);
 const conversations = new InMemoryConversationStore();
 const metrics = new InMemoryMetrics();
+// Transkrip CSV untuk pemilik (tiket 08), efek samping di luar seam percakapan.
+const transcript = new CsvConversationTranscript();
 
-const server = createAppServer({ config, sender, inbound, conversations, adminChannel, metrics });
+const server = createAppServer({ config, sender, inbound, conversations, adminChannel, metrics, transcript });
 
 server.listen(config.port, () => {
   console.log(

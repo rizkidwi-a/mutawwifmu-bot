@@ -3,3 +3,5 @@ node_modules/
 dist/
 *.log
 .scratch/tmp/
+# data/ memuat data pribadi (nomor + isi pesan transkrip percakapan)
+data/

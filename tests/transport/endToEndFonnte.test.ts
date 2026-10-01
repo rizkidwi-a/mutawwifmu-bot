@@ -77,6 +77,7 @@ async function buatLingkungan(balasanFonnte: unknown = { detail: "success! messa
     conversations: new InMemoryConversationStore(),
     adminChannel: { deliver: () => {} },
     metrics: new InMemoryMetrics(),
+    transcript: { record: () => {} },
   });
   const portApp = await dengarkan(server);
 

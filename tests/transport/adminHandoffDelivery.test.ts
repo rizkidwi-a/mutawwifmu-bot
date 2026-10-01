@@ -62,6 +62,7 @@ async function buatLingkungan(opsi: { adminGagal?: boolean } = {}): Promise<Ling
     conversations: new InMemoryConversationStore(),
     adminChannel: new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}),
     metrics,
+    transcript: { record: () => {} },
   });
   const port = await dengarkan(server);
 

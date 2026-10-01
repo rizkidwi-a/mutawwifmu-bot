@@ -12,6 +12,7 @@ import type { AppConfig } from "./config.ts";
 import { handleInbound } from "./conversation/handleInbound.ts";
 import type { ConversationAction, ConversationTurn } from "./conversation/types.ts";
 import type { ConversationStore } from "./conversationStore.ts";
+import type { ConversationRole, ConversationTranscript } from "./conversationTranscript.ts";
 import type { InboundTransport } from "./inboundTransport.ts";
 import type { MessageSender } from "./messageSender.ts";
 import type { Metrics } from "./metrics.ts";
@@ -27,6 +28,8 @@ export interface AppServerDeps {
   readonly adminChannel: AdminChannel;
   /** Metrik keberhasilan; dihitung dari handoff yang berhasil diteruskan. */
   readonly metrics: Metrics;
+  /** Catatan transkrip percakapan (tiket 08); efek samping best-effort. */
+  readonly transcript: ConversationTranscript;
 }
 
 /**
@@ -93,12 +96,14 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
         replyCount += 1;
       }
       if (pesan.text !== null) {
+        recordTranscript(deps, pesan.from, "calon-jemaah", pesan.text);
         const nextHistory: ConversationTurn[] = [
           ...konteks.history,
           { role: "calon-jemaah", text: pesan.text },
         ];
         if (sentText !== null) {
           nextHistory.push({ role: "asisten", text: sentText });
+          recordTranscript(deps, pesan.from, "asisten", sentText);
         }
         deps.conversations.save(pesan.from, { history: nextHistory });
       }
@@ -108,6 +113,23 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
   }
 
   sendJson(res, 404, { error: "tidak ditemukan" });
+}
+
+/**
+ * Catat pesan ke transkrip sebagai efek samping best-effort: kegagalan menulis
+ * tidak boleh menggagalkan balasan bot, tetapi tetap terlihat di log proses.
+ */
+function recordTranscript(
+  deps: AppServerDeps,
+  number: string,
+  role: ConversationRole,
+  text: string,
+): void {
+  try {
+    deps.transcript.record({ at: new Date(), number, role, text });
+  } catch (error) {
+    console.error("Penulisan transkrip percakapan gagal:", error);
+  }
 }
 
 /**
