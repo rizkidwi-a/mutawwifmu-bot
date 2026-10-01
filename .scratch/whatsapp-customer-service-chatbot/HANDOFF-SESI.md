@@ -1,15 +1,15 @@
-# Handoff Sesi — 2026-10-01: Uji kanal admin lolos; permintaan transkrip spreadsheet
+# Handoff Sesi — 2026-10-01: Tiket 08 (transkrip CSV) selesai; kanal admin lolos uji
 
-**Untuk sesi baru:** baca file ini lebih dulu. Pekerjaan berikutnya: tiket 08 (transkrip
-percakapan CSV) dan keputusan perbaikan celah bentuk jamak "land arrangements".
+**Untuk sesi baru:** baca file ini lebih dulu. Pekerjaan berikutnya: keputusan celah
+bentuk jamak "land arrangements", lalu cutover produksi tiket 06 (masih tertunda).
 **Aturan aktif:** bila konteks window sudah melewati 25%, buat handoff baru (perbarui
 file ini) dan minta pengguna pindah ke sesi baru.
 
 ## Status repo (branch `main`)
 
-Working tree sesi ini hanya berubah dokumen: tiket 08, handoff ini, dan satu baris
-`.gitignore` (`.scratch/tmp/`). Commit terakhir sebelumnya: `d15efe9` docs(handoff)
-playbook cutover.
+Commit tiket 08: `2ee6810` feat: transkrip percakapan CSV untuk pemilik (tiket 08) —
+berisi modul transkrip, wiring server, ADR-0007, README, tes, dan penutupan tiket.
+Working tree bersih setelah commit handoff ini.
 
 ## Yang terjadi sesi ini (ringkas)
 
@@ -37,6 +37,15 @@ playbook cutover.
    (lihat temuan); "ya" → handoff ✅ (`handOffsForwarded=1`) dan **pemilik
    mengonfirmasi pesan handoff masuk ke ponsel admin `+62 822 8388 6627`**.
    → Kanal admin (ADR-0006) tervalidasi end-to-end pada nomor dev.
+6. **Tiket 08 (transkrip CSV) dikerjakan sampai selesai (sesi ini):** port
+   `ConversationTranscript` + implementasi `CsvConversationTranscript`
+   (`src/conversationTranscript.ts`), di-wire di `src/server.ts` sebagai efek samping
+   best-effort (gagal tulis → log, balasan tetap terkirim). Kolom `waktu` (WIB), `nomor`,
+   `peran`, `pesan`; BOM + CRLF + escaping RFC 4180; berkas default
+   `data/transkrip-percakapan.csv` dan `data/` masuk `.gitignore`. Tidak ada env var baru;
+   seam percakapan, handoff ADR-0006, dan metrik tidak berubah. Keputusan dicatat di
+   `docs/adr/0007-transkrip-percakapan-csv.md`; tiket 08 kini `resolved`. 174 tes hijau,
+   `npm run typecheck` bersih.
 
 ## Temuan: celah bentuk jamak pada pencocokan FAQ
 
@@ -56,14 +65,20 @@ routing** (`classifyInbound`/`handleInbound`) dan invarian Harga Indikatif.
 
 ## Pekerjaan berikutnya
 
-1. **Tiket 08 — transkrip percakapan sebagai CSV**:
-   `.scratch/whatsapp-customer-service-chatbot/issues/08-transkrip-percakapan-spreadsheet.md`
-   (status `ready-for-agent`; permintaan terbaru pemilik, spec + usulan desain sudah
-   ditulis).
-2. Keputusan celah bentuk jamak di atas (kecil; bisa digabung ke sesi yang sama).
-3. Cutover produksi tiket 06 (`ready-for-human`) masih tertunda: `.env` kembali ke dev.
+1. **Keputusan celah bentuk jamak "land arrangements"** (temuan sesi lalu, belum
+   dikerjakan): `src/knowledge/businessFaq.ts` memakai pola `\bland arrangement\b`
+   sehingga bentuk jamak alami tidak cocok → `unsupported-question` → handoff palsu.
+   Usulan: tambah bentuk jamak `land arrangements?` — test-first di
+   `tests/knowledge/businessFaq.test.ts` + tes percakapan terkait. Jangan ubah urutan
+   routing (`classifyInbound`/`handleInbound`) maupun invarian Harga Indikatif.
+   **Menunggu keputusan pemilik.**
+2. Cutover produksi tiket 06 (`ready-for-human`) masih tertunda: `.env` kembali ke dev.
    Token produksi pernah diberikan pemilik via chat — **jangan disimpan di repo**;
    minta ulang saat cutover dilanjutkan.
+3. (Keputusan pemilik, bila perlu) retensi/pemindahan `data/transkrip-percakapan.csv`
+   ketika volumenya bertambah — sekarang masih berkas lokal yang diabaikan git
+   (ADR-0007). Cara membaca: buka langsung di Excel/Google Sheets; satu baris per
+   pesan teks, waktu WIB.
 
 ## Cara start bot (bersih dari override environment)
 
