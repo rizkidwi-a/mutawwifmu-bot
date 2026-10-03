@@ -7,8 +7,12 @@
  * diwajibkan mengisi kredensialnya sendiri (lihat .env.example). Perilaku
  * percakapan tidak bergantung pada pilihan ini.
  *
- * Lihat docs/whatsapp-number-cutover.md untuk jalur pergantian nomor dan
- * docs/adr/0003-provider-bsp-fonnte.md untuk keputusan provider.
+ * Lihat docs/whatsapp-number-cutover.md untuk jalur pergantian nomor,
+ * docs/tutorial-migrasi-ke-meta-cloud-api.md untuk migrasi Fonnte -> Cloud API,
+ * dan docs/adr/0003-provider-bsp-fonnte.md untuk keputusan provider.
+ *
+ * Versi Graph API default dapat ditimpa lewat WHATSAPP_API_BASE_URL; masa
+ * berlaku tiap versi dicatat di https://developers.facebook.com/docs/graph-api/changelog.
  */
 
 export const CLOUD_API_PROVIDER = "whatsapp-cloud-api";
@@ -52,7 +56,7 @@ export interface AppConfig {
   readonly port: number;
 }
 
-const DEFAULT_CLOUD_API_BASE_URL = "https://graph.facebook.com/v21.0";
+const DEFAULT_CLOUD_API_BASE_URL = "https://graph.facebook.com/v26.0";
 const DEFAULT_FONNTE_BASE_URL = "https://api.fonnte.com";
 const DEFAULT_COUNTRY_CODE = "62";
 const DEFAULT_PORT = 3000;

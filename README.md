@@ -27,6 +27,14 @@ Proses bot dirancang berjalan 24/7 sebagai layanan panjang (mis. via systemd/con
 | `whatsapp-cloud-api` (default) | Phone Number Id, token, app secret | Memerlukan akun Meta for Developers + WABA + OTP nomor. Lihat `docs/adr/0001-provider-whatsapp-cloud-api.md`. |
 | `fonnte` | token perangkat Fonnte | Onboarding tanpa Meta for Developers. Lihat `docs/adr/0003-provider-bsp-fonnte.md`. |
 
+Migrasi dari `fonnte` ke `whatsapp-cloud-api` (langkah dashboard Meta, kredensial, webhook, smoke test):
+
+```bash
+bash scripts/wizard-migrasi-meta.sh   # wizard interaktif, satu langkah per layar
+```
+
+Versi bacaan + penjelasan: **`docs/tutorial-migrasi-ke-meta-cloud-api.md`**. Memerlukan akses akun Meta for Developers.
+
 ### Webhook
 
 Provider WhatsApp mengirim pesan masuk sebagai webhook HTTPS publik ke `GET/POST /webhook` proses ini. Bentuk autentikasinya berbeda per provider:

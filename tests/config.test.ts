@@ -17,7 +17,7 @@ test("identitas provider WhatsApp dibaca dari konfigurasi", () => {
   const config = loadConfig(envDasar);
   assert.equal(config.whatsapp.provider, "whatsapp-cloud-api");
   assert.equal(config.whatsapp.phoneNumberId, "PNID-DEV-1");
-  assert.equal(config.whatsapp.apiBaseUrl, "https://graph.facebook.com/v21.0");
+  assert.equal(config.whatsapp.apiBaseUrl, "https://graph.facebook.com/v26.0");
 });
 
 test("nomor pengirim dinormalisasi ke format E.164 tanpa tanda plus", () => {
