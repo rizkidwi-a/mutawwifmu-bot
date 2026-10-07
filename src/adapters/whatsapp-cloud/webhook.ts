@@ -44,9 +44,56 @@ export function isSignatureValid(
 }
 
 /**
+ * Catat laporan status pengiriman (sent/delivered/read/failed) yang dikirim Meta
+ * ke webhook.
+ *
+ * Graph API selalu membalas HTTP 200 saat pesan diterima untuk antrean kirim,
+ * jadi kegagalan pengantaran ke HP penerima hanya muncul sebagai `statuses`
+ * pada pemanggilan webhook berikutnya — bukan sebagai error saat `sendText`.
+ * Tanpa jejak ini, kegagalan seperti 131026 (perangkat tidak terdaftar) atau
+ * 131030 (penerima tidak ada di daftar uji) tidak terlihat dari mana pun dan
+ * tampak seperti "bot diam".
+ *
+ * Hanya field yang aman yang dicatat (status, kode error, id pesan); isi pesan
+ * dan token tidak pernah ikut.
+ */
+export function catatStatusPengiriman(payload: unknown): void {
+  for (const change of changesFrom(payload)) {
+    const value = (change as { value?: unknown }).value;
+    const daftar = readField(value, "statuses");
+    if (!Array.isArray(daftar)) {
+      continue;
+    }
+    for (const item of daftar) {
+      const id = readField(item, "id");
+      const status = readField(item, "status");
+      const penerima = readField(item, "recipient_id");
+      const errors = readField(item, "errors");
+      let rincian = "";
+      if (Array.isArray(errors)) {
+        rincian = errors
+          .map((e) => {
+            const kode = readField(e, "code");
+            const judul = readField(e, "title");
+            return [typeof kode === "number" ? `code ${kode}` : "", typeof judul === "string" ? judul : ""]
+              .filter((bagian) => bagian !== "")
+              .join(" ");
+          })
+          .filter((bagian) => bagian !== "")
+          .join("; ");
+      }
+      console.log(
+        `Status pengiriman WhatsApp: ${String(status)} -> ${String(penerima)} (pesan ${String(id)})` +
+          (rincian === "" ? "" : ` — ${rincian}`),
+      );
+    }
+  }
+}
+
+/**
  * Konversi payload webhook provider ke daftar InboundMessage. Pesan non-teks
- * diteruskan dengan text null; status pengiriman dan payload tak dikenal
- * diabaikan.
+ * diteruskan dengan text null; status pengiriman dicatat lewat
+ * `catatStatusPengiriman` dan payload tak dikenal diabaikan.
  */
 export function parseInboundMessages(payload: unknown): InboundMessage[] {
   const messages: InboundMessage[] = [];
@@ -127,6 +174,7 @@ export function createCloudApiInboundTransport(config: WhatsAppCloudConfig): Inb
       if (payload === null) {
         return { ok: false, status: 400, reason: "badan permintaan bukan JSON" };
       }
+      catatStatusPengiriman(payload);
       return { ok: true, messages: parseInboundMessages(payload) };
     },
   };
