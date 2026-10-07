@@ -1,206 +1,258 @@
-# Handoff Sesi — 2026-10-03: provider aktif pindah ke WhatsApp Cloud API (Meta)
+# Handoff Sesi — 2026-10-07: bot hidup di Fonnte + keputusan lapisan pemaham LLM
 
-**Untuk sesi baru:** baca file ini lebih dulu. Pekerjaan berikutnya: **smoke test masuk**
-dari HP pemilik, lalu keputusan celah bentuk jamak "land arrangements", lalu cutover
-produksi tiket 06.
-**Aturan aktif:** bila konteks window sudah melewati 25%, buat handoff baru (perbarui
-file ini) dan minta pengguna pindah ke sesi baru.
+> Handoff sebelumnya (2026-10-05) diarsipkan dalam riwayat git, judulnya
+> "smoke test inbound terblokir 131030 (nomor uji Meta)". Sesinya berlanjut dan
+> **masalahnya sudah ditemukan sebab aslinya** — baca bagian "Temuan utama".
 
----
+## Ringkas: apa yang terjadi sesi ini
 
-## Status repo (branch `main`)
+Dua babak.
 
-Commit terakhir: **`feat: migrasi provider WhatsApp ke Meta Cloud API (tiket 09)`** —
-jalankan `git log -1` untuk hash-nya (hash tidak ditulis di sini agar tidak basi).
-**Working tree bersih.** Tidak ada remote — repo ini lokal saja (belum pernah dipush).
+**Babak 1 — infrastruktur (beres).** Melanjutkan sesi 2026-10-05 yang masih
+bingung kenapa bot tidak pernah membalas. Penyebab aslinya **bukan** `.env`,
+bukan token, bukan nomor: akun WhatsApp Business **dikunci Meta**. Setelah itu
+diputuskan pindah ke Fonnte, dan **bot kini berfungsi penuh end-to-end** —
+pesan masuk dibalas, terkonfirmasi dari transkrip dan dari log.
 
-Perubahan kode satu-satunya: default `WHATSAPP_API_BASE_URL` dinaikkan `v21.0` → `v26.0`
-di `src/config.ts` + ekspektasi di `tests/config.test.ts`. **174 tes hijau**,
-`npm run typecheck` bersih.
+**Babak 2 — kualitas jawaban (belum selesai).** Pemilik menilai jawaban bot
+"masih sangat terbatas". Dianalisis, diukur baseline-nya, dan disepakati
+mengganti lapisan pemahaman dengan **LLM (Gemini)** sambil **mempertahankan
+fakta/harga dari template manual**. Persiapan selesai (korpus, API key),
+implementasinya menyusul di sesi berikutnya.
 
-`.gitignore` diperluas jadi `.env*` + `!.env.example` — penting, karena `.env.backup-fonnte`
-berisi token Fonnte dan tidak boleh ter-commit.
+## Temuan utama
 
-Isi commit (10 berkas): `.env.example`, `.gitignore`, `HANDOFF-SESI.md`,
-`issues/09-migrasi-ke-meta-cloud-api.md`, `README.md`, `docs/adr/0001-...md`,
-`docs/tutorial-migrasi-ke-meta-cloud-api.md`, `scripts/wizard-migrasi-meta.sh`,
-`src/config.ts`, `tests/config.test.ts`.
+### 1. `131031 Business Account locked` — sebab asli "bot diam"
 
----
+Ini yang paling penting. API Meta **selalu membalas HTTP 200 saat pesan diterima
+untuk diantrekan**, bukan saat sudah sampai. Kegagalan antar baru dilaporkan
+belakangan lewat webhook `statuses` — yang oleh kode bot **dibuang tanpa
+catatan**. Jadi kegagalan pengantaran selama ini benar-benar tak terlihat.
 
-## Yang terjadi sesi ini (ringkas)
-
-Pemilik sudah bisa login ke akun Meta Developer, jadi stak WhatsApp dipindahkan dari
-**Fonnte (BSP, ADR-0003)** ke **WhatsApp Cloud API resmi Meta (ADR-0001)**.
-
-1. **Perencanaan + panduan mandiri.** Dibuat `docs/tutorial-migrasi-ke-meta-cloud-api.md`
-   (10 fase, 3 jalur nomor, troubleshooting, rollback) dan
-   `scripts/wizard-migrasi-meta.sh` (wizard interaktif 11 stage: membuka URL dashboard,
-   menangkap kredensial, menulis `.env`, memverifikasi handshake + kesehatan token).
-2. **Pemilik memilih Jalur A** — memakai **nomor uji Meta**, sehingga nomor pengembangan
-   `+62 895 0700 3830` tetap hidup di Fonnte (rollback selalu tersedia).
-3. **Temuan: token pemilik salah jenis.** `debug_token` melaporkan `type=USER`,
-   `expires_at=2026-10-03T06:00:00Z` (kedaluwarsa hari itu juga), tanpa scope
-   `business_management` — itu token sementara dari tombol "Generate access token" di
-   API Setup, bukan token System User.
-4. **Akar masalah:** system user `test` (ID `61594777541499`) ada, tetapi **tidak punya
-   aset yang ditetapkan** ("Tidak Ada Aset yang Ditetapkan"). Token apa pun dari sana
-   tidak akan berizin.
-5. **Pemilik meminta agent menjalankan dashboard-nya sendiri.** Dikerjakan lewat
-   `tabbit-cli` (Playwright) pada sesi browser pemilik yang sudah login:
-   - Business Settings → Pengguna sistem → `test` → **Tetapkan Aset**: app `tes`
-     (`1113163604491910`) dengan **Akses penuh → Kelola Aplikasi**, dan
-     **Test WhatsApp Business Account** → *"test dapat mengakses 2 aset bisnis"*.
-   - **Buat token** untuk app `tes`, kedaluwarsa **"Jangan pernah"**, izin
-     `business_management` + `whatsapp_business_messaging` + `whatsapp_business_management`.
-     Token ditulis langsung ke `.env` tanpa ditampilkan di chat.
-   - WhatsApp → Konfigurasi → Webhook: Callback URL + verify token → **Verifikasi dan
-     simpan** berhasil; **field `messages` sudah berlangganan**.
-6. `WHATSAPP_WEBHOOK_VERIFY_TOKEN` tadinya kosong → diisi 32 char acak.
-
----
-
-## Konfigurasi `.env` sekarang (semua lewat konfigurasi, tanpa perubahan perilaku)
+Setelah logging ditambahkan, langsung ketahuan:
 
 ```
-WHATSAPP_PROVIDER        = whatsapp-cloud-api
-WHATSAPP_SENDER_NUMBER   = +1 555-631-6757        (nomor uji Meta)
-WHATSAPP_PHONE_NUMBER_ID = 1463817500145110
-WHATSAPP_API_BASE_URL    = https://graph.facebook.com/v26.0
-WHATSAPP_WEBHOOK_VERIFY_TOKEN = [terisi 32 char]
-WHATSAPP_API_TOKEN       = [terisi 200 char — token System User permanen]
-WHATSAPP_APP_SECRET      = [terisi 32 char]
-WHATSAPP_ADMIN_NUMBER    = +62 822 8388 6627      (tidak berubah)
+Status pengiriman WhatsApp: failed -> 6289507003830 — code 131031 Business Account locked
 ```
 
-Cadangan rollback ke Fonnte: **`.env.backup-fonnte`** (diabaikan git). Kembalikan isinya
-ke `.env` lalu restart bot.
+Status di `business.facebook.com/latest/whatsapp_manager` juga menyatakan
+*"akun ini belum bisa mengirim pesan WhatsApp"*. Pemilik tidak dapat
+menyelesaikan verifikasi bisnis saat ini.
 
----
+**Konsekuensi:** jalur Meta Cloud API **terblokir sampai akun bisnis
+terverifikasi/terbuka**. Jangan kembali ke Meta sebelum itu.
 
-## Bukti verifikasi (semua lolos)
+### 2. Provider Fonnte lebih aman daripada Meta untuk debugging
 
-| Uji | Hasil |
+> "Fonnte membalas HTTP 200 meski penolakan, jadi keberhasilan ditentukan dari
+> field status pada badan respons." — `src/adapters/fonnte/sender.ts`
+
+Fonnte **melempar error bila gagal**, jadi kegagalan terlihat di log. Meta
+mengembalikan 200 palsu yang menipu. Bedakan ini bila menguji.
+
+### 3. Akun Fonnte masih hidup
+
+```
+{"device":"6289507003830","device_status":"disconnect","name":"mutawwifmu",
+ "package":"Free","quota":"990","expired":"31 October 2026","status":true}
+```
+
+Tidak perlu daftar baru. Perangkat perlu scan ulang QR (kondisi: `disconnect`).
+
+### 4. Keterbatasan jawaban = batas regex, bukan kurang pola
+
+Baseline terukur menunjukkan pola tajam: **sempurna untuk kalimat baku, jatuh
+untuk bahasa sehari-hari**. Ini lantai atas pencocokan aturan.
+
+## Baseline terukur (simpan sebagai angka pembanding)
+
+Pengukur: `node scripts/probe-cakupan.ts` — 41 kasus, 5 gaya bahasa.
+
+| Metrik | Hasil |
 | --- | --- |
-| `debug_token` | `valid=true`, `type=SYSTEM_USER`, `expires_at=0` (permanen), 3 izin lengkap |
-| Baca Phone Number Id | `+1 555-631-6757` ("Test Number") |
-| Handshake lewat tunnel publik | HTTP 200 + challenge `ping12345` dikembalikan |
-| **Kirim pesan nyata** `POST /{id}/messages` ke `6289507003830` | HTTP 200 + `wamid` diterima |
-| `npm run cutover:check` | `[OK] provider-config`, `[OK] production-sender-number`, status **siap** |
-| `npm test` / `npm run typecheck` | 174 hijau / bersih |
+| **Pertanyaan materi terjawab** | **24/33 (73%)** ← ukuran "leluasa memahami" |
+| Rute tepat (jawab vs handoff) | 32/41 (78%) |
+| Topik tepat | 30/41 (73%) |
 
----
+Per gaya bahasa (rute tepat):
 
-## Pekerjaan berikutnya
+| Gaya | Hasil |
+| --- | --- |
+| baku | 9/9 (100%) |
+| typo | 1/1 (100%) |
+| gaul | 12/14 (86%) |
+| **parafrase** | **9/14 (64%)** |
+| **campur-inggris** | **1/3 (33%)** |
 
-1. **Smoke test MASUK (belum dikerjakan — butuh HP pemilik).** Pemilik mengirim pesan
-   WhatsApp dari `+62 895 0700 3830` (sudah terdaftar sebagai penerima uji di API Setup)
-   ke `+1 555-631-6757`. Alur yang diharapkan:
-   - `Halo` → balasan sapaan asisten otomatis
-   - `Apa itu land arrangement?` → dijawab dari materi, tanpa handoff
-   - `Saya mau bicara dengan manusia saja` lalu `ya` → **akan GAGAL** karena nomor admin
-     belum terdaftar sebagai penerima uji (lihat peringatan 2)
-   - `curl http://localhost:3000/metrics` → `faqAnswered` / `handOffsForwarded` bertambah
-2. **Keputusan celah bentuk jamak "land arrangements"** (temuan sesi 2026-10-01, MASIH
-   terbuka). `src/knowledge/businessFaq.ts:247` memakai pola
-   `\bland arrangement\b` sehingga bentuk jamak alami tidak cocok →
-   `unsupported-question` → handoff palsu. Usulan: tambah bentuk jamak `land arrangements?`
-   — test-first di `tests/knowledge/businessFaq.test.ts` + tes percakapan terkait.
-   **Jangan ubah urutan routing** (`classifyInbound`/`handleInbound`) maupun invarian
-   Harga Indikatif. **Menunggu keputusan pemilik.**
-3. **Cutover produksi tiket 06** (`ready-for-human`) masih tertunda. Nomor produksi
-   `+62 877 4587 3159` sudah ditetapkan pemilik. Untuk nomor produksi, jalur Cloud API
-   menuntut nomor dilepas dari aplikasi WhatsApp biasa dulu (lihat tutorial, Fase 8).
-4. **ADR baru untuk provider produksi.** ADR-0003 menyatakan keputusan provider produksi
-   diambil ulang lewat ADR terpisah. Setelah Cloud API terbukti stabil, ADR itu perlu
-   ditulis (menggantikan ADR-0003 sebagai pilihan produksi). Fonnte tetap tersedia
-   sebagai jalur cadangan lewat konfigurasi.
-5. **Tiket 07** (`needs-info`) — sisa penghalangnya penempatan bot di VPS dengan URL
-   webhook stabil. Ini sekarang lebih mendesak: URL `trycloudflare` bersifat sementara.
+Sembilan kasus gagal — semuanya parafrase/gaul/campur Inggris, mis.
+*"boleh minta pricelist?"*, *"budget buat nginep di makkah kira-kira berapa"*,
+*"kendaraannya apa aja ya"*, *"keliling madinah bisa dibantu?"*.
 
----
+## Keputusan desain: hibrida, fakta tetap manual
 
-## Peringatan penting untuk sesi baru
+Diskusi menyinggung apakah "pencocokan samar" sama dengan "model klasifikasi".
+Riset menyimpulkan **tidak sama** — lihat
+`.scratch/whatsapp-customer-service-chatbot/riset-pencocokan-samar.md`.
+Ringkasnya: Levenshtein & stemming Nazief-Adriani = **algoritma aturan**,
+sedangkan fastText/BERT/LLM = **model terlatih**.
 
-1. **URL tunnel bersifat sementara.** URL aktif sesi ini:
-   `https://meetup-scientists-planning-retailer.trycloudflare.com`
-   Kalau tunnel restart, **URL berubah** dan webhook **wajib didaftarkan ulang** di
-   dashboard Meta (WhatsApp → Konfigurasi → Webhook). Untuk 24/7 perlu VPS + domain tetap.
+Pemilik memilih **hibrida**, dengan penegasan: *"yang penting bagi saya adalah bot
+cukup leluasa untuk memahami bahasa indonesia"*. Jadinya:
 
-2. **Handoff ke admin akan gagal sekarang.** Nomor admin `+62 822 8388 6627` **belum**
-   ada di daftar penerima uji (API Setup → kolom **To**). Menambahkannya butuh verifikasi
-   kode di HP admin. Uji handoff sebaiknya setelah pindah ke nomor produksi.
+| Aspek | Keputusan |
+| --- | --- |
+| Pemahaman bahasa | **LLM (Gemini)** — luwes, tangani gaul/typo/parafrase |
+| Fakta & jawaban | Tetap dari template manual yang ditinjau |
+| **Angka & harga** | **HANYA template manual. LLM dilarang menyentuh angka** |
+| Saat ragu | Handoff ke admin — selalu tersedia |
 
-3. **Aplikasi Meta yang dipakai bernama `tes`** (`1113163604491910`), bukan nama resmi
-   MUTAWWIFMU. Berfungsi penuh karena nomor uji Meta memang milik app itu. Untuk produksi
-   sebaiknya app dengan nama tampilan bisnis yang benar.
+Alasan pengaman angka tetap dipertahankan: spec baris 92 memasukkan *"mengarang
+informasi tentang … **harga**"* sebagai **di luar cakupan/dilarang**. Satu angka
+harga yang dikarang = satu masalah nyata dengan calon jemaah. Ini kebutuhan
+bisnis, bukan selera arsitektur.
 
-4. **Override environment (pernah terjadi di sesi 2026-10-01).** Environment agent pernah
-   membawa `WHATSAPP_SENDER_NUMBER` / `WHATSAPP_API_TOKEN` / `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
-   yang **menimpa** `.env`, karena Node `--env-file` tidak menimpa variabel yang sudah ada.
-   Di sesi 2026-10-03 variabel itu **tidak ada** (sudah bersih), tetapi periksa dulu:
-   `env | grep -i '^WHATSAPP'` — harus kosong. Bila tidak, bersihkan sebelum `npm start`.
+Empat lapis pengaman yang direncanakan: angka tak pernah digenerasi → validasi
+grounding (setiap angka harus verbatim di materi) → ambang keyakinan → handoff.
 
-5. **Proses bot sesi ini dijalankan agent lewat `nohup`** (PID 20440, log `bot-live.log`).
-   Proses ini bisa mati saat sesi berakhir — **start ulang dengan cara di bawah**.
+## Perubahan kode sesi ini (BELUM di-commit)
 
----
+| Berkas | Perubahan |
+| --- | --- |
+| `src/adapters/whatsapp-cloud/webhook.ts` | **`catatStatusPengiriman()`** — mencatat laporan status pengiriman Meta (sent/delivered/failed) + kode error-nya. **Inilah yang membongkar 131031.** |
+| `scripts/probe-cakupan.ts` | **Baru** — pengukur cakupan pemahaman, baca `tests/korpus/*.json` |
+| `tests/korpus/dasar.json` | **Baru** — 41 kasus uji bahasa Indonesia |
+| `tests/korpus/README.md` | **Baru** — cara menambah korpus |
+| `.scratch/.../riset-pencocokan-samar.md` | **Baru** — riset pencocokan samar vs model klasifikasi |
+
+Dari **sesi sebelumnya**, masih terbawa belum di-commit dan **masih relevan**:
+
+| Berkas | Perubahan |
+| --- | --- |
+| `src/adapters/whatsapp-cloud/sender.ts` | `jelaskanKegagalan()` — pesan error Graph API memuat `code`/`error_subcode` Meta, bukan hanya "HTTP 400" |
+| `tests/adapters/whatsappCloudSender.test.ts` | 3 tes untuk itu (termasuk "token dan isi pesan tidak bocor ke pesan error") |
+
+Kondisi terkini: **177 tes lulus, `npm run typecheck` bersih.**
+
+## Kondisi runtime saat sesi ditutup
+
+| Komponen | Status |
+| --- | --- |
+| Bot | ✅ Hidup, **PID 5148**, port 3000, provider **fonnte** |
+| Tunnel cloudflared | ✅ Hidup, **PID 9412** |
+| URL publik | `https://modifications-submit-missile-earrings.trycloudflare.com` |
+| Webhook terdaftar di Fonnte | ✅ (terkonfirmasi: pesan masuk & dibalas) |
+
+Bukti bot berfungsi — `data/transkrip-percakapan.csv`:
+
+```
+22:00:56  6285275258899  calon-jemaah  halo
+22:00:56  6285275258899  asisten       Halo! Terima kasih sudah menghubungi MUTAWWIFMU...
+22:01:13  6285275258899  calon-jemaah  boleh minta pricelist?
+22:01:13  6285275258899  asisten       Mohon maaf ... mau saya teruskan ke tim ...?
+```
+
+## Konfigurasi `.env` (BERUBAH sesi ini)
+
+Sekarang memakai **Fonnte**, bukan Meta:
+
+```env
+WHATSAPP_PROVIDER=fonnte
+WHATSAPP_SENDER_NUMBER=+62 895 0700 3830
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=8e444e3723b64a2ee58d552f9186ffc6
+WHATSAPP_API_TOKEN=13Kbsp3w9cErpoWDUtag
+# WHATSAPP_API_BASE_URL dikosongkan → default https://api.fonnte.com
+WHATSAPP_ADMIN_NUMBER=+62 822 8388 6627
+```
+
+Baru ditambahkan untuk lapisan pemaham LLM (sudah **divalidasi**: HTTP 200,
+50 model tersedia):
+
+```env
+# --- Gemini (lapisan pemaham bahasa, lihat ADR-0008) ---
+GEMINI_API_KEY=<nilai di .env — jangan pernah ditulis ke berkas mana pun>
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Catatan: `WHATSAPP_PHONE_NUMBER_ID` dan `WHATSAPP_APP_SECRET` masih ada di
+`.env` tapi **tidak dibaca** saat provider `fonnte` (hanya dipakai jalur Meta).
+
+## Langkah untuk sesi berikutnya (urutan)
+
+1. **Tulis ADR-0008** — mencatat penyimpangan dari ADR-0004 yang melarang
+   jawaban generatif. ADR-0004 menyebut eksplisit: *"Bila kelak jawaban generatif
+   dipertimbangkan, keputusan itu wajib dicatat ADR baru"*. Sertakan lapisan
+   pengaman angka sebagai bagian keputusan, bukan catatan kaki.
+2. **`src/knowledge/geminiPemaham.ts`** — lapisan pemaham bahasa. Panggil
+   Gemini dengan `fetch` bawaan Node (sesuai ADR-0002: *"Panggilan API provider:
+   `fetch` global"*) → **nol dependency npm baru**. Hasil terstruktur
+   `{ rute, topik, keyakinan }`.
+3. **Lapisan pengaman angka** — validasi otomatis; angka di jawaban harus ada
+   verbatim di materi, kalau tidak → fallback handoff.
+4. **Fallback ke regex** — bila Gemini error/timeout, turun ke jalur aturan lama.
+   Bot tidak boleh diam hanya karena LLM mati. Sebaiknya diuji dengan tes
+   "LLM tidak tersedia".
+5. **Ukur ulang** dengan `node scripts/probe-cakupan.ts` — bandingkan **73%**
+   (angka "leluasa memahami" sekarang) dengan hasil baru. Jangan klaim naik
+   tanpa angka.
+6. Baru setelah angkanya bagus, pikirkan memperluas jawaban dari `BOOKLET
+   MUTAWWIFMU.md` & `HOTEL RATES MUTAWWIFMU (2).md` yang cakupannya masih jauh
+   dari terpakai semua.
+
+## Peringatan untuk sesi baru
+
+- **URL tunnel berubah setiap restart.** cloudflared = *quick tunnel*, URL
+  `trycloudflare.com` acak. Bila tunnel di-restart, **daftarkan ulang** URL
+  webhook di dashboard Fonnte:
+  `https://<url-baru>/webhook?token=8e444e3723b64a2ee58d552f9186ffc6`
+- **Uji selalu dari HP lain.** `6289507003830` sekarang nomor bot, dan bot
+  mengabaikan pesan dari nomornya sendiri. Penguji terakhir memakai
+  `6285275258899`.
+- **Jangan kembali ke Meta Cloud API** sebelum akun bisnis tidak lagi terkunci
+  (131031) dan verifikasi bisnis selesai.
+- **Angka/harga tidak boleh digenerasi LLM.** Ini larangan spec, bukan selera.
+  Ada tes groundedness yang menjaganya — jangan dilonggarkan.
+- **`GET /webhook` membalas 404 pada provider Fonnte — itu normal.** Fonnte
+  hanya mengirim POST. Jangan dianggap rusak.
+
+## Pekerjaan open yang masih tertunda
+
+| Butir | Status |
+| --- | --- |
+| Commit perubahan kode sesi ini + sesi sebelumnya | belum |
+| ADR-0008 (jawaban generatif hibrida) | belum ditulis |
+| Modul `geminiPemaham.ts` | belum dibuat |
+| Lapisan pengaman angka | belum dibuat |
+| Ukur ulang cakupan (bandingan vs 73%) | belum |
+| Smoke test lengkap alur handoff (`ya` → admin `+62 822 8388 6627`) | belum diuji sejak pindah Fonnte |
+| VPS + domain tetap (pengganti tunnel, tiket 07) | belum |
+| Nomor produksi `+62 877 4587 3159` (tiket 06) | tertunda, terkunci isu Meta |
 
 ## Cara start bot + tunnel
 
 ```bash
-cd "C:/Users/Advan/.ab/chatbot"
+# Terminal 1 — bot (Windows: pakai Start-Process agar tahan lama)
+node --env-file-if-exists=.env src/main.ts
+# banner benar: "Bot WhatsApp MUTAWWIFMU siap — provider fonnte, nomor pengirim 6289507003830, port 3000"
 
-# pastikan environment bersih dulu
-env | grep -i '^WHATSAPP'        # harus kosong
+# Terminal 2 — tunnel
+cloudflared tunnel --url http://localhost:3000
+# catat URL https://....trycloudflare.com → daftarkan ke Fonnte bila URL berubah
 
-nohup npm start > bot-live.log 2>&1 &
-nohup cloudflared tunnel --url http://localhost:3000 > tunnel-live.log 2>&1 &
-sleep 20
-grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' tunnel-live.log | tail -1
+# Pemeriksaan cepat
+curl http://localhost:3000/metrics
+node scripts/probe-cakupan.ts
+npm test && npm run typecheck
 ```
-
-Log yang benar: `Bot WhatsApp MUTAWWIFMU siap — provider whatsapp-cloud-api,
-nomor pengirim 15556316757, port 3000`.
-
-Bila URL tunnel berubah, daftarkan ulang di dashboard Meta. Verifikasi handshake lokal:
-
-```bash
-node --env-file-if-exists=.env -e '
-const b = "https://<url-tunnel>";
-fetch(b + "/webhook?hub.mode=subscribe&hub.challenge=ping&hub.verify_token=" + encodeURIComponent(process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN))
-  .then(async r => console.log(r.status, (await r.text()).trim()));
-'
-```
-
----
-
-## Alat yang dipakai sesi ini (bila perlu lagi)
-
-- **Otomasi browser:** `tabbit-cli` di
-  `%LOCALAPPDATA%\Tabbit\LocalAgent\bin\tabbit-cli.exe`. Bekerja pada sesi browser
-  pemilik yang sudah login. Catatan penting yang ditemukan:
-  - konteks JS luar **tidak punya** `document` (pakai `page.evaluate`) dan **tidak
-    mewarisi environment shell** — nilai rahasia harus disubstitusi ke berkas skrip
-    (pola: tulis skrip dengan placeholder, `sed` isi token, jalankan
-    `tabbit-cli nodejs ... < berkas`).
-  - halaman dashboard Meta sering perlu tab diklik lewat JS (klik biasa terhalang overlay).
-- **Verifikasi Graph API langsung** lebih cepat daripada menebak di dashboard:
-  `GET /debug_token?input_token=...&access_token=...` mengungkap tipe token, masa
-  berlaku, dan daftar izin.
-
----
 
 ## Konteks singkat (tidak berubah)
 
-- Proyek: bot WhatsApp MUTAWWIFMU. Spec: `.scratch/whatsapp-customer-service-chatbot/spec.md`.
-- Seam: `src/conversation/handleInbound.ts` — provider-agnostic; **tidak disentuh** sesi ini.
-- Port: `AdminChannel` (`src/adminChannel.ts`), `Metrics` (`src/metrics.ts`),
-  `ConversationStore` (`src/conversationStore.ts`), `ConversationTranscript`
-  (`src/conversationTranscript.ts`).
-- Adapter: `src/adapters/factory.ts` memilih provider dari `WHATSAPP_PROVIDER`;
-  `src/adapters/whatsapp-cloud/` (aktif) dan `src/adapters/fonnte/` (cadangan).
-- Tiket 01–05, 08 `resolved`. Tiket 06 `ready-for-human`, 07 `needs-info`,
-  09 `ready-for-human`.
-- Handoff sebelumnya (arsip): lihat riwayat commit `334d568` bila butuh detail tiket 08
-  dan temuan kanal admin.
+- Bahasa komunikasi & dokumentasi: **Bahasa Indonesia** (AGENTS.md).
+- Runtime: Node >= 22.18, TypeScript via type stripping, **tanpa dependency
+  runtime** (ADR-0002).
+- Seam percakapan provider-agnostic: `src/conversation/handleInbound.ts`
+  (`handleInbound(message, context): BotTurn`) — **jangan dirusak**, 177 tes
+  menjaganya.
+- Materi bisnis: `BOOKLET MUTAWWIFMU.md`, `HOTEL RATES MUTAWWIFMU (2).md`.
+- ADR di `docs/adr/`, spec & tiket di `.scratch/whatsapp-customer-service-chatbot/`.
+- `data/` di-gitignore (data pribadi: transkrip + nomor). Korpus uji sengaja
+  ditaruh di `tests/korpus/` agar **ter-versioning**.
