@@ -14,6 +14,11 @@
  * tercantum di materi tersebut. Pertanyaan yang tidak didukung materi atau
  * memerlukan konfirmasi admin diteruskan ke alur handoff (tiket 02), bukan
  * dijawab dari asumsi.
+ *
+ * Sejak ADR-0009 (tiket 01) jalur runtime `handleInbound` hanya memakai
+ * jawaban untuk topik Harga Indikatif; entri non-harga tetap dipakai
+ * `matchFaqTopic` untuk mengenali pertanyaan yang dicatat sebagai bagian
+ * kebutuhan, bukan untuk dijawab.
  */
 import type { Language } from "../conversation/language.ts";
 

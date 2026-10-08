@@ -1,9 +1,10 @@
 /**
  * Tes bukti cutover nomor produksi (tiket 06): pergantian nomor pengirim hanya
- * mengubah konfigurasi, dan jalur FAQ serta handoff ke admin tetap berfungsi
- * dengan konfigurasi nomor produksi. Port distub pada batas sistem (sama
- * seperti tests/transport/handOffDelivery.test.ts); perilaku percakapan
- * sendiri diuji pada seam handleInbound di tests/conversation/.
+ * mengubah konfigurasi, dan jalur pertanyaan non-harga/intake serta handoff ke
+ * admin tetap berfungsi dengan konfigurasi nomor produksi. Port distub pada
+ * batas sistem (sama seperti tests/transport/handOffDelivery.test.ts);
+ * perilaku percakapan sendiri diuji pada seam handleInbound di
+ * tests/conversation/.
  */
 
 import { test } from "node:test";
@@ -113,7 +114,7 @@ async function kirimPesan(lingkungan: Lingkungan, text: string): Promise<Respons
   });
 }
 
-/** Percakapan yang memuat jalur FAQ dan jalur handoff sampai persetujuan. */
+/** Percakapan yang memuat jalur pertanyaan non-harga dan jalur handoff sampai persetujuan. */
 const PERCAKAPAN_CUTOVER = ["Apa itu land arrangement?", "Saya mau bicara dengan manusia saja", "ya"];
 
 async function jalankanPercakapan(env: Record<string, string>): Promise<Lingkungan> {
@@ -141,7 +142,7 @@ test("perilaku terlihat identik saat nomor pengirim diganti ke nomor produksi", 
   }
 });
 
-test("jalur FAQ tetap berfungsi dengan konfigurasi nomor produksi", async () => {
+test("jalur pertanyaan non-harga dan intake tetap berfungsi dengan konfigurasi nomor produksi", async () => {
   const produksi = await buatLingkungan(envNomorProduksi);
   try {
     await kirimPesan(produksi, "Apa itu land arrangement?");
@@ -149,12 +150,14 @@ test("jalur FAQ tetap berfungsi dengan konfigurasi nomor produksi", async () => 
     assert.deepEqual(produksi.handoffs, []);
     const balasanTerakhir = produksi.balasanTerkirim.at(-1);
     assert.ok(balasanTerakhir);
-    assert.match(balasanTerakhir.text, /Private Premium Umrah/);
+    // ADR-0009: pertanyaan non-harga tidak lagi dijawab dari materi.
+    assert.doesNotMatch(balasanTerakhir.text, /Private Premium Umrah/);
+    assert.match(balasanTerakhir.text, /layanan|tujuan/i);
     assert.deepEqual(produksi.metrics.snapshot(), {
       followUpRequestsRecorded: 0,
       followUpRequestsForwarded: 0,
       handOffsForwarded: 0,
-      faqAnswered: 1,
+      faqAnswered: 0,
     });
   } finally {
     await produksi.tutup();

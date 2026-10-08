@@ -141,6 +141,7 @@ test("permintaan yang disetujui diteruskan ke kanal admin lengkap dengan ringkas
       travellerCount: "4 orang",
       mainNeeds: "Butuh kamar keluarga",
       budgetRange: "Sekitar 50 juta",
+      notedQuestions: [],
     });
     const isiRiwayat = handoff.history.map((t) => t.text);
     assert.ok(isiRiwayat.includes("Umrah premium, tujuan Mekkah"));
@@ -217,7 +218,7 @@ test("kegagalan kanal admin tidak menghasilkan klaim penerusan maupun metrik", a
   }
 });
 
-test("pertanyaan FAQ dijawab langsung dan dihitung tanpa handoff ke kanal admin", async () => {
+test("pertanyaan non-harga tidak dijawab dari materi dan tidak dihitung sebagai jawaban FAQ", async () => {
   const lingkungan = await buatLingkungan();
   try {
     await kirimPesan(lingkungan, "Apa itu land arrangement?");
@@ -225,7 +226,29 @@ test("pertanyaan FAQ dijawab langsung dan dihitung tanpa handoff ke kanal admin"
     assert.deepEqual(lingkungan.handoffs, []);
     const balasanTerakhir = lingkungan.balasanTerkirim.at(-1);
     assert.ok(balasanTerakhir);
-    assert.match(balasanTerakhir.text, /Private Premium Umrah/);
+    assert.doesNotMatch(balasanTerakhir.text, /Private Premium Umrah/);
+    assert.match(balasanTerakhir.text, /layanan|tujuan/i);
+    assert.deepEqual(lingkungan.metrics.snapshot(), {
+      followUpRequestsRecorded: 0,
+      followUpRequestsForwarded: 0,
+      handOffsForwarded: 0,
+      faqAnswered: 0,
+    });
+  } finally {
+    await lingkungan.tutup();
+  }
+});
+
+test("pertanyaan Harga Indikatif dijawab langsung dan dihitung tanpa handoff ke kanal admin", async () => {
+  const lingkungan = await buatLingkungan();
+  try {
+    await kirimPesan(lingkungan, "Berapa harga fotografer?");
+
+    assert.deepEqual(lingkungan.handoffs, []);
+    const balasanTerakhir = lingkungan.balasanTerkirim.at(-1);
+    assert.ok(balasanTerakhir);
+    assert.match(balasanTerakhir.text, /Harga Indikatif/);
+    assert.match(balasanTerakhir.text, /SAR 600/);
     assert.deepEqual(lingkungan.metrics.snapshot(), {
       followUpRequestsRecorded: 0,
       followUpRequestsForwarded: 0,

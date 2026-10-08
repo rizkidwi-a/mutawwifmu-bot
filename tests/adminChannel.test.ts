@@ -20,6 +20,7 @@ const handoff: AdminHandoff = {
     travellerCount: "4 orang",
     mainNeeds: "Butuh kamar keluarga",
     budgetRange: "Sekitar 50 juta",
+    notedQuestions: ["Apa itu land arrangement?"],
   },
   history: [
     { role: "calon-jemaah", text: "Umrah premium, tujuan Mekkah" },
@@ -56,6 +57,14 @@ test("kanal admin menerima ringkasan Permintaan Tindak Lanjut sebagai pesan What
   assert.match(pesan.text, /4 orang/);
   assert.match(pesan.text, /kamar keluarga/);
   assert.match(pesan.text, /50 juta/);
+});
+
+test("pertanyaan yang dicatat ikut dibawa ke ringkasan untuk admin", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /Pertanyaan yang dicatat: Apa itu land arrangement\?/);
 });
 
 test("pesan untuk admin memuat konteks percakapan dan alasan penerusan", async () => {

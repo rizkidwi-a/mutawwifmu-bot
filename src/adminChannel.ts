@@ -90,5 +90,6 @@ function requestLines(request: FollowUpRequest): string[] {
     `- Jumlah jemaah: ${request.travellerCount}`,
     `- Kebutuhan utama: ${request.mainNeeds}`,
     `- Kisaran anggaran: ${request.budgetRange ?? "tidak disampaikan"}`,
+    ...request.notedQuestions.map((q) => `- Pertanyaan yang dicatat: ${q}`),
   ];
 }

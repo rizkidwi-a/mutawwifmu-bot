@@ -2,8 +2,11 @@
  * Klasifikasi pesan masuk Calon Jemaah untuk routing percakapan (tiket 03,
  * disempit oleh tiket 05 sesuai ADR-0005).
  *
- * Hasil klasifikasi hanya menentukan jalur percakapan:
- * - `faq` — pertanyaan yang didukung materi, dijawab langsung;
+ * Hasil klasifikasi hanya menentukan jalur percakapan (sejak ADR-0009/tiket
+ * 01, lihat perubahan pada `handleInbound`):
+ * - `faq` — pertanyaan non-harga yang didukung materi; TIDAK lagi dijawab dari
+ *   corpus, melainkan dicatat apa adanya sebagai bagian kebutuhan dan
+ *   diteruskan ke admin bersama Ringkasan Kebutuhan;
  * - `indicative-price` (tiket 05) — pertanyaan angka harga yang tercantum
  *   materi, dijawab sebagai Harga Indikatif dengan peringatan satuan/periode
  *   yang belum terverifikasi;

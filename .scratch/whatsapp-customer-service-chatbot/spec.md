@@ -2,6 +2,8 @@
 
 Status: ready-for-agent
 
+> Catatan lingkup (ADR-0009): alur percakapan kini mengikuti `.scratch/lead-intake/spec.md` — bot fokus pada respons cepat, pengumpulan kebutuhan (Permintaan Tindak Lanjut), dan ringkasan untuk admin; jawaban FAQ non-harga dinonaktifkan. Spesifikasi ini tetap menjadi sumber riwayat serta ketentuan yang tidak dilampaui (kanal, persetujuan, larangan data sensitif, Harga Indikatif).
+
 ## Problem Statement
 
 Calon jemaah yang menghubungi MUTAWWIFMU melalui WhatsApp membutuhkan jawaban awal tentang layanan sebelum memesan. Informasi bisnis tersebar dalam materi perusahaan dengan cakupan layanan yang luas, dan sejumlah pertanyaan—terutama harga hotel—memerlukan konfirmasi admin. Tanpa batas yang jelas, jawaban otomatis berisiko dianggap sebagai penawaran final atau membuat janji yang tidak didukung materi.

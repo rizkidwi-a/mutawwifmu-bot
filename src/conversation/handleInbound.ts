@@ -12,20 +12,39 @@ import type {
 
 const INITIAL_REPLY_ID =
   "Halo! Terima kasih sudah menghubungi MUTAWWIFMU. " +
-  "Saya asisten otomatis yang tersedia kapan saja untuk membantu informasi awal tentang layanan kami. " +
-  "Apa yang ingin Anda tanyakan?";
+  "Saya asisten otomatis yang tersedia kapan saja untuk mencatat kebutuhan perjalanan Anda " +
+  "agar dapat ditindaklanjuti tim kami.";
 
 const INITIAL_REPLY_EN =
   "Hello! Thank you for contacting MUTAWWIFMU. " +
-  "I'm an automated assistant available anytime to help with early information about our services. " +
-  "What would you like to ask?";
+  "I'm an automated assistant available anytime to note down your travel needs " +
+  "so that our team can follow them up.";
 
 /**
- * Penanda permintaan konsultasi pra-pemesanan yang menjadi awal Permintaan
- * Tindak Lanjut (lihat spec "Implementation Decisions").
+ * Balasan atas pertanyaan non-harga: pertanyaan tidak dijawab dari materi
+ * (ADR-0009), melainkan dicatat apa adanya sebagai bagian kebutuhan dan
+ * diteruskan ke admin bersama Ringkasan Kebutuhan.
  */
-const FOLLOW_UP_START =
-  /\b(konsultasi|konsultasikan|tindak lanjut|tindaklanjut|ditindaklanjuti|hubungi saya|dihubungi|(mau|ingin) (daftar|berangkat|umrah|umroh|haji|pergi)|merencanakan (umrah|umroh|haji|perjalanan)|rencana (umrah|umroh|haji|perjalanan)|info(rmasi)? lebih lanjut|consultation|consult(ing)?|follow[- ]?up|get back to me|contact me|planning (a |an )?(trip|umrah|umroh|hajj|journey))\b/i;
+const CATAT_PERTANYAAN_ID =
+  "Terima kasih, pertanyaan Anda saya catat dan akan saya sertakan dalam " +
+  "Permintaan Tindak Lanjut untuk tim kami.";
+const CATAT_PERTANYAAN_EN =
+  "Thank you, I've noted your question and will include it in the " +
+  "follow-up request for our team.";
+
+/**
+ * Penanda pesan yang berupa pertanyaan, bukan jawaban bidang. Dipakai agar
+ * pertanyaan yang menyela pengumpulan (mis. "mau tanya harga fotografer")
+ * tidak dikonsumsi sebagai jawaban bidang, sementara jawaban bidang yang
+ * kebetulan memuat kata tanya atau kata harga tetap tercatat apa adanya.
+ */
+const PERTANYAAN =
+  /\?|\b(apa(kah)?|bagaimana|gimana|kenapa|mengapa|kapan|dimana|di mana|siapa|berapa|bisakah|bolehkah|adakah|do|does|did|is|are|was|were|can|could|should|what|how|when|where|why|who|which|tany(a|akan)|bertanya|info(rmasi|kan)?|mau tahu|ingin tahu|cek|check)\b/i;
+
+/** Apakah pesan berupa pertanyaan (lihat `PERTANYAAN`). */
+function isPertanyaan(text: string): boolean {
+  return PERTANYAAN.test(text);
+}
 
 /** Penanda jawaban yang melewati bidang opsional (kisaran anggaran). */
 const SKIP_ANSWER =
@@ -103,6 +122,8 @@ interface FollowUpDraft {
   readonly mainNeeds: string | null;
   readonly budgetRange: string | null;
   readonly budgetResolved: boolean;
+  /** Pertanyaan non-harga yang dicatat apa adanya sebagai bagian kebutuhan. */
+  readonly notedQuestions: readonly string[];
 }
 
 /**
@@ -129,6 +150,7 @@ const EMPTY_DRAFT: FollowUpDraft = {
   mainNeeds: null,
   budgetRange: null,
   budgetResolved: false,
+  notedQuestions: [],
 };
 
 interface StepResult {
@@ -180,6 +202,8 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
 function step(state: FlowState, text: string, language: Language): StepResult {
   const indonesian = language === "id";
   const next = nextState(state, text);
+  const routing = classifyInbound(text);
+  const leadPertanyaan = indonesian ? CATAT_PERTANYAAN_ID : CATAT_PERTANYAAN_EN;
 
   if (state.kind === "awaiting-handoff-consent" && next.kind === "idle") {
     if (CONSENT_NO.test(text)) {
@@ -222,30 +246,56 @@ function step(state: FlowState, text: string, language: Language): StepResult {
       next,
     };
   }
-  if (next.kind === "collecting") {
-    return { reply: promptForNextField(next.draft, indonesian), actions: [], next };
-  }
   if (next.kind === "awaiting-consent") {
+    const reask = indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
+    if (state.kind !== "awaiting-consent") {
+      return { reply: consentPrompt(next.draft, indonesian), actions: [], next };
+    }
+    // Pertanyaan non-harga yang menyela konfirmasi dicatat apa adanya; balasan
+    // tetap meminta konfirmasi persetujuan.
+    const dicatat = isPertanyaan(text) && routing.kind === "faq";
+    return { reply: dicatat ? balasanDenganPrompt(leadPertanyaan, reask) : reask, actions: [], next };
+  }
+
+  const menyela =
+    state.kind === "collecting" &&
+    isPertanyaan(text) &&
+    (routing.kind === "indicative-price" || routing.kind === "faq");
+
+  if (next.kind === "collecting") {
+    const prompt = promptForNextField(next.draft, indonesian);
+    if (state.kind === "collecting" && !menyela) {
+      // Jawaban bidang biasa: cukup ajukan bidang berikutnya.
+      return { reply: prompt, actions: [], next };
+    }
+    // Pertanyaan yang menyela pengumpulan tidak mengisi bidang yang sedang
+    // ditanya. Setiap chat prospek (ADR-0009) dibalas cepat — respons awal,
+    // catatan pertanyaan, atau Harga Indikatif — lalu diarahkan ke
+    // pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.
+    if (routing.kind === "indicative-price") {
+      return {
+        reply: balasanDenganPrompt(faqAnswer(routing.topic, language), prompt),
+        actions: [{ kind: "record-faq-answer", topic: routing.topic }],
+        next,
+      };
+    }
     return {
-      reply:
-        state.kind === "awaiting-consent"
-          ? indonesian
-            ? CONSENT_REASK_ID
-            : CONSENT_REASK_EN
-          : consentPrompt(next.draft, indonesian),
+      reply: balasanDenganPrompt(
+        routing.kind === "faq" ? leadPertanyaan : initialReplyFor(indonesian),
+        prompt,
+      ),
       actions: [],
       next,
     };
   }
-  const routing = classifyInbound(text);
-  if (routing.kind === "faq" || routing.kind === "indicative-price") {
-    return {
-      reply: faqAnswer(routing.topic, language),
-      actions: [{ kind: "record-faq-answer", topic: routing.topic }],
-      next,
-    };
-  }
-  return { reply: initialReplyFor(indonesian), actions: [], next };
+  // Semua state lain sudah ditangani di atas: pesan apa pun dari idle masuk ke
+  // pengumpulan, dan hanya jawaban persetujuan yang kembali ke idle.
+  throw new Error(`state alur tidak dikenal: ${next.kind}`);
+}
+
+/** Gabungkan balasan cepat dengan langkah pengumpulan berikutnya. */
+function balasanDenganPrompt(lead: string, prompt: string): string {
+  return `${lead}\n\n${prompt}`;
 }
 
 /** Transisi state murni dari state saat ini dan teks calon jemaah. */
@@ -264,7 +314,16 @@ function nextState(state: FlowState, text: string): FlowState {
   }
 
   if (state.kind === "collecting") {
-    // Klasifikasi diabaikan saat pengumpulan: jawaban bidang seperti
+    const pertanyaanMenyela =
+      isPertanyaan(text) && (routing.kind === "indicative-price" || routing.kind === "faq");
+    if (pertanyaanMenyela) {
+      // Pertanyaan tidak menjadi jawaban bidang: Harga Indikatif dijawab oleh
+      // `step`, pertanyaan non-harga dicatat sebagai bagian kebutuhan.
+      return routing.kind === "faq"
+        ? { kind: "collecting", draft: catatPertanyaan(state.draft, text) }
+        : state;
+    }
+    // Selain itu klasifikasi diabaikan saat pengumpulan: jawaban bidang seperti
     // "Butuh kamar keluarga" tidak boleh salah jadi pemicu handoff atau FAQ.
     const draft = fillNextField(state.draft, text);
     return draft.budgetResolved
@@ -272,6 +331,11 @@ function nextState(state: FlowState, text: string): FlowState {
       : { kind: "collecting", draft };
   }
   if (menungguPersetujuan) {
+    if (state.kind === "awaiting-consent" && isPertanyaan(text) && routing.kind === "faq") {
+      // Pertanyaan non-harga yang menyela konfirmasi dicatat sebagai bagian
+      // kebutuhan, bukan dijawab dari materi (ADR-0009).
+      return { kind: "awaiting-consent", draft: catatPertanyaan(state.draft, text) };
+    }
     // Jawaban tidak jelas: tetap tunggu persetujuan (balasan meminta konfirmasi).
     return state;
   }
@@ -279,11 +343,17 @@ function nextState(state: FlowState, text: string): FlowState {
   if (routing.kind === "handoff") {
     return { kind: "awaiting-handoff-consent", reason: routing.trigger };
   }
-  if (FOLLOW_UP_START.test(text)) {
-    return { kind: "collecting", draft: EMPTY_DRAFT };
-  }
-  // FAQ vs sapaan awal dibedakan saat menyusun balasan (lihat `step`).
-  return state;
+  // ADR-0009: setiap pesan prospek yang tidak menyela ke handoff langsung
+  // masuk pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.
+  return {
+    kind: "collecting",
+    draft: routing.kind === "faq" ? catatPertanyaan(EMPTY_DRAFT, text) : EMPTY_DRAFT,
+  };
+}
+
+/** Catat pertanyaan non-harga apa adanya sebagai bagian kebutuhan. */
+function catatPertanyaan(draft: FollowUpDraft, text: string): FollowUpDraft {
+  return { ...draft, notedQuestions: [...draft.notedQuestions, text] };
 }
 
 function isConsentYes(text: string): boolean {
@@ -362,6 +432,7 @@ function toFollowUpRequest(draft: FollowUpDraft): FollowUpRequest {
     travellerCount: draft.travellerCount ?? "",
     mainNeeds: draft.mainNeeds ?? "",
     budgetRange: draft.budgetRange,
+    notedQuestions: [...draft.notedQuestions],
   };
 }
 
@@ -401,6 +472,9 @@ function consentPrompt(draft: FollowUpDraft, indonesian: boolean): string {
 
 function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
   const value = (v: string | null): string => v ?? (indonesian ? "tidak disampaikan" : "not provided");
+  const pertanyaan = draft.notedQuestions.map((q) =>
+    indonesian ? `- Pertanyaan yang dicatat: ${q}` : `- Noted question: ${q}`,
+  );
   if (indonesian) {
     return [
       `- Layanan/tujuan: ${value(draft.serviceOrDestination)}`,
@@ -408,6 +482,7 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
       `- Jumlah jemaah: ${value(draft.travellerCount)}`,
       `- Kebutuhan utama: ${value(draft.mainNeeds)}`,
       `- Kisaran anggaran: ${value(draft.budgetRange)}`,
+      ...pertanyaan,
     ].join("\n");
   }
   return [
@@ -416,6 +491,7 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
     `- Number of travellers: ${value(draft.travellerCount)}`,
     `- Main needs: ${value(draft.mainNeeds)}`,
     `- Budget range: ${value(draft.budgetRange)}`,
+    ...pertanyaan,
   ].join("\n");
 }
 

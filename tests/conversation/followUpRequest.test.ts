@@ -98,6 +98,7 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
     travellerCount: "4 orang",
     mainNeeds: "Butuh kamar keluarga",
     budgetRange: "Sekitar 50 juta",
+    notedQuestions: [],
   });
 
   const teruskan = turn.actions.find((a) => a.kind === "hand-off-to-admin");

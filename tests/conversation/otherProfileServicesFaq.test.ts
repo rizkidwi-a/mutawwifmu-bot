@@ -1,7 +1,11 @@
 /**
- * Tes FAQ layanan lain dalam profil pada seam `handleInbound` (tiket 04):
- * pertanyaan yang didukung materi dijawab langsung dari materi, sementara
- * pertanyaan agen/korporasi, informasi yang tidak tersedia, serta pertanyaan
+ * Tes layanan lain dalam profil pada seam `handleInbound` (tiket 01, ADR-0009).
+ * Sebelum tiket ini, pertanyaan yang didukung materi dijawab langsung dari
+ * `businessFaq.ts`; kini jawaban non-harga dinonaktifkan dari jalur runtime dan
+ * pertanyaannya dicatat sebagai bagian kebutuhan untuk admin. Penyesuaian sadar
+ * atas tes tiket 04 tercatat di Comments tiket 01
+ * (`.scratch/lead-intake/issues/01-intake-sebagai-alur-utama.md`).
+ * Pertanyaan agen/korporasi, informasi yang tidak tersedia, serta pertanyaan
  * harga/ketersediaan tetap mengalir ke alur handoff tiket 02.
  */
 
@@ -10,10 +14,10 @@ import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
- * Pertanyaan layanan lain dalam profil beserta kata kunci jawaban topiknya.
- * Pertanyaan yang memuat kata "tersedia" atau "penawaran" sengaja tidak
- * dijadikan baris: keduanya adalah pertanyaan ketersediaan/penawaran yang perlu
- * konfirmasi admin (lihat tes penjaga di bawah), bukan FAQ.
+ * Pertanyaan layanan lain dalam profil beserta kata kunci jawaban topiknya yang
+ * tidak boleh lagi muncul pada balasan. Pertanyaan yang memuat kata "tersedia"
+ * atau "penawaran" sengaja tidak dijadikan baris: keduanya adalah pertanyaan
+ * ketersediaan/penawaran yang perlu konfirmasi admin (lihat tes penjaga di bawah).
  */
 const PERTANYAAN_LAYANAN_LAIN: ReadonlyArray<
   readonly [pesan: string, topik: string, kataKunci: readonly RegExp[]]
@@ -25,43 +29,35 @@ const PERTANYAAN_LAYANAN_LAIN: ReadonlyArray<
   ["Apakah itinerary bisa disesuaikan?", "custom-itinerary", [/kebutuhan/, /anggaran/]],
 ];
 
-for (const [pesan, topik, kataKunci] of PERTANYAAN_LAYANAN_LAIN) {
-  test(`pertanyaan layanan lain "${pesan}" dijawab dari materi tanpa handoff`, () => {
+for (const [pesan, , kataKunci] of PERTANYAAN_LAYANAN_LAIN) {
+  test(`pertanyaan layanan lain "${pesan}" tidak dijawab dari materi dan diarahkan ke intake`, () => {
     const percakapan = new Percakapan();
     const turn = percakapan.kirim(pesan);
     const balasan = teksBalasan(turn);
     for (const kunci of kataKunci) {
-      assert.match(balasan, kunci);
+      assert.doesNotMatch(balasan, kunci, `${pesan}: balasan masih memuat jawaban materi ${kunci}`);
     }
-    const catat = turn.actions.find((aksi) => aksi.kind === "record-faq-answer");
-    assert.ok(catat && catat.kind === "record-faq-answer");
-    assert.equal(catat.topic, topik);
-    assert.deepEqual(
-      turn.actions.filter((aksi) => aksi.kind === "hand-off-to-admin"),
-      [],
-    );
+    assert.match(balasan, /catat/i);
+    assert.match(balasan, /layanan|tujuan/i);
+    assert.deepEqual(turn.actions, []);
   });
 }
 
-test("pertanyaan layanan lain dalam Bahasa Inggris dijawab dalam Bahasa Inggris", () => {
+test("pertanyaan layanan lain dalam Bahasa Inggris dibalas tanpa jawaban materi", () => {
   const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Do you provide tour guides in other countries?");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /190 countries/);
-  assert.doesNotMatch(balasan, /negara/);
-  const catat = turn.actions.find((aksi) => aksi.kind === "record-faq-answer");
-  assert.ok(catat && catat.kind === "record-faq-answer");
-  assert.equal(catat.topic, "tour-guide");
+  const balasan = teksBalasan(percakapan.kirim("Do you provide tour guides in other countries?"));
+  assert.doesNotMatch(balasan, /190 countries/);
+  assert.match(balasan, /noted/i);
 });
 
-test("jawaban layanan lain tidak menjanjikan destinasi atau ketersediaan di luar materi", () => {
+test("pertanyaan layanan lain yang tidak tercantum materi tidak dijawab dengan karangan", () => {
   const percakapan = new Percakapan();
   const balasan = teksBalasan(percakapan.kirim("Apakah ada tour guide untuk ke Jepang?"));
   // Destinasi tertentu tidak dicantumkan materi: bot tidak menyebutnya,
-  // tidak menjanjikan ketersediaannya, dan mengarahkan konfirmasi ke tim.
+  // tidak menjanjikan ketersediaannya, dan tidak menjawab dari materi.
   assert.doesNotMatch(balasan, /Jepang|Japan/);
   assert.doesNotMatch(balasan, /pasti|dijamin|guaranteed/i);
-  assert.match(balasan, /dikonfirmasi/);
+  assert.match(balasan, /catat/i);
 });
 
 test("pertanyaan agen travel dan korporasi diteruskan ke admin, bukan sebagai Permintaan Tindak Lanjut calon jemaah", () => {

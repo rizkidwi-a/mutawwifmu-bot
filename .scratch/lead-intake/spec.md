@@ -1,0 +1,45 @@
+# Lead Intake: Kebutuhan Calon Jemaah untuk Admin
+
+Status: needs-triage
+
+## Problem Statement
+
+Konsultasi penjualan land arrangement (lihat `data/chat.md`) tidak dapat digantikan oleh jawaban FAQ otomatis: pertanyaannya multi-giliran, kontekstual, dan memerlukan pengetahuan operasional di luar materi bisnis. Evaluasi pada `.scratch/eval-classify.txt` menunjukkan corpus yang ada justru menghasilkan jawaban salah konteks pada sebagian pesan. Yang dibutuhkan admin bukan jawaban bot yang mendalam, melainkan ringkasan kebutuhan calon jemaah yang siap ditindaklanjuti.
+
+## Solution
+
+Batasi fungsi bot menjadi tiga: merespons cepat setiap chat masuk, menanyakan kebutuhan calon jemaah, lalu mengirim ringkasan kebutuhan tersebut ke nomor admin (ADR-0009). Bot boleh menyebut kisaran harga dari materi sebagai Harga Indikatif dengan penegasan bahwa angka dapat berubah setelah diperiksa admin. Semua pertanyaan lain tidak dijawab dari corpus — dicatat sebagai bagian kebutuhan dan diteruskan kepada admin.
+
+## Ruang Lingkup
+
+1. **Respons cepat.** Setiap chat masuk dibalas cepat dalam bahasa calon jemaah (ID/EN), lalu diarahkan ke pengumpulan kebutuhan.
+2. **Pengumpulan kebutuhan (Permintaan Tindak Lanjut).** Bidang yang ditanya berurutan, dengan jawaban disimpan apa adanya:
+   - Layanan yang diminati (menu dari Layanan MUTAWWIFMU: mutawwif, visa & dokumen, hotel, transportasi, airport handling, ziarah/city tour, tasreh, fotografi, lainnya);
+   - Tanggal atau periode perjalanan;
+   - Jumlah jemaah (termasuk keterangan anak/lansia bila disebutkan);
+   - Kebutuhan detail (kebutuhan visa per jemaah, rute/asal keberangkatan, hotel pesan mandiri atau lewat kami, catatan khusus);
+   - Kisaran anggaran (opsional, boleh dilewati).
+3. **Ringkasan untuk admin.** Ringkasan per bidang ditampilkan kepada calon jemaah, meminta persetujuan penerusan, lalu dikirim ke nomor admin bersama konteks percakapan (mengikuti mekanisme yang berlaku: ADR-0006, persetujuan pada spesifikasi lama).
+4. **Harga Indikatif.** Pertanyaan harga yang angkanya tercantum materi dijawab dengan Harga Indikatif, selalu dengan penegasan bahwa angka bersifat indikatif dan dapat berubah setelah diperiksa admin.
+5. **Pembaruan kebutuhan.** Setelah ringkasan terkirim, calon jemaah masih dapat menambah atau mengubah kebutuhan; ringkasan yang diperbarui dikirim ulang ke admin dengan penanda pembaruan (keputusan rinci pada tiket 05).
+6. **Pesan non-teks.** Gambar/dokumen (mis. bukti booking, bukti transfer) diakui penerimaannya dan dicatat sebagai lampiran pada ringkasan, tanpa bot menafsirkan isinya.
+
+## Di Luar Lingkup
+
+- Menjawab FAQ non-harga (profil layanan, ketentuan, proses) — diarahkan ke admin sebagai bagian kebutuhan.
+- Quotation, invoice, booking, pembayaran, perubahan data, dan konfirmasi ketersediaan/harga final.
+- Permintaan data paspor atau informasi kesehatan (larangan pada spesifikasi lama tetap berlaku).
+- Perjalanan aktif, darurat, dan permintaan berbicara dengan manusia — tetap menyela langsung ke handoff.
+
+## Testing Decisions
+
+- Seam tetap `handleInbound(message, context)`; state alur diturunkan dari riwayat percakapan agar seam murni.
+- Nilai bidang disimpan apa adanya dari calon jemaah; tidak ada parafrase atau penafsiran otomatis atas data jemaah.
+- Regresi end-to-end memakai dialog nyata dari `data/chat.md` (tiket 06): tidak ada pesan yang salah dijawab topik lain; setiap kebutuhan utama skenario muncul pada ringkasan admin.
+- Invarian yang dipertahankan: tanpa klaim harga final, tanpa janji ketersediaan/waktu balasan admin, tanpa data sensitif.
+
+## Referensi
+
+- Keputusan lingkup: `docs/adr/0009-fokus-intake-kebutuhan.md`
+- Spesifikasi lama (bagian alur percakapan dilampaui; ketentuan kanal/persetujuan/larangan data tetap berlaku): `.scratch/whatsapp-customer-service-chatbot/spec.md`
+- Evaluasi percakapan nyata: `.scratch/eval-classify.txt` (sumber: `data/chat.md`)

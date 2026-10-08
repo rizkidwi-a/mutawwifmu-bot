@@ -43,6 +43,12 @@ export interface FollowUpRequest {
   readonly mainNeeds: string;
   /** Kisaran anggaran bila diberikan; null bila calon jemaah melewatinya. */
   readonly budgetRange: string | null;
+  /**
+   * Pertanyaan non-harga yang dicatat apa adanya sebagai bagian kebutuhan
+   * (ADR-0009, tiket 01): tidak dijawab dari materi, tetapi dibawa ke
+   * Ringkasan Kebutuhan untuk admin.
+   */
+  readonly notedQuestions: readonly string[];
 }
 
 /** Alasan percakapan diteruskan kepada admin (spec: kasus yang diteruskan ke admin). */
@@ -64,7 +70,11 @@ export type HandOffReason =
 export type ConversationAction =
   | { readonly kind: "record-follow-up-request"; readonly request: FollowUpRequest }
   | {
-      /** Jawaban FAQ/Harga Indikatif yang diberikan langsung dari materi (tiket 03, tiket 05). */
+      /**
+       * Jawaban Harga Indikatif yang diberikan langsung dari materi (tiket 05).
+       * Sejak ADR-0009 (tiket 01) hanya topik harga yang dijawab dari materi;
+       * pertanyaan non-harga dicatat pada Permintaan Tindak Lanjut.
+       */
       readonly kind: "record-faq-answer";
       /**
        * Topik materi yang dijawab. Disengaja `string` agar tipe seam tidak

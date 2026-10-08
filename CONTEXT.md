@@ -24,6 +24,10 @@ _Avoid_: dukungan perjalanan aktif
 Permintaan dari calon jemaah sebelum booking yang memerlukan konsultasi lanjutan dari admin MUTAWWIFMU.
 _Avoid_: konfirmasi pemesanan
 
+**Ringkasan Kebutuhan**:
+Rangkuman kebutuhan Calon Jemaah hasil Permintaan Tindak Lanjut yang diteruskan kepada admin untuk ditindaklanjuti.
+_Avoid_: quotation, penawaran (produk admin setelah konsultasi)
+
 ## Penawaran
 
 **Harga Indikatif**:
