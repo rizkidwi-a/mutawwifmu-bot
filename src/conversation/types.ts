@@ -32,15 +32,28 @@ export interface Reply {
 }
 
 /**
- * Bidang Permintaan Tindak Lanjut yang dikumpulkan untuk admin (spec:
- * layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama, anggaran
- * opsional). Nilai disimpan apa adanya dari calon jemaah.
+ * Bidang Permintaan Tindak Lanjut yang dikumpulkan untuk admin (spec tiket
+ * 02: layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode
+ * perjalanan, jumlah jemaah, kebutuhan detail, kisaran anggaran opsional).
+ * Setiap nilai disimpan verbatim apa adanya dari calon jemaah — tidak ada
+ * komponen generatif yang memparafrase data jemaah.
  */
 export interface FollowUpRequest {
-  readonly serviceOrDestination: string;
+  /**
+   * Layanan yang diminati dari menu Layanan MUTAWWIFMU (mutawwif, visa &
+   * dokumen, hotel, transportasi, airport handling, ziarah/city tour, tasreh,
+   * fotografi, lainnya). Jawaban bebas diterima tanpa dipaksa memilih menu dan
+   * boleh menyebut lebih dari satu layanan.
+   */
+  readonly interestedServices: string;
   readonly travelDateOrPeriod: string;
   readonly travellerCount: string;
-  readonly mainNeeds: string;
+  /**
+   * Kebutuhan detail yang boleh disampaikan sekaligus dalam satu jawaban
+   * panjang (kebutuhan visa per jemaah, rute/asal keberangkatan, hotel pesan
+   * sendiri atau lewat kami, catatan) — disimpan utuh tanpa dipotong.
+   */
+  readonly detailedNeeds: string;
   /** Kisaran anggaran bila diberikan; null bila calon jemaah melewatinya. */
   readonly budgetRange: string | null;
   /**

@@ -89,12 +89,42 @@ const HANDOFF_CONSENT_TAIL_EN =
   "I can forward this conversation along with the information you shared to the MUTAWWIFMU " +
   "customer service/sales team. Do you consent to this information being forwarded?";
 
-const COLLECT_SERVICE_OR_DESTINATION_ID =
+/**
+ * Menu Layanan MUTAWWIFMU pada langkah pertama pengumpulan: calon jemaah tahu
+ * apa yang bisa diminta, tetapi jawaban tetap bebas — tidak dipaksa memilih
+ * menu dan disimpan apa adanya (tiket 02).
+ */
+const MENU_LAYANAN_ID =
+  "Menu Layanan MUTAWWIFMU:\n" +
+  "- Mutawwif\n" +
+  "- Visa & dokumen\n" +
+  "- Hotel\n" +
+  "- Transportasi\n" +
+  "- Airport handling\n" +
+  "- Ziarah/city tour\n" +
+  "- Tasreh\n" +
+  "- Fotografi\n" +
+  "- Lainnya";
+const MENU_LAYANAN_EN =
+  "MUTAWWIFMU service menu:\n" +
+  "- Mutawwif\n" +
+  "- Visa & documents\n" +
+  "- Hotel\n" +
+  "- Transportation\n" +
+  "- Airport handling\n" +
+  "- Ziarah/city tour\n" +
+  "- Tasreh\n" +
+  "- Photography\n" +
+  "- Others";
+
+const COLLECT_INTERESTED_SERVICES_ID =
   "Baik, saya bantu mencatat Permintaan Tindak Lanjut Anda. " +
-  "Layanan atau tujuan apa yang Anda minati?";
-const COLLECT_SERVICE_OR_DESTINATION_EN =
+  "Layanan apa saja yang Anda minati? (jawaban bebas, boleh lebih dari satu)\n\n" +
+  MENU_LAYANAN_ID;
+const COLLECT_INTERESTED_SERVICES_EN =
   "Sure, I can note down your follow-up request. " +
-  "Which service or destination are you interested in?";
+  "Which services are you interested in? (free text, you may name more than one)\n\n" +
+  MENU_LAYANAN_EN;
 
 const COLLECT_TRAVEL_DATE_OR_PERIOD_ID = "Terima kasih. Kapan rencana tanggal atau periode perjalanan Anda?";
 const COLLECT_TRAVEL_DATE_OR_PERIOD_EN = "Thank you. When is your planned travel date or period?";
@@ -102,8 +132,20 @@ const COLLECT_TRAVEL_DATE_OR_PERIOD_EN = "Thank you. When is your planned travel
 const COLLECT_TRAVELLER_COUNT_ID = "Berapa jumlah jemaah yang akan berangkat?";
 const COLLECT_TRAVELLER_COUNT_EN = "How many travellers will be going?";
 
-const COLLECT_MAIN_NEEDS_ID = "Apa kebutuhan utama Anda untuk perjalanan ini?";
-const COLLECT_MAIN_NEEDS_EN = "What are your main needs for this trip?";
+/**
+ * Kebutuhan detail boleh disampaikan sekaligus dalam satu jawaban panjang dan
+ * disimpan utuh. Prompt menyebut rincian yang lazim diperlukan admin (visa per
+ * jemaah, rute/asal keberangkatan, hotel pesan sendiri atau lewat kami,
+ * catatan) tanpa meminta data paspor atau kesehatan (larangan lama berlaku).
+ */
+const COLLECT_DETAILED_NEEDS_ID =
+  "Apa kebutuhan detail Anda untuk perjalanan ini? " +
+  "Boleh disampaikan sekaligus dalam satu jawaban: kebutuhan visa per jemaah, " +
+  "rute atau asal keberangkatan, hotel pesan sendiri atau lewat kami, serta catatan khusus.";
+const COLLECT_DETAILED_NEEDS_EN =
+  "What are your detailed needs for this trip? " +
+  "You may share them all at once in one message: visa needs per traveller, " +
+  "route or departure city, hotel booked by yourself or through us, and any special notes.";
 
 const COLLECT_BUDGET_ID =
   "Apakah ada kisaran anggaran yang ingin disampaikan? Ini opsional — Anda boleh melewatinya.";
@@ -116,10 +158,10 @@ const COLLECT_BUDGET_EN =
  * dijawab atau dilewati. Bidang null berarti belum terisi.
  */
 interface FollowUpDraft {
-  readonly serviceOrDestination: string | null;
+  readonly interestedServices: string | null;
   readonly travelDateOrPeriod: string | null;
   readonly travellerCount: string | null;
-  readonly mainNeeds: string | null;
+  readonly detailedNeeds: string | null;
   readonly budgetRange: string | null;
   readonly budgetResolved: boolean;
   /** Pertanyaan non-harga yang dicatat apa adanya sebagai bagian kebutuhan. */
@@ -144,10 +186,10 @@ type FlowState =
   | { readonly kind: "awaiting-handoff-consent"; readonly reason: HandOffReason };
 
 const EMPTY_DRAFT: FollowUpDraft = {
-  serviceOrDestination: null,
+  interestedServices: null,
   travelDateOrPeriod: null,
   travellerCount: null,
-  mainNeeds: null,
+  detailedNeeds: null,
   budgetRange: null,
   budgetResolved: false,
   notedQuestions: [],
@@ -362,8 +404,8 @@ function isConsentYes(text: string): boolean {
 
 /** Isi bidang wajib berikutnya yang masih kosong, lalu bidang opsional anggaran. */
 function fillNextField(draft: FollowUpDraft, text: string): FollowUpDraft {
-  if (draft.serviceOrDestination === null) {
-    return { ...draft, serviceOrDestination: text };
+  if (draft.interestedServices === null) {
+    return { ...draft, interestedServices: text };
   }
   if (draft.travelDateOrPeriod === null) {
     return { ...draft, travelDateOrPeriod: text };
@@ -371,8 +413,8 @@ function fillNextField(draft: FollowUpDraft, text: string): FollowUpDraft {
   if (draft.travellerCount === null) {
     return { ...draft, travellerCount: text };
   }
-  if (draft.mainNeeds === null) {
-    return { ...draft, mainNeeds: text };
+  if (draft.detailedNeeds === null) {
+    return { ...draft, detailedNeeds: text };
   }
   return {
     ...draft,
@@ -427,18 +469,18 @@ function leadHandoff(reason: HandOffReason, indonesian: boolean): string {
 
 function toFollowUpRequest(draft: FollowUpDraft): FollowUpRequest {
   return {
-    serviceOrDestination: draft.serviceOrDestination ?? "",
+    interestedServices: draft.interestedServices ?? "",
     travelDateOrPeriod: draft.travelDateOrPeriod ?? "",
     travellerCount: draft.travellerCount ?? "",
-    mainNeeds: draft.mainNeeds ?? "",
+    detailedNeeds: draft.detailedNeeds ?? "",
     budgetRange: draft.budgetRange,
     notedQuestions: [...draft.notedQuestions],
   };
 }
 
 function promptForNextField(draft: FollowUpDraft, indonesian: boolean): string {
-  if (draft.serviceOrDestination === null) {
-    return indonesian ? COLLECT_SERVICE_OR_DESTINATION_ID : COLLECT_SERVICE_OR_DESTINATION_EN;
+  if (draft.interestedServices === null) {
+    return indonesian ? COLLECT_INTERESTED_SERVICES_ID : COLLECT_INTERESTED_SERVICES_EN;
   }
   if (draft.travelDateOrPeriod === null) {
     return indonesian ? COLLECT_TRAVEL_DATE_OR_PERIOD_ID : COLLECT_TRAVEL_DATE_OR_PERIOD_EN;
@@ -446,8 +488,8 @@ function promptForNextField(draft: FollowUpDraft, indonesian: boolean): string {
   if (draft.travellerCount === null) {
     return indonesian ? COLLECT_TRAVELLER_COUNT_ID : COLLECT_TRAVELLER_COUNT_EN;
   }
-  if (draft.mainNeeds === null) {
-    return indonesian ? COLLECT_MAIN_NEEDS_ID : COLLECT_MAIN_NEEDS_EN;
+  if (draft.detailedNeeds === null) {
+    return indonesian ? COLLECT_DETAILED_NEEDS_ID : COLLECT_DETAILED_NEEDS_EN;
   }
   return indonesian ? COLLECT_BUDGET_ID : COLLECT_BUDGET_EN;
 }
@@ -477,19 +519,19 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
   );
   if (indonesian) {
     return [
-      `- Layanan/tujuan: ${value(draft.serviceOrDestination)}`,
+      `- Layanan yang diminati: ${value(draft.interestedServices)}`,
       `- Tanggal/periode: ${value(draft.travelDateOrPeriod)}`,
       `- Jumlah jemaah: ${value(draft.travellerCount)}`,
-      `- Kebutuhan utama: ${value(draft.mainNeeds)}`,
+      `- Kebutuhan detail: ${value(draft.detailedNeeds)}`,
       `- Kisaran anggaran: ${value(draft.budgetRange)}`,
       ...pertanyaan,
     ].join("\n");
   }
   return [
-    `- Service/destination: ${value(draft.serviceOrDestination)}`,
+    `- Services of interest: ${value(draft.interestedServices)}`,
     `- Travel date/period: ${value(draft.travelDateOrPeriod)}`,
     `- Number of travellers: ${value(draft.travellerCount)}`,
-    `- Main needs: ${value(draft.mainNeeds)}`,
+    `- Detailed needs: ${value(draft.detailedNeeds)}`,
     `- Budget range: ${value(draft.budgetRange)}`,
     ...pertanyaan,
   ].join("\n");

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
-test("calon jemaah yang meminta konsultasi diminta layanan atau tujuan yang diminati", () => {
+test("calon jemaah yang meminta konsultasi diminta layanan yang diminati dari menu", () => {
   const percakapan = new Percakapan();
   const turn = percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   const balasan = teksBalasan(turn);
@@ -24,10 +24,10 @@ test("bot mengumpulkan bidang Permintaan Tindak Lanjut secara berurutan", () => 
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   assert.match(teksBalasan(percakapan.kirim("Umrah premium, tujuan Mekkah dan Madinah")), /tanggal|periode/i);
   assert.match(teksBalasan(percakapan.kirim("Rencana Desember 2025")), /jumlah jemaah/i);
-  assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan utama/i);
+  assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan detail/i);
 });
 
-test("setelah kebutuhan utama, kisaran anggaran ditawarkan secara opsional", () => {
+test("setelah kebutuhan detail, kisaran anggaran ditawarkan secara opsional", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Umrah premium, tujuan Mekkah");
@@ -93,10 +93,10 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
   const catat = turn.actions.find((a) => a.kind === "record-follow-up-request");
   assert.ok(catat && catat.kind === "record-follow-up-request");
   assert.deepEqual(catat.request, {
-    serviceOrDestination: "Umrah premium, tujuan Mekkah",
+    interestedServices: "Umrah premium, tujuan Mekkah",
     travelDateOrPeriod: "Rencana Desember 2025",
     travellerCount: "4 orang",
-    mainNeeds: "Butuh kamar keluarga",
+    detailedNeeds: "Butuh kamar keluarga",
     budgetRange: "Sekitar 50 juta",
     notedQuestions: [],
   });

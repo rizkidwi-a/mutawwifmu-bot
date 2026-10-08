@@ -2,7 +2,7 @@
 
 Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
 
-Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan/tujuan, tanggal/periode, jumlah jemaah, kebutuhan utama; anggaran opsional), handoff ke admin yang selalu diawali persetujuan calon jemaah, jawaban FAQ layanan dari materi bisnis, serta Harga Indikatif dari angka harga yang tercantum materi.
+Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode, jumlah jemaah, kebutuhan detail; anggaran opsional), handoff ke admin yang selalu diawali persetujuan calon jemaah, jawaban FAQ layanan dari materi bisnis, serta Harga Indikatif dari angka harga yang tercantum materi.
 
 ## Menjalankan
 

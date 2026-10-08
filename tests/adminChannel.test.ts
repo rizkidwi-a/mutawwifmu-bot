@@ -15,10 +15,10 @@ const handoff: AdminHandoff = {
   from: "628123456789",
   reason: "follow-up-request",
   request: {
-    serviceOrDestination: "Umrah premium, tujuan Mekkah",
+    interestedServices: "Umrah premium, tujuan Mekkah",
     travelDateOrPeriod: "Rencana Desember 2025",
     travellerCount: "4 orang",
-    mainNeeds: "Butuh kamar keluarga",
+    detailedNeeds: "Butuh kamar keluarga",
     budgetRange: "Sekitar 50 juta",
     notedQuestions: ["Apa itu land arrangement?"],
   },

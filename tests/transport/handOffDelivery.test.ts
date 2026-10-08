@@ -136,10 +136,10 @@ test("permintaan yang disetujui diteruskan ke kanal admin lengkap dengan ringkas
     assert.ok(handoff);
     assert.equal(handoff.reason, "follow-up-request");
     assert.deepEqual(handoff.request, {
-      serviceOrDestination: "Umrah premium, tujuan Mekkah",
+      interestedServices: "Umrah premium, tujuan Mekkah",
       travelDateOrPeriod: "Rencana Desember 2025",
       travellerCount: "4 orang",
-      mainNeeds: "Butuh kamar keluarga",
+      detailedNeeds: "Butuh kamar keluarga",
       budgetRange: "Sekitar 50 juta",
       notedQuestions: [],
     });

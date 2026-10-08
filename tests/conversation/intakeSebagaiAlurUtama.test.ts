@@ -36,7 +36,7 @@ test("pengumpulan berjalan setelah pembuka tanpa pola konsultasi", () => {
   percakapan.kirim("Halo");
   assert.match(teksBalasan(percakapan.kirim("Umrah premium, tujuan Mekkah")), /tanggal|periode/i);
   assert.match(teksBalasan(percakapan.kirim("Rencana Desember 2025")), /jumlah jemaah/i);
-  assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan utama/i);
+  assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan detail/i);
   assert.match(teksBalasan(percakapan.kirim("Butuh kamar keluarga")), /anggaran/i);
   const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
   assert.match(ringkasan, /Umrah premium/);

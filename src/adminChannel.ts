@@ -85,10 +85,10 @@ export function formatAdminHandoff(handoff: AdminHandoff): string {
 
 function requestLines(request: FollowUpRequest): string[] {
   return [
-    `- Layanan/tujuan: ${request.serviceOrDestination}`,
+    `- Layanan yang diminati: ${request.interestedServices}`,
     `- Tanggal/periode: ${request.travelDateOrPeriod}`,
     `- Jumlah jemaah: ${request.travellerCount}`,
-    `- Kebutuhan utama: ${request.mainNeeds}`,
+    `- Kebutuhan detail: ${request.detailedNeeds}`,
     `- Kisaran anggaran: ${request.budgetRange ?? "tidak disampaikan"}`,
     ...request.notedQuestions.map((q) => `- Pertanyaan yang dicatat: ${q}`),
   ];
