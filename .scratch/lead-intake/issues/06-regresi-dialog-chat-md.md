@@ -13,3 +13,27 @@
 - [ ] Kumpulan kasus misfire pada `.scratch/eval-classify.txt` dijadikan kasus tes negatif.
 
 ## Comments
+
+### Analisis awal (sesi 2026-10-08, sebelum implementasi)
+
+Ditunda atas permintaan pemilik: uji coba jalankan bot dulu, evaluasi menyusul
+(lihat `.scratch/whatsapp-customer-service-chatbot/HANDOFF-SESI.md`). Temuan
+probe sementara (55 kasus `.scratch/eval-classify.txt` dijalankan lewat seam
+`handleInbound`, konteks segar dan tengah-pengumpulan) agar tidak hilang:
+
+- Tidak ada lagi balasan dari topik FAQ non-harga — kunci tiket 01 (ADR-0009)
+  sudah menutup misfire kelas itu di seluruh 55 kasus.
+- Satu misfire nyata tersisa: kasus `HARGA/price-hotel` ("sebenernya kita
+  bukannya mau ganti hotel si.. cuma ganti dari harga free cancellation to non
+  refundable...") — pesan pernyataan, bukan pertanyaan harga — dijawab template
+  Harga Indikatif hotel saat state `idle` maupun `sent`. Ini "pesan informasi
+  dijawab template yang tidak nyambung". Usulan perbaikan: jawaban Harga
+  Indikatif hanya untuk pesan bertanda pertanyaan; pernyataan bermuatan kata
+  harga diperlakukan sebagai informasi/kebutuhan.
+- Dua butir keputusan untuk dibahas saat evaluasi: (a) basa-basi saat
+  pengumpulan ("makasi ya kak") kini mengisi bidang yang sedang ditanya —
+  apakah cukup dibalas singkat dengan mengulang prompt bidang?; (b) pertanyaan
+  non-harga yang routing-nya bukan `faq` (mis. "GMC nya itu bisa 7 seats ya..")
+  saat pengumpulan kini juga mengisi bidang — apakah sebaiknya masuk
+  `notedQuestions` seperti pertanyaan `faq`? Keduanya memengaruhi apakah
+  Ringkasan Kebutuhan tetap bersih saat dialog nyata di-replay apa adanya.
