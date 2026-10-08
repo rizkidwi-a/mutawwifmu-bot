@@ -9,7 +9,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AdminChannel } from "./adminChannel.ts";
 import type { AppConfig } from "./config.ts";
-import { handleInbound } from "./conversation/handleInbound.ts";
+import { handleInbound, turnForInbound } from "./conversation/handleInbound.ts";
 import type { ConversationAction, ConversationTurn } from "./conversation/types.ts";
 import type { ConversationStore } from "./conversationStore.ts";
 import type { ConversationRole, ConversationTranscript } from "./conversationTranscript.ts";
@@ -95,18 +95,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
         await deps.sender.sendText(pesan.from, sentText);
         replyCount += 1;
       }
-      if (pesan.text !== null) {
-        recordTranscript(deps, pesan.from, "calon-jemaah", pesan.text);
-        const nextHistory: ConversationTurn[] = [
-          ...konteks.history,
-          { role: "calon-jemaah", text: pesan.text },
-        ];
-        if (sentText !== null) {
-          nextHistory.push({ role: "asisten", text: sentText });
-          recordTranscript(deps, pesan.from, "asisten", sentText);
-        }
-        deps.conversations.save(pesan.from, { history: nextHistory });
+      // Giliran lampiran (pesan non-teks) ikut direkam apa adanya dengan
+      // sebutannya, agar Ringkasan Kebutuhan dan transkrip dapat menyebutnya.
+      const giliranMasuk = turnForInbound(pesan);
+      recordTranscript(deps, pesan.from, "calon-jemaah", giliranMasuk.text);
+      const nextHistory: ConversationTurn[] = [...konteks.history, giliranMasuk];
+      if (sentText !== null) {
+        nextHistory.push({ role: "asisten", text: sentText });
+        recordTranscript(deps, pesan.from, "asisten", sentText);
       }
+      deps.conversations.save(pesan.from, { history: nextHistory });
     }
     sendJson(res, 200, { status: "ok", replied: replyCount });
     return;

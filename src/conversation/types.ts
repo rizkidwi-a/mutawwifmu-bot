@@ -11,14 +11,28 @@ export interface InboundMessage {
   /** Nomor pengirim dalam format E.164 tanpa tanda '+', mis. "628123456789". */
   readonly from: string;
   readonly timestamp: string;
-  /** Isi pesan teks; null untuk tipe pesan yang belum didukung. */
+  /**
+   * Isi pesan teks; null untuk pesan non-teks (lampiran, mis. gambar atau
+   * dokumen seperti bukti booking/bukti transfer). Isi lampiran tidak pernah
+   * ditafsirkan bot — hanya penerimaannya yang dicatat sebagai lampiran.
+   */
   readonly text: string | null;
 }
 
 /** Satu giliran percakapan untuk konteks. */
 export interface ConversationTurn {
   readonly role: "calon-jemaah" | "asisten";
+  /**
+   * Isi teks giliran. Giliran penerimaan lampiran direkam dengan sebutan
+   * lampirannya (mis. "Lampiran: pesan non-teks") agar transkrip dan konteks
+   * percakapan dapat menyebutnya tanpa menafsirkan isinya.
+   */
   readonly text: string;
+  /**
+   * Penanda giliran yang menerima lampiran (pesan non-teks). Lampiran tidak
+   * pernah menjadi jawaban bidang Permintaan Tindak Lanjut.
+   */
+  readonly attachment?: true;
 }
 
 /** Konteks percakapan yang dibawa ke seam. */
@@ -62,6 +76,12 @@ export interface FollowUpRequest {
    * Ringkasan Kebutuhan untuk admin.
    */
   readonly notedQuestions: readonly string[];
+  /**
+   * Jumlah lampiran (pesan non-teks) yang diterima selama Permintaan Tindak
+   * Lanjut. Disebut sebagai lampiran pada Ringkasan Kebutuhan bila ada;
+   * isinya tidak pernah ditafsirkan bot (tiket 03).
+   */
+  readonly attachmentCount: number;
 }
 
 /** Alasan percakapan diteruskan kepada admin (spec: kasus yang diteruskan ke admin). */
@@ -107,7 +127,7 @@ export type ConversationAction =
 
 /** Hasil satu pemrosesan pesan masuk pada seam percakapan. */
 export interface BotTurn {
-  /** Balasan untuk Calon Jemaah; null bila pesan tidak perlu dibalas (mis. bukan teks). */
+  /** Balasan untuk Calon Jemaah; null bila tidak ada balasan untuk pesan ini. */
   readonly reply: Reply | null;
   readonly actions: readonly ConversationAction[];
 }

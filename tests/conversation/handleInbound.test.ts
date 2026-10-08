@@ -52,9 +52,17 @@ test("balasan awal tidak membuka pembicaraan tentang transaksi", () => {
   assert.doesNotMatch(teksBalasan(en), /(booking|payment)/i);
 });
 
-test("pesan non-teks tidak menghasilkan balasan", () => {
+test("pesan non-teks diakui penerimaannya sebagai lampiran", () => {
   const nonTeks: InboundMessage = { ...pesanDariCalonJemaah("Halo"), text: null };
-  assert.equal(handleInbound(nonTeks, percakapanAwal).reply, null);
+  // Bahasa balasan mengikuti bahasa percakapan; lampiran tanpa teks tidak
+  // membawa penanda bahasa sendiri.
+  const konteks: ConversationContext = {
+    history: [{ role: "calon-jemaah", text: "Halo, saya ingin bertanya tentang umrah" }],
+  };
+  const turn = handleInbound(nonTeks, konteks);
+  const balasan = teksBalasan(turn);
+  assert.match(balasan, /lampiran/i);
+  assert.deepEqual(turn.actions, []);
 });
 
 test("balasan awal tidak menghasilkan tindakan terlihat", () => {

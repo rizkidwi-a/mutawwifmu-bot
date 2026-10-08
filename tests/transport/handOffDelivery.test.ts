@@ -142,6 +142,7 @@ test("permintaan yang disetujui diteruskan ke kanal admin lengkap dengan ringkas
       detailedNeeds: "Butuh kamar keluarga",
       budgetRange: "Sekitar 50 juta",
       notedQuestions: [],
+      attachmentCount: 0,
     });
     const isiRiwayat = handoff.history.map((t) => t.text);
     assert.ok(isiRiwayat.includes("Umrah premium, tujuan Mekkah"));

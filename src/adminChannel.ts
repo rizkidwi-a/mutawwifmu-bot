@@ -8,7 +8,7 @@
 import type { MessageSender } from "./messageSender.ts";
 import type { ConversationTurn, FollowUpRequest, HandOffReason } from "./conversation/types.ts";
 
-/** Isi yang diteruskan ke admin: alasan, ringkasan permintaan, dan konteks percakapan. */
+/** Isi yang diteruskan ke admin: alasan, Ringkasan Kebutuhan, dan konteks percakapan. */
 export interface AdminHandoff {
   /** Nomor calon jemaah (E.164 tanpa tanda '+'). */
   readonly from: string;
@@ -65,7 +65,12 @@ const REASON_LABELS: Record<HandOffReason, string> = {
   emergency: "Keadaan darurat",
 };
 
-/** Ringkasan teks untuk admin: alasan, Permintaan Tindak Lanjut, konteks percakapan. */
+/**
+ * Ringkasan teks untuk admin (tiket 03): identitas pengirim, Ringkasan
+ * Kebutuhan per bidang, sebutan lampiran bila ada, dan konteks percakapan.
+ * Istilahnya mengikuti `CONTEXT.md`: Ringkasan Kebutuhan dari Permintaan
+ * Tindak Lanjut.
+ */
 export function formatAdminHandoff(handoff: AdminHandoff): string {
   const lines: string[] = [
     "[Handoff ke admin]",
@@ -73,7 +78,7 @@ export function formatAdminHandoff(handoff: AdminHandoff): string {
     `Nomor calon jemaah: ${handoff.from}`,
   ];
   if (handoff.request !== null) {
-    lines.push("", "Ringkasan Permintaan Tindak Lanjut:");
+    lines.push("", "Ringkasan Kebutuhan:");
     lines.push(...requestLines(handoff.request));
   }
   lines.push("", "Konteks percakapan:");
@@ -84,12 +89,17 @@ export function formatAdminHandoff(handoff: AdminHandoff): string {
 }
 
 function requestLines(request: FollowUpRequest): string[] {
+  const lampiran =
+    request.attachmentCount > 0
+      ? [`- Lampiran: ${request.attachmentCount} pesan non-teks diterima (isinya tidak ditafsirkan)`]
+      : [];
   return [
     `- Layanan yang diminati: ${request.interestedServices}`,
     `- Tanggal/periode: ${request.travelDateOrPeriod}`,
     `- Jumlah jemaah: ${request.travellerCount}`,
     `- Kebutuhan detail: ${request.detailedNeeds}`,
     `- Kisaran anggaran: ${request.budgetRange ?? "tidak disampaikan"}`,
+    ...lampiran,
     ...request.notedQuestions.map((q) => `- Pertanyaan yang dicatat: ${q}`),
   ];
 }

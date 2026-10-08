@@ -1,6 +1,7 @@
 /**
- * Transkrip percakapan sebagai berkas CSV (tiket 08): satu baris per pesan
- * teks, agar riwayat percakapan dapat dibuka pemilik di Excel/Google Sheets.
+ * Transkrip percakapan sebagai berkas CSV (tiket 08): satu baris per pesan,
+ * termasuk sebutan lampiran (pesan non-teks) yang diterima, agar riwayat
+ * percakapan dapat dibuka pemilik di Excel/Google Sheets.
  * Ini catatan tambahan di sisi proses — bukan pengganti balasan, handoff ke
  * admin, maupun riwayat konteks percakapan.
  *

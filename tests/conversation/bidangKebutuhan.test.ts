@@ -86,5 +86,6 @@ test("kebutuhan detail dapat diisi dalam satu jawaban panjang dan disimpan utuh 
     detailedNeeds: detail,
     budgetRange: null,
     notedQuestions: [],
+    attachmentCount: 0,
   });
 });

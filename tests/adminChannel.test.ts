@@ -21,6 +21,7 @@ const handoff: AdminHandoff = {
     detailedNeeds: "Butuh kamar keluarga",
     budgetRange: "Sekitar 50 juta",
     notedQuestions: ["Apa itu land arrangement?"],
+    attachmentCount: 0,
   },
   history: [
     { role: "calon-jemaah", text: "Umrah premium, tujuan Mekkah" },
@@ -45,7 +46,7 @@ function buatPengirim(opsi: { gagal?: boolean } = {}): {
   return { sender, terkirim };
 }
 
-test("kanal admin menerima ringkasan Permintaan Tindak Lanjut sebagai pesan WhatsApp", async () => {
+test("kanal admin menerima Ringkasan Kebutuhan sebagai pesan WhatsApp", async () => {
   const { sender, terkirim } = buatPengirim();
   await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
   assert.equal(terkirim.length, 1);
@@ -89,6 +90,42 @@ test("anggaran yang tidak disampaikan ditandai apa adanya", async () => {
   const pesan = terkirim[0];
   assert.ok(pesan);
   assert.match(pesan.text, /tidak disampaikan/);
+});
+
+test("pesan admin memuat identitas pengirim, seluruh bidang kebutuhan, lampiran, dan konteks percakapan", async () => {
+  const { sender, terkirim } = buatPengirim();
+  const request = handoff.request;
+  assert.ok(request);
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver({
+    ...handoff,
+    request: { ...request, attachmentCount: 2 },
+  });
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /Nomor calon jemaah: 628123456789/);
+  assert.match(pesan.text, /Layanan yang diminati: Umrah premium, tujuan Mekkah/);
+  assert.match(pesan.text, /Tanggal\/periode: Rencana Desember 2025/);
+  assert.match(pesan.text, /Jumlah jemaah: 4 orang/);
+  assert.match(pesan.text, /Kebutuhan detail: Butuh kamar keluarga/);
+  assert.match(pesan.text, /Kisaran anggaran: Sekitar 50 juta/);
+  assert.match(pesan.text, /Lampiran: 2 pesan non-teks/);
+  assert.match(pesan.text, /Konteks percakapan:/);
+});
+
+test("ringkasan untuk admin memakai istilah Ringkasan Kebutuhan", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /Ringkasan Kebutuhan:/);
+});
+
+test("lampiran hanya disebut pada ringkasan admin bila ada", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.doesNotMatch(pesan.text, /Lampiran/);
 });
 
 test("kegagalan pengiriman provider diteruskan sebagai error, bukan ditelan", async () => {

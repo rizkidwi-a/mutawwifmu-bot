@@ -5,6 +5,7 @@ import type {
   BotTurn,
   ConversationAction,
   ConversationContext,
+  ConversationTurn,
   FollowUpRequest,
   HandOffReason,
   InboundMessage,
@@ -153,6 +154,21 @@ const COLLECT_BUDGET_EN =
   "Do you have a budget range you would like to share? This is optional — you may skip it.";
 
 /**
+ * Sebutan lampiran (pesan non-teks) pada riwayat percakapan. Dipakai agar
+ * Ringkasan Kebutuhan, transkrip, dan konteks percakapan dapat menyebut
+ * penerimaannya tanpa bot menafsirkan isinya (tiket 03).
+ */
+const SEBUTAN_LAMPIRAN = "Lampiran: pesan non-teks";
+
+/** Pengakuan penerimaan lampiran; isinya tidak pernah ditafsirkan bot. */
+const LAMPIRAN_DITERIMA_ID =
+  "Terima kasih, pesan non-teks Anda sudah saya terima dan saya catat sebagai lampiran " +
+  "pada Ringkasan Kebutuhan; isinya tidak saya tafsirkan.";
+const LAMPIRAN_DITERIMA_EN =
+  "Thank you, I've received your non-text message and noted it as an attachment " +
+  "in the needs summary; its contents are not interpreted.";
+
+/**
  * Bidang Permintaan Tindak Lanjut yang sedang dikumpulkan. Nilai disimpan apa
  * adanya dari calon jemaah; `budgetResolved` menandai bidang opsional sudah
  * dijawab atau dilewati. Bidang null berarti belum terisi.
@@ -166,6 +182,11 @@ interface FollowUpDraft {
   readonly budgetResolved: boolean;
   /** Pertanyaan non-harga yang dicatat apa adanya sebagai bagian kebutuhan. */
   readonly notedQuestions: readonly string[];
+  /**
+   * Jumlah lampiran (pesan non-teks) yang diterima selama pengumpulan;
+   * disebut sebagai lampiran pada Ringkasan Kebutuhan bila ada.
+   */
+  readonly attachmentCount: number;
 }
 
 /**
@@ -193,6 +214,7 @@ const EMPTY_DRAFT: FollowUpDraft = {
   budgetRange: null,
   budgetResolved: false,
   notedQuestions: [],
+  attachmentCount: 0,
 };
 
 interface StepResult {
@@ -212,24 +234,37 @@ type InternalAction =
     };
 
 /**
+ * Giliran riwayat untuk satu pesan masuk. Pesan non-teks direkam sebagai
+ * giliran lampiran dengan sebutannya, sehingga state alur (termasuk Ringkasan
+ * Kebutuhan) dan konteks percakapan dapat menyebut penerimaannya tanpa
+ * menafsirkan isinya.
+ */
+export function turnForInbound(message: InboundMessage): ConversationTurn {
+  return message.text === null
+    ? { role: "calon-jemaah", text: SEBUTAN_LAMPIRAN, attachment: true }
+    : { role: "calon-jemaah", text: message.text };
+}
+
+/**
  * Seam pemrosesan pesan masuk yang disepakati: menerima pesan beserta konteks
  * percakapan, menghasilkan balasan serta tindakan yang terlihat.
  */
 export function handleInbound(message: InboundMessage, context: ConversationContext): BotTurn {
-  if (message.text === null) {
-    return { reply: null, actions: [] };
-  }
   let state: FlowState = { kind: "idle" };
   for (const turn of context.history) {
-    if (turn.role === "calon-jemaah") {
-      state = nextState(state, turn.text);
+    if (turn.role !== "calon-jemaah") {
+      continue;
     }
+    // Lampiran tidak pernah menjadi jawaban bidang; penerimaannya dicatat
+    // terpisah oleh `nextStateLampiran`.
+    state = turn.attachment === true ? nextStateLampiran(state) : nextState(state, turn.text);
   }
-  const language = resolveReplyLanguage(context.history, message.text);
-  const result = step(state, message.text, language);
+  const language = resolveReplyLanguage(context.history, message.text ?? "");
+  const result =
+    message.text === null ? stepLampiran(state, language) : step(state, message.text, language);
   const nextHistory = [
     ...context.history,
-    { role: "calon-jemaah" as const, text: message.text },
+    turnForInbound(message),
     { role: "asisten" as const, text: result.reply },
   ];
   const actions: ConversationAction[] = result.actions.map((aksi) =>
@@ -338,6 +373,61 @@ function step(state: FlowState, text: string, language: Language): StepResult {
 /** Gabungkan balasan cepat dengan langkah pengumpulan berikutnya. */
 function balasanDenganPrompt(lead: string, prompt: string): string {
   return `${lead}\n\n${prompt}`;
+}
+
+/**
+ * Satu langkah untuk pesan non-teks (lampiran): akui penerimaannya tanpa
+ * menafsirkan isinya, catat sebagai lampiran, lalu ajukan langkah alur yang
+ * sama seperti biasa — lampiran tidak pernah mengisi bidang kebutuhan.
+ */
+function stepLampiran(state: FlowState, language: Language): StepResult {
+  const indonesian = language === "id";
+  const next = nextStateLampiran(state);
+  const akui = indonesian ? LAMPIRAN_DITERIMA_ID : LAMPIRAN_DITERIMA_EN;
+  if (next.kind === "collecting") {
+    return {
+      reply: balasanDenganPrompt(akui, promptForNextField(next.draft, indonesian)),
+      actions: [],
+      next,
+    };
+  }
+  if (next.kind === "awaiting-consent") {
+    return {
+      reply: balasanDenganPrompt(akui, consentPrompt(next.draft, indonesian)),
+      actions: [],
+      next,
+    };
+  }
+  return {
+    reply: balasanDenganPrompt(
+      akui,
+      indonesian ? HANDOFF_CONSENT_TAIL_ID : HANDOFF_CONSENT_TAIL_EN,
+    ),
+    actions: [],
+    next,
+  };
+}
+
+/**
+ * Transisi state untuk penerimaan lampiran (pesan non-teks): penerimaannya
+ * dicatat pada draft tanpa mengisi bidang mana pun. Pesan non-teks pertama
+ * tetap mengarahkan ke pengumpulan seperti chat masuk lainnya (ADR-0009).
+ */
+function nextStateLampiran(state: FlowState): FlowState {
+  if (state.kind === "idle") {
+    return { kind: "collecting", draft: denganLampiran(EMPTY_DRAFT) };
+  }
+  if (state.kind === "collecting") {
+    return { kind: "collecting", draft: denganLampiran(state.draft) };
+  }
+  if (state.kind === "awaiting-consent") {
+    return { kind: "awaiting-consent", draft: denganLampiran(state.draft) };
+  }
+  return state;
+}
+
+function denganLampiran(draft: FollowUpDraft): FollowUpDraft {
+  return { ...draft, attachmentCount: draft.attachmentCount + 1 };
 }
 
 /** Transisi state murni dari state saat ini dan teks calon jemaah. */
@@ -475,6 +565,7 @@ function toFollowUpRequest(draft: FollowUpDraft): FollowUpRequest {
     detailedNeeds: draft.detailedNeeds ?? "",
     budgetRange: draft.budgetRange,
     notedQuestions: [...draft.notedQuestions],
+    attachmentCount: draft.attachmentCount,
   };
 }
 
@@ -494,26 +585,40 @@ function promptForNextField(draft: FollowUpDraft, indonesian: boolean): string {
   return indonesian ? COLLECT_BUDGET_ID : COLLECT_BUDGET_EN;
 }
 
-/** Penjelasan tujuan penerusan sekaligus permintaan persetujuan calon jemaah. */
+/**
+ * Penjelasan tujuan penerusan sekaligus permintaan persetujuan calon jemaah.
+ * Ringkasan ditampilkan per bidang untuk diperiksa lebih dulu (tiket 03);
+ * istilahnya mengikuti `CONTEXT.md`: Ringkasan Kebutuhan dari Permintaan
+ * Tindak Lanjut. Teksnya bebas placeholder internal.
+ */
 function consentPrompt(draft: FollowUpDraft, indonesian: boolean): string {
   if (indonesian) {
     return (
-      "Berikut requestSummary Permintaan Tindak Lanjut Anda:\n" +
-      requestSummary(draft, true) +
+      "Berikut Ringkasan Kebutuhan dari Permintaan Tindak Lanjut Anda:\n" +
+      ringkasanKebutuhan(draft, true) +
       "\nAgar dapat ditindaklanjuti, informasi ini akan saya teruskan kepada tim customer service/penjualan MUTAWWIFMU. " +
       "Apakah Anda setuju informasi ini diteruskan?"
     );
   }
   return (
-    "Here is the summary of your follow-up request:\n" +
-    requestSummary(draft, false) +
+    "Here is the summary of your needs from this follow-up request:\n" +
+    ringkasanKebutuhan(draft, false) +
     "\nTo allow follow-up, this information will be forwarded to the MUTAWWIFMU customer service/sales team. " +
     "Do you consent to this information being forwarded?"
   );
 }
 
-function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
+/** Ringkasan Kebutuhan per bidang, nilai apa adanya dari calon jemaah. */
+function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
   const value = (v: string | null): string => v ?? (indonesian ? "tidak disampaikan" : "not provided");
+  const lampiran =
+    draft.attachmentCount > 0
+      ? [
+          indonesian
+            ? `- Lampiran: ${draft.attachmentCount} pesan non-teks diterima (isinya tidak ditafsirkan)`
+            : `- Attachments: ${draft.attachmentCount} non-text message(s) received (contents not interpreted)`,
+        ]
+      : [];
   const pertanyaan = draft.notedQuestions.map((q) =>
     indonesian ? `- Pertanyaan yang dicatat: ${q}` : `- Noted question: ${q}`,
   );
@@ -524,6 +629,7 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
       `- Jumlah jemaah: ${value(draft.travellerCount)}`,
       `- Kebutuhan detail: ${value(draft.detailedNeeds)}`,
       `- Kisaran anggaran: ${value(draft.budgetRange)}`,
+      ...lampiran,
       ...pertanyaan,
     ].join("\n");
   }
@@ -533,6 +639,7 @@ function requestSummary(draft: FollowUpDraft, indonesian: boolean): string {
     `- Number of travellers: ${value(draft.travellerCount)}`,
     `- Detailed needs: ${value(draft.detailedNeeds)}`,
     `- Budget range: ${value(draft.budgetRange)}`,
+    ...lampiran,
     ...pertanyaan,
   ].join("\n");
 }
