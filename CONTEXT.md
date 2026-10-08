@@ -28,6 +28,10 @@ _Avoid_: konfirmasi pemesanan
 Rangkuman kebutuhan Calon Jemaah hasil Permintaan Tindak Lanjut yang diteruskan kepada admin untuk ditindaklanjuti.
 _Avoid_: quotation, penawaran (produk admin setelah konsultasi)
 
+**Pembaruan Kebutuhan**:
+Perubahan atau penambahan kebutuhan yang disampaikan Calon Jemaah setelah Ringkasan Kebutuhan terkirim, yang dikirim ulang kepada admin dengan penanda "PEMBARUAN".
+_Avoid_: prospek baru, jika yang dimaksud revisi Permintaan Tindak Lanjut yang sudah terkirim
+
 ## Penawaran
 
 **Harga Indikatif**:

@@ -22,6 +22,7 @@ const handoff: AdminHandoff = {
     budgetRange: "Sekitar 50 juta",
     notedQuestions: ["Apa itu land arrangement?"],
     attachmentCount: 0,
+    changeNotes: [],
   },
   history: [
     { role: "calon-jemaah", text: "Umrah premium, tujuan Mekkah" },
@@ -126,6 +127,55 @@ test("lampiran hanya disebut pada ringkasan admin bila ada", async () => {
   const pesan = terkirim[0];
   assert.ok(pesan);
   assert.doesNotMatch(pesan.text, /Lampiran/);
+});
+
+test("pengiriman ulang ditandai PEMBARUAN pada pesan admin sebagai revisi, bukan prospek baru", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver({
+    ...handoff,
+    revision: true,
+  });
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /PEMBARUAN/);
+  assert.match(pesan.text, /revisi/i);
+  assert.match(pesan.text, /bukan prospek baru/i);
+  // Penanda muncul di awal pesan agar terlihat saat dipindai admin.
+  assert.ok(pesan.text.indexOf("PEMBARUAN") < pesan.text.indexOf("Ringkasan Kebutuhan:"));
+});
+
+test("pesan admin tanpa revisi tidak menyebut penanda PEMBARUAN", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.doesNotMatch(pesan.text, /PEMBARUAN/);
+});
+
+test("catatan perubahan ikut disebut pada Ringkasan Kebutuhan untuk admin", async () => {
+  const { sender, terkirim } = buatPengirim();
+  const request = handoff.request;
+  assert.ok(request);
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver({
+    ...handoff,
+    revision: true,
+    request: {
+      ...request,
+      changeNotes: ["Tambah airport handling", "Transportasi tidak jadi"],
+    },
+  });
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.match(pesan.text, /- Perubahan: Tambah airport handling/);
+  assert.match(pesan.text, /- Perubahan: Transportasi tidak jadi/);
+});
+
+test("ringkasan tanpa catatan perubahan tidak menyebut perubahan", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
+  assert.doesNotMatch(pesan.text, /Perubahan:/);
 });
 
 test("kegagalan pengiriman provider diteruskan sebagai error, bukan ditelan", async () => {

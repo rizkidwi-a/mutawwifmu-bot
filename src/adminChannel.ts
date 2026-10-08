@@ -15,6 +15,12 @@ export interface AdminHandoff {
   readonly reason: HandOffReason;
   /** Permintaan Tindak Lanjut bila ada; selain itu null. */
   readonly request: FollowUpRequest | null;
+  /**
+   * Penanda pengiriman ulang (tiket 05): pesan ini revisi Ringkasan Kebutuhan
+   * yang sudah dikirim sebelumnya, bukan prospek baru. Diberikan hanya untuk
+   * pengiriman ulang yang disetujui calon jemaah.
+   */
+  readonly revision?: true;
   readonly history: readonly ConversationTurn[];
 }
 
@@ -72,11 +78,16 @@ const REASON_LABELS: Record<HandOffReason, string> = {
  * Tindak Lanjut.
  */
 export function formatAdminHandoff(handoff: AdminHandoff): string {
-  const lines: string[] = [
-    "[Handoff ke admin]",
+  const lines: string[] = ["[Handoff ke admin]"];
+  if (handoff.revision === true) {
+    // Penanda "PEMBARUAN" (tiket 05): admin tahu ini revisi Ringkasan Kebutuhan
+    // yang sudah dikirim sebelumnya, bukan prospek baru.
+    lines.push("PEMBARUAN — revisi Ringkasan Kebutuhan yang sudah dikirim sebelumnya (bukan prospek baru)");
+  }
+  lines.push(
     `Alasan: ${REASON_LABELS[handoff.reason]} (${handoff.reason})`,
     `Nomor calon jemaah: ${handoff.from}`,
-  ];
+  );
   if (handoff.request !== null) {
     lines.push("", "Ringkasan Kebutuhan:");
     lines.push(...requestLines(handoff.request));
@@ -99,6 +110,7 @@ function requestLines(request: FollowUpRequest): string[] {
     `- Jumlah jemaah: ${request.travellerCount}`,
     `- Kebutuhan detail: ${request.detailedNeeds}`,
     `- Kisaran anggaran: ${request.budgetRange ?? "tidak disampaikan"}`,
+    ...request.changeNotes.map((catatan) => `- Perubahan: ${catatan}`),
     ...lampiran,
     ...request.notedQuestions.map((q) => `- Pertanyaan yang dicatat: ${q}`),
   ];

@@ -82,6 +82,14 @@ export interface FollowUpRequest {
    * isinya tidak pernah ditafsirkan bot (tiket 03).
    */
   readonly attachmentCount: number;
+  /**
+   * Catatan perubahan kebutuhan yang disampaikan setelah Ringkasan Kebutuhan
+   * terkirim, disimpan apa adanya dari calon jemaah (tiket 05). Kosong pada
+   * pengiriman pertama; pengiriman ulang selalu membawa seluruh catatan yang
+   * pernah disampaikan agar riwayat ringkasan yang sudah terkirim tidak
+   * tertimpa diam-diam.
+   */
+  readonly changeNotes: readonly string[];
 }
 
 /** Alasan percakapan diteruskan kepada admin (spec: kasus yang diteruskan ke admin). */
@@ -121,6 +129,13 @@ export type ConversationAction =
       readonly reason: HandOffReason;
       /** Permintaan Tindak Lanjut bila ada; selain itu null. */
       readonly request: FollowUpRequest | null;
+      /**
+       * Penanda pengiriman ulang (tiket 05): Ringkasan Kebutuhan yang sudah
+       * dikirim sebelumnya dikirim ulang sebagai revisi (penanda "PEMBARUAN"),
+       * bukan prospek baru. Hanya diberikan setelah persetujuan calon jemaah
+       * untuk pengiriman ulang tersebut.
+       */
+      readonly revision?: true;
       /** Konteks percakapan yang diteruskan bersama handoff. */
       readonly history: readonly ConversationTurn[];
     };

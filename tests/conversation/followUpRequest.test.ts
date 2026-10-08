@@ -100,6 +100,7 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
     budgetRange: "Sekitar 50 juta",
     notedQuestions: [],
     attachmentCount: 0,
+    changeNotes: [],
   });
 
   const teruskan = turn.actions.find((a) => a.kind === "hand-off-to-admin");

@@ -63,10 +63,14 @@ const CONSENT_YES_ANYWHERE = /\b(setuju|iya|agree[d]?|consent|yes please|go ahea
 
 const CONFIRM_FORWARDED_ID =
   "Terima kasih. Permintaan Anda telah diteruskan ke tim customer service/penjualan MUTAWWIFMU " +
-  "untuk ditindaklanjuti. Waktu balasan dari tim belum dapat saya pastikan.";
+  "untuk ditindaklanjuti. Waktu balasan dari tim belum dapat saya pastikan. " +
+  "Bila ada perubahan kebutuhan, silakan sampaikan kapan saja; ringkasan yang diperbarui dapat " +
+  "dikirim ulang sebagai PEMBARUAN setelah Anda setujui.";
 const CONFIRM_FORWARDED_EN =
   "Thank you. Your request has been forwarded to the MUTAWWIFMU customer service/sales team " +
-  "for follow-up. I cannot confirm when the team will respond.";
+  "for follow-up. I cannot confirm when the team will respond. " +
+  "If your needs change, just let me know anytime; the updated summary can be re-sent " +
+  "as an update once you approve it.";
 
 const CONSENT_REFUSED_ID =
   "Baik, informasi Anda tidak akan saya teruskan. Silakan sampaikan kembali bila Anda berubah pikiran.";
@@ -169,6 +173,23 @@ const LAMPIRAN_DITERIMA_EN =
   "in the needs summary; its contents are not interpreted.";
 
 /**
+ * Pengakuan perubahan kebutuhan yang disampaikan setelah Ringkasan Kebutuhan
+ * terkirim (tiket 05). Perubahan dikumpulkan apa adanya, tanpa penafsiran.
+ */
+const CATAT_PERUBAHAN_ID = "Terima kasih, perubahan kebutuhan Anda saya catat.";
+const CATAT_PERUBAHAN_EN = "Thank you, I've noted the change to your needs.";
+
+/** Konfirmasi pengiriman ulang Ringkasan Kebutuhan yang diperbarui (tiket 05). */
+const CONFIRM_RESENT_ID =
+  "Terima kasih. Ringkasan Kebutuhan yang diperbarui telah diteruskan ke tim " +
+  "customer service/penjualan MUTAWWIFMU sebagai PEMBARUAN. " +
+  "Waktu balasan dari tim belum dapat saya pastikan.";
+const CONFIRM_RESENT_EN =
+  "Thank you. The updated needs summary has been forwarded to the MUTAWWIFMU " +
+  "customer service/sales team as an update. " +
+  "I cannot confirm when the team will respond.";
+
+/**
  * Bidang Permintaan Tindak Lanjut yang sedang dikumpulkan. Nilai disimpan apa
  * adanya dari calon jemaah; `budgetResolved` menandai bidang opsional sudah
  * dijawab atau dilewati. Bidang null berarti belum terisi.
@@ -187,6 +208,12 @@ interface FollowUpDraft {
    * disebut sebagai lampiran pada Ringkasan Kebutuhan bila ada.
    */
   readonly attachmentCount: number;
+  /**
+   * Catatan perubahan kebutuhan setelah Ringkasan Kebutuhan terkirim (tiket
+   * 05), apa adanya. Tidak pernah dikosongkan kembali agar riwayat ringkasan
+   * yang sudah terkirim tidak tertimpa diam-diam.
+   */
+  readonly changeNotes: readonly string[];
 }
 
 /**
@@ -204,7 +231,20 @@ type FlowState =
   | { readonly kind: "idle" }
   | { readonly kind: "collecting"; readonly draft: FollowUpDraft }
   | { readonly kind: "awaiting-consent"; readonly draft: FollowUpDraft }
-  | { readonly kind: "awaiting-handoff-consent"; readonly reason: HandOffReason };
+  | {
+      readonly kind: "awaiting-handoff-consent";
+      readonly reason: HandOffReason;
+      /**
+       * State yang dilanjutkan setelah handoff selesai (tiket 05: pemulihan
+       * setelah handoff). Draft yang sedang berjalan tetap tidak ikut dibawa
+       * ke pesan handoff — hanya dipulihkan untuk percakapan berikutnya.
+       */
+      readonly resume: FlowState;
+    }
+  /** Ringkasan Kebutuhan sudah terkirim ke admin (tiket 05). */
+  | { readonly kind: "sent"; readonly draft: FollowUpDraft }
+  /** Menunggu persetujuan pengiriman ulang ringkasan yang diperbarui (tiket 05). */
+  | { readonly kind: "awaiting-revision-consent"; readonly draft: FollowUpDraft };
 
 const EMPTY_DRAFT: FollowUpDraft = {
   interestedServices: null,
@@ -215,6 +255,7 @@ const EMPTY_DRAFT: FollowUpDraft = {
   budgetResolved: false,
   notedQuestions: [],
   attachmentCount: 0,
+  changeNotes: [],
 };
 
 interface StepResult {
@@ -231,6 +272,7 @@ type InternalAction =
       readonly kind: "hand-off-to-admin";
       readonly reason: HandOffReason;
       readonly request: FollowUpRequest | null;
+      readonly revision?: true;
     };
 
 /**
@@ -269,7 +311,13 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
   ];
   const actions: ConversationAction[] = result.actions.map((aksi) =>
     aksi.kind === "hand-off-to-admin"
-      ? { kind: "hand-off-to-admin", reason: aksi.reason, request: aksi.request, history: nextHistory }
+      ? {
+          kind: "hand-off-to-admin",
+          reason: aksi.reason,
+          request: aksi.request,
+          revision: aksi.revision,
+          history: nextHistory,
+        }
       : aksi,
   );
   return { reply: { text: result.reply }, actions };
@@ -281,14 +329,17 @@ function step(state: FlowState, text: string, language: Language): StepResult {
   const next = nextState(state, text);
   const routing = classifyInbound(text);
   const leadPertanyaan = indonesian ? CATAT_PERTANYAAN_ID : CATAT_PERTANYAAN_EN;
+  const menolak = CONSENT_NO.test(text);
+  const menjawabPersetujuan = menolak || isConsentYes(text);
+  const ditolak = {
+    reply: indonesian ? CONSENT_REFUSED_ID : CONSENT_REFUSED_EN,
+    actions: [],
+    next,
+  };
 
-  if (state.kind === "awaiting-handoff-consent" && next.kind === "idle") {
-    if (CONSENT_NO.test(text)) {
-      return {
-        reply: indonesian ? CONSENT_REFUSED_ID : CONSENT_REFUSED_EN,
-        actions: [],
-        next,
-      };
+  if (state.kind === "awaiting-handoff-consent" && menjawabPersetujuan) {
+    if (menolak) {
+      return ditolak;
     }
     return {
       reply: indonesian ? CONFIRM_HANDOFF_FORWARDED_ID : CONFIRM_HANDOFF_FORWARDED_EN,
@@ -297,13 +348,9 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     };
   }
 
-  if (state.kind === "awaiting-consent" && next.kind === "idle") {
-    if (CONSENT_NO.test(text)) {
-      return {
-        reply: indonesian ? CONSENT_REFUSED_ID : CONSENT_REFUSED_EN,
-        actions: [],
-        next,
-      };
+  if (state.kind === "awaiting-consent" && menjawabPersetujuan) {
+    if (menolak) {
+      return ditolak;
     }
     const request = toFollowUpRequest(state.draft);
     return {
@@ -312,6 +359,42 @@ function step(state: FlowState, text: string, language: Language): StepResult {
         { kind: "record-follow-up-request", request },
         { kind: "hand-off-to-admin", reason: "follow-up-request", request },
       ],
+      next,
+    };
+  }
+
+  if (state.kind === "awaiting-revision-consent" && menjawabPersetujuan) {
+    if (menolak) {
+      return ditolak;
+    }
+    // Pengiriman ulang (tiket 05) selalu memakai persetujuan baru dan ditandai
+    // sebagai revisi Ringkasan Kebutuhan yang sudah dikirim, bukan prospek baru.
+    const request = toFollowUpRequest(state.draft);
+    return {
+      reply: indonesian ? CONFIRM_RESENT_ID : CONFIRM_RESENT_EN,
+      actions: [
+        { kind: "record-follow-up-request", request },
+        { kind: "hand-off-to-admin", reason: "follow-up-request", request, revision: true },
+      ],
+      next,
+    };
+  }
+
+  // Pertanyaan Harga Indikatif setelah ringkasan terkirim dijawab dari materi
+  // (spec ruang lingkup 4) tanpa mengubah kebutuhan; saat menunggu persetujuan
+  // pengiriman ulang, jawabannya digabung dengan permintaan konfirmasi ulang.
+  if (
+    routing.kind === "indicative-price" &&
+    (state.kind === "sent" || state.kind === "awaiting-revision-consent")
+  ) {
+    const jawaban = faqAnswer(routing.topic, language);
+    const aksi: InternalAction = { kind: "record-faq-answer", topic: routing.topic };
+    if (state.kind === "sent") {
+      return { reply: jawaban, actions: [aksi], next };
+    }
+    return {
+      reply: balasanDenganPrompt(jawaban, revisiConsentPrompt(state.draft, indonesian)),
+      actions: [aksi],
       next,
     };
   }
@@ -365,6 +448,22 @@ function step(state: FlowState, text: string, language: Language): StepResult {
       next,
     };
   }
+  if (next.kind === "awaiting-revision-consent") {
+    // Pembaruan setelah ringkasan terkirim (tiket 05): perubahan kebutuhan
+    // (atau pertanyaan non-harga) dicatat apa adanya, lalu Ringkasan Kebutuhan
+    // yang diperbarui ditampilkan untuk dimintai persetujuan pengiriman ulang.
+    const lead =
+      isPertanyaan(text) && routing.kind === "faq"
+        ? leadPertanyaan
+        : indonesian
+          ? CATAT_PERUBAHAN_ID
+          : CATAT_PERUBAHAN_EN;
+    return {
+      reply: balasanDenganPrompt(lead, revisiConsentPrompt(next.draft, indonesian)),
+      actions: [],
+      next,
+    };
+  }
   // Semua state lain sudah ditangani di atas: pesan apa pun dari idle masuk ke
   // pengumpulan, dan hanya jawaban persetujuan yang kembali ke idle.
   throw new Error(`state alur tidak dikenal: ${next.kind}`);
@@ -398,6 +497,13 @@ function stepLampiran(state: FlowState, language: Language): StepResult {
       next,
     };
   }
+  if (next.kind === "awaiting-revision-consent") {
+    return {
+      reply: balasanDenganPrompt(akui, revisiConsentPrompt(next.draft, indonesian)),
+      actions: [],
+      next,
+    };
+  }
   return {
     reply: balasanDenganPrompt(
       akui,
@@ -411,7 +517,8 @@ function stepLampiran(state: FlowState, language: Language): StepResult {
 /**
  * Transisi state untuk penerimaan lampiran (pesan non-teks): penerimaannya
  * dicatat pada draft tanpa mengisi bidang mana pun. Pesan non-teks pertama
- * tetap mengarahkan ke pengumpulan seperti chat masuk lainnya (ADR-0009).
+ * tetap mengarahkan ke pengumpulan seperti chat masuk lainnya (ADR-0009);
+ * setelah ringkasan terkirim, lampiran menjadi bagian pembaruan (tiket 05).
  */
 function nextStateLampiran(state: FlowState): FlowState {
   if (state.kind === "idle") {
@@ -423,6 +530,9 @@ function nextStateLampiran(state: FlowState): FlowState {
   if (state.kind === "awaiting-consent") {
     return { kind: "awaiting-consent", draft: denganLampiran(state.draft) };
   }
+  if (state.kind === "sent" || state.kind === "awaiting-revision-consent") {
+    return { kind: "awaiting-revision-consent", draft: denganLampiran(state.draft) };
+  }
   return state;
 }
 
@@ -433,16 +543,18 @@ function denganLampiran(draft: FollowUpDraft): FollowUpDraft {
 /** Transisi state murni dari state saat ini dan teks calon jemaah. */
 function nextState(state: FlowState, text: string): FlowState {
   const menungguPersetujuan =
-    state.kind === "awaiting-consent" || state.kind === "awaiting-handoff-consent";
+    state.kind === "awaiting-consent" ||
+    state.kind === "awaiting-handoff-consent" ||
+    state.kind === "awaiting-revision-consent";
   if (menungguPersetujuan && (CONSENT_NO.test(text) || isConsentYes(text))) {
-    return { kind: "idle" };
+    return setelahPersetujuan(state, text);
   }
 
   const routing = classifyInbound(text);
 
   // Pemicu yang menuntut manusia selalu menyela, termasuk saat pengumpulan.
   if (routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger)) {
-    return { kind: "awaiting-handoff-consent", reason: routing.trigger };
+    return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
   }
 
   if (state.kind === "collecting") {
@@ -462,6 +574,20 @@ function nextState(state: FlowState, text: string): FlowState {
       ? { kind: "awaiting-consent", draft }
       : { kind: "collecting", draft };
   }
+  if (state.kind === "sent" || state.kind === "awaiting-revision-consent") {
+    // Setelah Ringkasan Kebutuhan terkirim (tiket 05): pesan berikutnya adalah
+    // pembaruan kebutuhan. Pertanyaan non-harga dicatat sebagai bagian
+    // kebutuhan, pertanyaan Harga Indikatif dijawab tanpa mengubah kebutuhan,
+    // dan selain itu dicatat sebagai perubahan — semuanya apa adanya.
+    if (routing.kind === "indicative-price") {
+      return state;
+    }
+    const diperbarui =
+      isPertanyaan(text) && routing.kind === "faq"
+        ? catatPertanyaan(state.draft, text)
+        : catatPerubahan(state.draft, text);
+    return { kind: "awaiting-revision-consent", draft: diperbarui };
+  }
   if (menungguPersetujuan) {
     if (state.kind === "awaiting-consent" && isPertanyaan(text) && routing.kind === "faq") {
       // Pertanyaan non-harga yang menyela konfirmasi dicatat sebagai bagian
@@ -473,7 +599,7 @@ function nextState(state: FlowState, text: string): FlowState {
   }
 
   if (routing.kind === "handoff") {
-    return { kind: "awaiting-handoff-consent", reason: routing.trigger };
+    return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
   }
   // ADR-0009: setiap pesan prospek yang tidak menyela ke handoff langsung
   // masuk pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.
@@ -481,6 +607,37 @@ function nextState(state: FlowState, text: string): FlowState {
     kind: "collecting",
     draft: routing.kind === "faq" ? catatPertanyaan(EMPTY_DRAFT, text) : EMPTY_DRAFT,
   };
+}
+
+/**
+ * State setelah jawaban persetujuan (setuju/tidak). Pengiriman ringkasan
+ * pertama dan handoff percakapan kembali ke idle; pengiriman ulang kembali ke
+ * mode pembaruan agar riwayat ringkasan yang sudah terkirim tetap ada (tiket
+ * 05), dan state yang terputus oleh handoff dipulihkan apa adanya.
+ */
+function setelahPersetujuan(state: FlowState, text: string): FlowState {
+  if (state.kind === "awaiting-handoff-consent") {
+    return state.resume;
+  }
+  if (state.kind === "awaiting-revision-consent") {
+    // Penolakan pengiriman ulang tidak menghapus catatan perubahan; tidak ada
+    // yang terkirim tanpa persetujuan.
+    return { kind: "sent", draft: state.draft };
+  }
+  if (state.kind === "awaiting-consent") {
+    return CONSENT_NO.test(text) ? { kind: "idle" } : { kind: "sent", draft: state.draft };
+  }
+  return { kind: "idle" };
+}
+
+/** State yang dipulihkan setelah handoff; tumpukan handoff diratakan. */
+function resumeDari(state: FlowState): FlowState {
+  return state.kind === "awaiting-handoff-consent" ? state.resume : state;
+}
+
+/** Catat perubahan kebutuhan apa adanya sebagai bagian Ringkasan Kebutuhan. */
+function catatPerubahan(draft: FollowUpDraft, text: string): FollowUpDraft {
+  return { ...draft, changeNotes: [...draft.changeNotes, text] };
 }
 
 /** Catat pertanyaan non-harga apa adanya sebagai bagian kebutuhan. */
@@ -566,6 +723,7 @@ function toFollowUpRequest(draft: FollowUpDraft): FollowUpRequest {
     budgetRange: draft.budgetRange,
     notedQuestions: [...draft.notedQuestions],
     attachmentCount: draft.attachmentCount,
+    changeNotes: [...draft.changeNotes],
   };
 }
 
@@ -608,6 +766,31 @@ function consentPrompt(draft: FollowUpDraft, indonesian: boolean): string {
   );
 }
 
+/**
+ * Persetujuan pengiriman ulang setelah perubahan kebutuhan (tiket 05):
+ * Ringkasan Kebutuhan yang diperbarui ditampilkan apa adanya, lalu dimintai
+ * persetujuan khusus untuk pengiriman ulang sebagai PEMBARUAN — tidak pernah
+ * dikirim ulang diam-diam.
+ */
+function revisiConsentPrompt(draft: FollowUpDraft, indonesian: boolean): string {
+  if (indonesian) {
+    return (
+      "Berikut Ringkasan Kebutuhan yang diperbarui dari Permintaan Tindak Lanjut Anda:\n" +
+      ringkasanKebutuhan(draft, true) +
+      "\nRingkasan yang diperbarui ini akan saya kirim ulang kepada tim customer service/penjualan MUTAWWIFMU " +
+      "sebagai PEMBARUAN atas ringkasan yang sudah dikirim sebelumnya. " +
+      "Apakah Anda setuju pengiriman ulang ini?"
+    );
+  }
+  return (
+    "Here is the updated summary of your needs from this follow-up request:\n" +
+    ringkasanKebutuhan(draft, false) +
+    "\nThis updated summary will be re-sent to the MUTAWWIFMU customer service/sales team " +
+    "as an update to the summary sent earlier. " +
+    "Do you consent to this re-send?"
+  );
+}
+
 /** Ringkasan Kebutuhan per bidang, nilai apa adanya dari calon jemaah. */
 function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
   const value = (v: string | null): string => v ?? (indonesian ? "tidak disampaikan" : "not provided");
@@ -622,6 +805,9 @@ function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
   const pertanyaan = draft.notedQuestions.map((q) =>
     indonesian ? `- Pertanyaan yang dicatat: ${q}` : `- Noted question: ${q}`,
   );
+  const perubahan = draft.changeNotes.map((catatan) =>
+    indonesian ? `- Perubahan: ${catatan}` : `- Change: ${catatan}`,
+  );
   if (indonesian) {
     return [
       `- Layanan yang diminati: ${value(draft.interestedServices)}`,
@@ -629,6 +815,7 @@ function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
       `- Jumlah jemaah: ${value(draft.travellerCount)}`,
       `- Kebutuhan detail: ${value(draft.detailedNeeds)}`,
       `- Kisaran anggaran: ${value(draft.budgetRange)}`,
+      ...perubahan,
       ...lampiran,
       ...pertanyaan,
     ].join("\n");
@@ -639,6 +826,7 @@ function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
     `- Number of travellers: ${value(draft.travellerCount)}`,
     `- Detailed needs: ${value(draft.detailedNeeds)}`,
     `- Budget range: ${value(draft.budgetRange)}`,
+    ...perubahan,
     ...lampiran,
     ...pertanyaan,
   ].join("\n");
