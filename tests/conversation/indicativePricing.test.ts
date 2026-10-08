@@ -33,6 +33,8 @@ for (const [pesan, topik, kataKunci] of PERTANYAAN_HARGA) {
     const balasan = teksBalasan(turn);
     assert.match(balasan, /Harga Indikatif/);
     assert.match(balasan, /bukan penawaran final/);
+    // Tiket 04: penegasan bahwa angka dapat berubah setelah diperiksa admin.
+    assert.match(balasan, /dapat berubah[^.]*setelah diperiksa admin/i);
     for (const kunci of kataKunci) {
       assert.match(balasan, kunci, `${pesan}: jawaban tidak memuat ${kunci}`);
     }
@@ -86,6 +88,8 @@ test("pertanyaan harga dalam Bahasa Inggris dijawab sebagai Indicative Price dal
   const balasan = teksBalasan(turn);
   assert.match(balasan, /Indicative Price/);
   assert.match(balasan, /not a final offer/);
+  // Tiket 04: penegasan bahwa angka dapat berubah setelah diperiksa admin.
+  assert.match(balasan, /may change[^.]*after being reviewed by (our )?admin/i);
   assert.match(balasan, /SAR 300/);
   assert.match(balasan, /per group/);
   assert.doesNotMatch(balasan, /Harga Indikatif|penawaran/);

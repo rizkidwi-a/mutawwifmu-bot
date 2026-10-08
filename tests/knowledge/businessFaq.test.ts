@@ -86,6 +86,22 @@ test("jawaban Harga Indikatif menyebut statusnya dan tidak mengklaim harga final
   }
 });
 
+test("jawaban Harga Indikatif menyatakan angka dapat berubah setelah diperiksa admin", () => {
+  // Tiket 04 (ADR-0009): setiap jawaban harga menegaskan bahwa angka bersifat
+  // indikatif dan dapat berubah setelah diperiksa admin, sambil mempertahankan
+  // penegasan yang sudah ada ("bukan penawaran final", arahan konfirmasi tim).
+  for (const topic of TOPIK_HARGA) {
+    const id = faqAnswer(topic, "id");
+    assert.match(id, /dapat berubah[^.]*setelah diperiksa admin/i, `${topic}/id`);
+    assert.match(id, /bukan penawaran final/i, `${topic}/id`);
+    assert.match(id, /tim kami/i, `${topic}/id`);
+    const en = faqAnswer(topic, "en");
+    assert.match(en, /may change[^.]*after being reviewed by (our )?admin/i, `${topic}/en`);
+    assert.match(en, /not a final offer/i, `${topic}/en`);
+    assert.match(en, /our team/i, `${topic}/en`);
+  }
+});
+
 test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
   // Angka di bawah dikutip dari BOOKLET MUTAWWIFMU.md / HOTEL RATES MUTAWWIFMU (2).md.
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 300/);

@@ -24,9 +24,10 @@ import type { Language } from "../conversation/language.ts";
 
 /**
  * Topik Harga Indikatif (tiket 05): angka harga yang tercantum materi,
- * disampaikan sebagai acuan — bukan penawaran final. Satuan, periode, dan
- * ketentuan yang belum terverifikasi wajib dinyatakan apa adanya, tidak
- * ditafsirkan sendiri (spec: Testing Decisions, tiket 05).
+ * disampaikan sebagai acuan — bukan penawaran final, dengan penegasan bahwa
+ * angka dapat berubah setelah diperiksa admin (tiket 04, ADR-0009). Satuan,
+ * periode, dan ketentuan yang belum terverifikasi wajib dinyatakan apa adanya,
+ * tidak ditafsirkan sendiri (spec: Testing Decisions, tiket 05).
  */
 export type PriceTopic =
   | "price-mutawwif"
@@ -109,7 +110,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "High season dengan harga per sesi: Masjidil Haram SAR 750; Jabal Kudai & Khandama SAR 1.000; " +
         "Masjid Nabawi SAR 600; Al-Ula SAR 4.500; akad nikah/momen spesial SAR 1.250. " +
         "Harga sudah termasuk editing foto dan video profesional. " +
-        "Angka dapat berubah — mohon konfirmasi sesi dan harga terkini kepada tim kami.",
+        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi sesi dan harga terkini kepada tim kami.",
       en:
         "Indicative Prices for our photographer/videographer service — not a final offer. " +
         "Low season: the courtyard of Masjidil Haram SAR 600 (solo/couple) and SAR 1,000 (family of more than 2 pax); " +
@@ -118,7 +119,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "High season, priced per session: Masjidil Haram SAR 750; Jabal Kudai & Khandama SAR 1,000; " +
         "Masjid Nabawi SAR 600; Al-Ula SAR 4,500; akad nikah/special moments SAR 1,250. " +
         "Prices already include professional photo and video editing. " +
-        "Figures may change — please confirm the session and current price with our team.",
+        "Figures may change after being reviewed by our admin — please confirm the session and current price with our team.",
     },
   },
   {
@@ -129,12 +130,12 @@ const ENTRIES: readonly FaqEntry[] = [
         "Harga Indikatif pengurusan dokumen — bukan penawaran final (satuan per pax sesuai materi): " +
         "Visa Umrah Reguler IDR 3.200.000 per pax dan Asuransi Perjalanan IDR 100.000 per pax. " +
         "Untuk Visa Umrah Express materi tidak mencantumkan angka dan menyarankan menghubungi admin dengan harga yang menyesuaikan. " +
-        "Angka dapat berubah — mohon konfirmasi harga terkini kepada tim kami.",
+        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
       en:
         "Indicative Prices for document arrangement — not a final offer (per pax as stated in our materials): " +
         "Regular Umrah Visa IDR 3,200,000 per pax and Travel Insurance IDR 100,000 per pax. " +
         "For the Express Umrah Visa our materials list no figure and direct you to contact the admin with an adjusted price. " +
-        "Figures may change — please confirm the current price with our team.",
+        "Figures may change after being reviewed by our admin — please confirm the current price with our team.",
     },
   },
   {
@@ -148,7 +149,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "City Tour Basic Madinah: SAR 820 (2 pax), SAR 880 (4 pax), SAR 995 (7 pax), SAR 1.165 (21 pax), SAR 1.395 (49 pax). " +
         "City Tour Premium Thaif: SAR 920 (2 pax), SAR 1.235 (4 pax), SAR 1.345 (7 pax), SAR 1.665 (21 pax), SAR 2.095 (49 pax). " +
         "Untuk City Tour Premium Exclusive Al Ula materi tidak mencantumkan angka — tercantum \"Harga Spesial\" dan Anda dapat meminta penawarannya kepada tim kami. " +
-        "Angka dapat berubah dan tidak menjamin ketersediaan jadwal — mohon konfirmasi harga dan jadwal kepada tim kami.",
+        "Angka dapat berubah setelah diperiksa admin dan tidak menjamin ketersediaan jadwal — mohon konfirmasi harga dan jadwal kepada tim kami.",
       en:
         "Indicative Prices for city tours — not a final offer. " +
         "Every package already includes transportation, a professional mutawwif, and a free snack. " +
@@ -156,7 +157,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "City Tour Basic Madinah: SAR 820 (2 pax), SAR 880 (4 pax), SAR 995 (7 pax), SAR 1,165 (21 pax), SAR 1,395 (49 pax). " +
         "City Tour Premium Thaif: SAR 920 (2 pax), SAR 1,235 (4 pax), SAR 1,345 (7 pax), SAR 1,665 (21 pax), SAR 2,095 (49 pax). " +
         "For City Tour Premium Exclusive Al Ula our materials list no figure — it shows a \"Special Price\" and you may request the offer from our team. " +
-        "Figures may change and do not guarantee schedule availability — please confirm the price and schedule with our team.",
+        "Figures may change after being reviewed by our admin and do not guarantee schedule availability — please confirm the price and schedule with our team.",
     },
   },
   {
@@ -174,7 +175,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "Madinah Hotel–Jeddah Airport (PP) mulai SAR 750 hingga SAR 1.650. " +
         "Catatan: nilai pada tabel tercantum dalam SAR sementara catatan kaki materi menyebut \"IDR per grup\", " +
         "sehingga ketentuannya belum konsisten dan harus dikonfirmasi admin — saya tidak menafsirkan sendiri satuannya. " +
-        "Angka dapat berubah — mohon konfirmasi rute, armada, dan harga terkini kepada tim kami.",
+        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi rute, armada, dan harga terkini kepada tim kami.",
       en:
         "Indicative Prices for transportation, listed per route and fleet — not a final offer. " +
         "Figures from our materials: Jeddah Airport–Makkah Hotel from SAR 500 (Camry/Sonata) up to SAR 1,050 (Bus); " +
@@ -183,7 +184,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "Madinah Hotel–Jeddah Airport (round trip) from SAR 750 up to SAR 1,650. " +
         "Note: the table figures are in SAR while the material footnote states \"IDR per group\", " +
         "so the terms are not yet consistent and must be confirmed by our admin — I do not interpret the unit myself. " +
-        "Figures may change — please confirm the route, fleet, and current price with our team.",
+        "Figures may change after being reviewed by our admin — please confirm the route, fleet, and current price with our team.",
     },
   },
   {
@@ -195,13 +196,13 @@ const ENTRIES: readonly FaqEntry[] = [
         "Handling Bandara Jakarta IDR 350.000 per pax; " +
         "Handling Bandara Jeddah untuk kedatangan dan kepulangan SAR 300 per grup; " +
         "Handling Bandara Jeddah untuk kepulangan dan penjemputan (termasuk mutawwif gratis saat umroh 1x) SAR 900 per grup. " +
-        "Materi mencatat harga berlaku untuk periode 2025–2026 dan dapat berubah sewaktu-waktu — mohon konfirmasi harga terkini kepada tim kami.",
+        "Materi mencatat harga berlaku untuk periode 2025–2026 dan dapat berubah sewaktu-waktu, termasuk setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
       en:
         "Indicative Prices for airport handling — not a final offer: " +
         "Jakarta Airport Handling IDR 350,000 per pax; " +
         "Jeddah Airport Handling for arrival and departure SAR 300 per group; " +
         "Jeddah Airport Handling for departure and pickup (including a free mutawwif for 1x umrah) SAR 900 per group. " +
-        "Our materials note the prices apply to the 2025–2026 period and may change over time — please confirm the current price with our team.",
+        "Our materials note the prices apply to the 2025–2026 period and may change over time, including after being reviewed by our admin — please confirm the current price with our team.",
     },
   },
   {
@@ -212,12 +213,12 @@ const ENTRIES: readonly FaqEntry[] = [
         "Harga Indikatif layanan mutawwif — bukan penawaran final (satuan per grup sesuai materi): " +
         "Mutawwif Reguler berbahasa Indonesia SAR 300 (low season) dan SAR 350 (high season); " +
         "Mutawwif Bilingual (Indonesia, Arab, Inggris) SAR 350 (low season) dan SAR 400 (high season). " +
-        "Angka dapat berubah — mohon konfirmasi harga terkini kepada tim kami.",
+        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
       en:
         "Indicative Prices for our mutawwif service — not a final offer (per group as stated in our materials): " +
         "Regular Mutawwif (Indonesian-speaking) SAR 300 (low season) and SAR 350 (high season); " +
         "Bilingual Mutawwif (Indonesian, Arabic, English) SAR 350 (low season) and SAR 400 (high season). " +
-        "Figures may change — please confirm the current price with our team.",
+        "Figures may change after being reviewed by our admin — please confirm the current price with our team.",
     },
   },
   {
@@ -233,6 +234,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "(Double, Triple, Quad, Junior Suite/Executive Suite) dengan meal plan Fullboard Fareast — " +
         "misalnya Al Marwa Rotana Makkah periode 16 Juni – 09 Juli 2026 tercantum SAR 1.250 (Double), SAR 1.520 (Triple), SAR 1.790 (Quad). " +
         "Ini bukan penawaran final dan tidak menjamin ketersediaan hotel; " +
+        "angka dapat berubah setelah diperiksa admin — " +
         "silakan sampaikan hotel, periode, dan tipe kamar yang diminati untuk dikonfirmasi tim kami.",
       en:
         "For hotel prices, our materials contain conflicting unit statements: the rate list cover states \"Prices in SAR per person\", " +
@@ -243,6 +245,7 @@ const ENTRIES: readonly FaqEntry[] = [
         "(Double, Triple, Quad, Junior Suite/Executive Suite) with the Fullboard Fareast meal plan — " +
         "for example Al Marwa Rotana Makkah for the 16 June – 09 July 2026 period is listed as SAR 1,250 (Double), SAR 1,520 (Triple), SAR 1,790 (Quad). " +
         "This is not a final offer and does not guarantee hotel availability; " +
+        "figures may change after being reviewed by our admin — " +
         "please share the hotel, period, and room type you are interested in for our team to confirm.",
     },
   },
