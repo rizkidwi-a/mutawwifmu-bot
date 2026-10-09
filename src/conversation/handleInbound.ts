@@ -1,4 +1,4 @@
-import { classifyInbound, type HandoffTrigger } from "./classifyInbound.ts";
+import { classifyInbound, type HandoffTrigger, type InboundRouting } from "./classifyInbound.ts";
 import { resolveReplyLanguage, type Language } from "./language.ts";
 import { faqAnswer } from "../knowledge/businessFaq.ts";
 import type {
@@ -35,8 +35,9 @@ const CATAT_PERTANYAAN_EN =
 /**
  * Penanda pesan yang berupa pertanyaan, bukan jawaban bidang. Dipakai agar
  * pertanyaan yang menyela pengumpulan (mis. "mau tanya harga fotografer")
- * tidak dikonsumsi sebagai jawaban bidang, sementara jawaban bidang yang
- * kebetulan memuat kata tanya atau kata harga tetap tercatat apa adanya.
+ * tidak dikonsumsi sebagai jawaban bidang, melainkan dijawab (Harga Indikatif)
+ * atau dicatat apa adanya dan dibawa ke admin (tiket 06), sementara jawaban
+ * bidang yang kebetulan memuat kata harga tetap tercatat apa adanya.
  */
 const PERTANYAAN =
   /\?|\b(apa(kah)?|bagaimana|gimana|kenapa|mengapa|kapan|dimana|di mana|siapa|berapa|bisakah|bolehkah|adakah|do|does|did|is|are|was|were|can|could|should|what|how|when|where|why|who|which|tany(a|akan)|bertanya|info(rmasi|kan)?|mau tahu|ingin tahu|cek|check)\b/i;
@@ -44,6 +45,58 @@ const PERTANYAAN =
 /** Apakah pesan berupa pertanyaan (lihat `PERTANYAAN`). */
 function isPertanyaan(text: string): boolean {
   return PERTANYAAN.test(text);
+}
+
+/**
+ * Pertanyaan yang dicatat apa adanya dan dibawa ke admin (tiket 06): pesan
+ * bertanda pertanyaan yang bukan pembuka polos — berapa pun routing-nya
+ * (`faq` maupun `handoff`) — tidak pernah menjadi jawaban bidang atau
+ * perubahan kebutuhan.
+ */
+function isPertanyaanTercatat(text: string, routing: InboundRouting): boolean {
+  return isPertanyaan(text) && routing.kind !== "opener";
+}
+
+/**
+ * Kata basa-basi: sapaan, ucapan terima kasih, pengakuan singkat, dan partikel
+ * (tiket 06). Pesan yang seluruh katanya berasal dari daftar ini dianggap
+ * basa-basi: dibalas singkat tanpa mengisi bidang, mencatat perubahan, atau
+ * memicu jawaban template — alur yang sedang berjalan tetap berlanjut.
+ */
+const BASA_BASI_KATA: ReadonlySet<string> = new Set([
+  // Sapaan dan pembuka percakapan.
+  "assalamualaikum", "assalamu", "alaikum", "waalaikumsalam", "wassalamualaikum",
+  "salam", "kenal", "halo", "hai", "hi", "hello", "hei", "pagi", "siang", "sore", "malam",
+  // Ucapan terima kasih dan jawabannya.
+  "terima", "kasih", "terimakasih", "makasi", "makasih", "mksh", "mksih", "trims",
+  "thanks", "thx", "thank", "kembali", "sama", "sama2",
+  // Pengakuan singkat.
+  "oke", "ok", "okelah", "okey", "okay", "sip", "siap", "noted", "betul", "benar", "bener",
+  "iya", "iyah", "iyaa", "y", "ya", "yah", "yaa", "yup", "yoi", "baik", "baiklah",
+  "gpp", "gapapa", "mantap", "mantul", "mantaf", "jos", "top", "keren", "bagus", "asik",
+  // Sapaan orang dan partikel.
+  "kak", "kakak", "ka", "mba", "mbak", "mas", "pak", "bu", "ibu", "bapak", "bang",
+  "bro", "sis", "om", "tante", "gan", "bos", "cuy",
+  "nih", "sih", "dong", "deh", "lah", "kok", "koq", "kan", "udah", "sudah",
+  "banyak", "banget", "sekali", "paling", "saja", "apa", "kabar",
+  // Ekspresi.
+  "aamiin", "amin", "alhamdulillah", "masyaallah", "subhanallah", "waduh", "aduh",
+  "wow", "wah", "waa", "hehe", "hihi", "haha", "wkwk", "wkwkwk", "wk", "ckck", "hmm",
+  "oh", "ohh", "ooh", "ih", "ah", "yuk", "yok",
+]);
+
+/** Apakah pesan berupa basa-basi tanpa muatan kebutuhan (lihat `BASA_BASI_KATA`). */
+function isBasaBasi(text: string): boolean {
+  const kata = text
+    .toLowerCase()
+    .replace(/[\p{Extended_Pictographic}\uFE0F]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((k) => k.length > 0);
+  return (
+    kata.length > 0 &&
+    kata.every((k) => BASA_BASI_KATA.has(k) || BASA_BASI_KATA.has(k.replace(/(nya|lah|kah|pun)$/, "")))
+  );
 }
 
 /** Penanda jawaban yang melewati bidang opsional (kisaran anggaran). */
@@ -177,6 +230,16 @@ const LAMPIRAN_DITERIMA_EN =
  */
 const CATAT_PERUBAHAN_ID = "Terima kasih, perubahan kebutuhan Anda saya catat.";
 const CATAT_PERUBAHAN_EN = "Thank you, I've noted the change to your needs.";
+
+/** Balasan singkat atas basa-basi (tiket 06); tidak memuat isi kebutuhan apa pun. */
+const BASA_BASI_ID = "Terima kasih atas pesan Anda.";
+const BASA_BASI_EN = "Thank you for your message.";
+
+/** Permintaan konfirmasi ulang yang singkat setelah basa-basi (tiket 05/06). */
+const REVISI_REASK_ID =
+  "Mohon konfirmasi: apakah Anda setuju pengiriman ulang ringkasan yang diperbarui? (jawab ya atau tidak)";
+const REVISI_REASK_EN =
+  "Please confirm: do you consent to re-sending the updated summary? (answer yes or no)";
 
 /** Konfirmasi pengiriman ulang Ringkasan Kebutuhan yang diperbarui (tiket 05). */
 const CONFIRM_RESENT_ID =
@@ -363,11 +426,27 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     };
   }
 
+  // Basa-basi (tiket 06) dibalas singkat: tidak mengisi bidang, tidak mencatat
+  // perubahan, dan tidak memicu jawaban template — alur yang sedang berjalan
+  // (bidang yang ditanya, konfirmasi, atau penutup) tetap dilanjutkan.
+  if (state.kind !== "idle" && isBasaBasi(text)) {
+    const lead = indonesian ? BASA_BASI_ID : BASA_BASI_EN;
+    const prompt = promptSetelahBasaBasi(state, indonesian);
+    return {
+      reply: prompt === "" ? lead : balasanDenganPrompt(lead, prompt),
+      actions: [],
+      next,
+    };
+  }
+
   // Pertanyaan Harga Indikatif setelah ringkasan terkirim dijawab dari materi
   // (spec ruang lingkup 4) tanpa mengubah kebutuhan; saat menunggu persetujuan
   // pengiriman ulang, jawabannya digabung dengan permintaan konfirmasi ulang.
+  // Hanya pesan bertanda pertanyaan yang dijawab — pernyataan bermuatan kata
+  // harga adalah informasi/kebutuhan (tiket 06), bukan pertanyaan harga.
   if (
     routing.kind === "indicative-price" &&
+    isPertanyaan(text) &&
     (state.kind === "sent" || state.kind === "awaiting-revision-consent")
   ) {
     const jawaban = faqAnswer(routing.topic, language);
@@ -396,14 +475,11 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     }
     // Pertanyaan non-harga yang menyela konfirmasi dicatat apa adanya; balasan
     // tetap meminta konfirmasi persetujuan.
-    const dicatat = isPertanyaan(text) && routing.kind === "faq";
+    const dicatat = isPertanyaanTercatat(text, routing);
     return { reply: dicatat ? balasanDenganPrompt(leadPertanyaan, reask) : reask, actions: [], next };
   }
 
-  const menyela =
-    state.kind === "collecting" &&
-    isPertanyaan(text) &&
-    (routing.kind === "indicative-price" || routing.kind === "faq");
+  const menyela = state.kind === "collecting" && isPertanyaanTercatat(text, routing);
 
   if (next.kind === "collecting") {
     const prompt = promptForNextField(next.draft, indonesian);
@@ -415,18 +491,19 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     // ditanya. Setiap chat prospek (ADR-0009) dibalas cepat — respons awal,
     // catatan pertanyaan, atau Harga Indikatif — lalu diarahkan ke
     // pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.
-    if (routing.kind === "indicative-price") {
+    if (routing.kind === "indicative-price" && isPertanyaan(text)) {
       return {
         reply: balasanDenganPrompt(faqAnswer(routing.topic, language), prompt),
         actions: [{ kind: "record-faq-answer", topic: routing.topic }],
         next,
       };
     }
+    // Pertanyaan non-harga (apa pun routing-nya) dicatat apa adanya dan dibawa
+    // ke admin (tiket 06); pesan tanpa tanda pertanyaan diperlakukan sebagai
+    // informasi/kebutuhan dan tetap membuka pengumpulan dari state idle.
+    const dicatat = isPertanyaanTercatat(text, routing);
     return {
-      reply: balasanDenganPrompt(
-        routing.kind === "faq" ? leadPertanyaan : initialReplyFor(indonesian),
-        prompt,
-      ),
+      reply: balasanDenganPrompt(dicatat ? leadPertanyaan : initialReplyFor(indonesian), prompt),
       actions: [],
       next,
     };
@@ -435,12 +512,11 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     // Pembaruan setelah ringkasan terkirim (tiket 05): perubahan kebutuhan
     // (atau pertanyaan non-harga) dicatat apa adanya, lalu Ringkasan Kebutuhan
     // yang diperbarui ditampilkan untuk dimintai persetujuan pengiriman ulang.
-    const lead =
-      isPertanyaan(text) && routing.kind === "faq"
-        ? leadPertanyaan
-        : indonesian
-          ? CATAT_PERUBAHAN_ID
-          : CATAT_PERUBAHAN_EN;
+    const lead = isPertanyaanTercatat(text, routing)
+      ? leadPertanyaan
+      : indonesian
+        ? CATAT_PERUBAHAN_ID
+        : CATAT_PERUBAHAN_EN;
     return {
       reply: balasanDenganPrompt(lead, revisiConsentPrompt(next.draft, indonesian)),
       actions: [],
@@ -455,6 +531,25 @@ function step(state: FlowState, text: string, language: Language): StepResult {
 /** Gabungkan balasan cepat dengan langkah pengumpulan berikutnya. */
 function balasanDenganPrompt(lead: string, prompt: string): string {
   return `${lead}\n\n${prompt}`;
+}
+
+/**
+ * Langkah kelanjutan alur setelah basa-basi (tiket 06): ulangi bidang yang
+ * sedang ditanya atau permintaan konfirmasi yang sedang menunggu. Kosong bila
+ * memang tidak ada langkah berikut (Ringkasan Kebutuhan sudah terkirim).
+ */
+function promptSetelahBasaBasi(state: FlowState, indonesian: boolean): string {
+  switch (state.kind) {
+    case "collecting":
+      return promptForNextField(state.draft, indonesian);
+    case "awaiting-consent":
+    case "awaiting-handoff-consent":
+      return indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
+    case "awaiting-revision-consent":
+      return indonesian ? REVISI_REASK_ID : REVISI_REASK_EN;
+    default:
+      return "";
+  }
 }
 
 /**
@@ -540,15 +635,20 @@ function nextState(state: FlowState, text: string): FlowState {
     return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
   }
 
+  // Basa-basi bukan jawaban bidang, pertanyaan, maupun perubahan kebutuhan
+  // (tiket 06); dari idle tetap membuka pengumpulan seperti chat lain.
+  if (state.kind !== "idle" && isBasaBasi(text)) {
+    return state;
+  }
+
   if (state.kind === "collecting") {
-    const pertanyaanMenyela =
-      isPertanyaan(text) && (routing.kind === "indicative-price" || routing.kind === "faq");
+    const pertanyaanMenyela = isPertanyaanTercatat(text, routing);
     if (pertanyaanMenyela) {
       // Pertanyaan tidak menjadi jawaban bidang: Harga Indikatif dijawab oleh
-      // `step`, pertanyaan non-harga dicatat sebagai bagian kebutuhan.
-      return routing.kind === "faq"
-        ? { kind: "collecting", draft: catatPertanyaan(state.draft, text) }
-        : state;
+      // `step`, pertanyaan non-harga dicatat apa adanya dan dibawa ke admin.
+      return routing.kind === "indicative-price"
+        ? state
+        : { kind: "collecting", draft: catatPertanyaan(state.draft, text) };
     }
     // Selain itu klasifikasi diabaikan saat pengumpulan: jawaban bidang seperti
     // "Butuh kamar keluarga" tidak boleh salah jadi pemicu handoff atau FAQ.
@@ -561,18 +661,18 @@ function nextState(state: FlowState, text: string): FlowState {
     // Setelah Ringkasan Kebutuhan terkirim (tiket 05): pesan berikutnya adalah
     // pembaruan kebutuhan. Pertanyaan non-harga dicatat sebagai bagian
     // kebutuhan, pertanyaan Harga Indikatif dijawab tanpa mengubah kebutuhan,
-    // dan selain itu dicatat sebagai perubahan — semuanya apa adanya.
-    if (routing.kind === "indicative-price") {
+    // dan selain itu (termasuk pernyataan bermuatan kata harga) dicatat sebagai
+    // perubahan — semuanya apa adanya.
+    if (routing.kind === "indicative-price" && isPertanyaan(text)) {
       return state;
     }
-    const diperbarui =
-      isPertanyaan(text) && routing.kind === "faq"
-        ? catatPertanyaan(state.draft, text)
-        : catatPerubahan(state.draft, text);
+    const diperbarui = isPertanyaanTercatat(text, routing)
+      ? catatPertanyaan(state.draft, text)
+      : catatPerubahan(state.draft, text);
     return { kind: "awaiting-revision-consent", draft: diperbarui };
   }
   if (menungguPersetujuan) {
-    if (state.kind === "awaiting-consent" && isPertanyaan(text) && routing.kind === "faq") {
+    if (state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing)) {
       // Pertanyaan non-harga yang menyela konfirmasi dicatat sebagai bagian
       // kebutuhan, bukan dijawab dari materi (ADR-0009).
       return { kind: "awaiting-consent", draft: catatPertanyaan(state.draft, text) };

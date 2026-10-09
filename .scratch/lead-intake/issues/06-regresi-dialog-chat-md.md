@@ -4,13 +4,13 @@
 
 **Blocked by:** 03: Ringkasan kebutuhan yang rapi untuk admin; 04: Penegasan bahwa Harga Indikatif dapat berubah setelah diperiksa admin
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Skenario multi-giliran dari `data/chat.md` (minimal: pembukaan, penyebutan tanggal/pax/layanan, pertanyaan harga, perubahan kebutuhan) berjalan tanpa error.
-- [ ] Tidak ada balasan yang berasal dari topik FAQ non-harga.
-- [ ] Pesan basa-basi dibalas singkat tanpa merusak alur intake; pesan pertanyaan yang tidak didukung terbawa ke admin.
-- [ ] Ringkasan admin untuk skenario memuat seluruh kebutuhan utama yang disebutkan dalam dialog.
-- [ ] Kumpulan kasus misfire pada `.scratch/eval-classify.txt` dijadikan kasus tes negatif.
+- [x] Skenario multi-giliran dari `data/chat.md` (minimal: pembukaan, penyebutan tanggal/pax/layanan, pertanyaan harga, perubahan kebutuhan) berjalan tanpa error.
+- [x] Tidak ada balasan yang berasal dari topik FAQ non-harga.
+- [x] Pesan basa-basi dibalas singkat tanpa merusak alur intake; pesan pertanyaan yang tidak didukung terbawa ke admin.
+- [x] Ringkasan admin untuk skenario memuat seluruh kebutuhan utama yang disebutkan dalam dialog.
+- [x] Kumpulan kasus misfire pada `.scratch/eval-classify.txt` dijadikan kasus tes negatif.
 
 ## Comments
 
@@ -37,6 +37,67 @@ probe sementara (55 kasus `.scratch/eval-classify.txt` dijalankan lewat seam
   saat pengumpulan kini juga mengisi bidang — apakah sebaiknya masuk
   `notedQuestions` seperti pertanyaan `faq`? Keduanya memengaruhi apakah
   Ringkasan Kebutuhan tetap bersih saat dialog nyata di-replay apa adanya.
+
+### Keputusan dua butir terbuka (sesi implementasi tiket 06)
+
+Kedua butir di atas diputuskan mengikuti kriteria tiket ini ("pesan basa-basi
+dibalas singkat tanpa merusak alur intake; pesan pertanyaan yang tidak
+didukung terbawa ke admin"), dan keduanya kini dijaga tes
+`tests/conversation/pesanSela.test.ts`:
+
+- **(a) basa-basi** — dibalas singkat dengan mengulang bidang yang sedang
+  ditanya (atau permintaan konfirmasi yang sedang menunggu), tanpa mengisi
+  bidang, tanpa dicatat sebagai perubahan, dan tanpa jawaban template. Deteksi
+  didasarkan pada daftar kata sapaan/terima kasih/pengakuan singkat
+  (`BASA_BASI_KATA` di `handleInbound.ts`) yang sengaja konservatif agar
+  jawaban bidang tidak ikut tertelan.
+- **(b) pertanyaan non-`faq`** — seluruh pesan bertanda pertanyaan (penanda
+  `PERTANYAAN`) saat pengumpulan tidak lagi mengisi bidang: pertanyaan harga
+  yang terdukung dijawab Harga Indikatif, dan selainnya dicatat apa adanya di
+  `notedQuestions` ("Pertanyaan yang dicatat") sehingga terbawa ke admin,
+  berapa pun routing-nya (`faq` maupun `handoff`). Pernyataan tanpa tanda
+  pertanyaan tetap menjadi jawaban bidang/perubahan apa adanya.
+
+### Perbaikan misfire yang tersisa (kasus HARGA/price-hotel)
+
+Jawaban Harga Indikatif kini hanya untuk pesan bertanda pertanyaan. Pernyataan
+bermuatan kata harga (kasus "sebenernya kita bukannya mau ganti hotel si.. cuma
+ganti dari harga free cancellation to non refundable ...") diperlakukan sebagai
+informasi/kebutuhan: menjadi jawaban bidang saat pengumpulan dan "Perubahan"
+pada pembaruan setelah ringkasan terkirim — tidak pernah dijawab template
+harga. Ini menutup misfire terakhir yang tercatat pada analisis awal (idle
+maupun `sent`).
+
+### Tes regresi yang ditambahkan
+
+- `tests/regresi/regresiDialogNyata.test.ts` — skenario multi-giliran yang
+  disusun dari `data/Vira Arman/chat.md` (dianonimkan: pembukaan, basa-basi,
+  layanan, tanggal, pax, kebutuhan visa + rute, pertanyaan harga, anggaran,
+  persetujuan, perubahan kebutuhan + persetujuan pembaruan), plus replay
+  keempat transkrip di `data/` (Vira Arman, Cut Emelia, Evi N,
+  `+62 812-1008-778`) bila `data/` tersedia — dilewati otomatis bila tidak,
+  karena `data/` memuat data pribadi dan tidak ter-versioning.
+- `tests/regresi/kasusMisfire.test.ts` — 55 kasus `.scratch/eval-classify.txt`
+  sebagai kasus tes negatif pada tiga konteks (percakapan baru, tengah
+  pengumpulan, setelah ringkasan terkirim): tidak boleh ada balasan template
+  materi mana pun, dan kasus HARGA/price-hotel wajib masuk sebagai kebutuhan.
+- `tests/conversation/pesanSela.test.ts` — perilaku pesan yang menyela
+  pengumpulan (basa-basi, pernyataan harga, pertanyaan tidak didukung).
+- Helper: `tests/regresi/transkrip.ts` (parser transkrip `data/`) dan
+  `tests/regresi/temuanMisfire.ts` (deteksi balasan template).
+
+### Kriteria dua temuan analisis (tiket 08 dan 09)
+
+Sesuai pembaruan sumber regresi di atas, kedua temuan dijadikan kriteria pada
+`tests/regresi/regresiDialogNyata.test.ts` sebagai tes bertanda `todo` yang
+menunjuk tiket pemilik perbaikannya: over-faq (22 kasus `handoff` pada
+`tests/korpus/transkrip-nyata.json` harus terklasifikasi `handoff`) milik
+tiket 08, dan empat pertanyaan terdukung yang jatuh ke handoff milik tiket 09.
+Keduanya adalah kriteria klasifikasi `classifyInbound`/`matchFaqTopic` — di
+luar lingkup tiket ini — sehingga tiket 06 tidak menunggu perbaikannya. Sisi
+seam yang bisa dijaga sekarang sudah hijau: tidak ada replay yang menjawab
+template di luar pertanyaan harga terdukung, dan konteks penting tidak
+hilang — pertanyaan tetap terbawa ke admin.
 
 ### Sumber regresi diperbarui (sesi 2026-10-10)
 

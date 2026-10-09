@@ -30,9 +30,12 @@ sebelum evaluasi.
    dengan pemahaman regex. Pemasangan menyusul setelah evaluasi.
 3. **Riset pengganti WhatsApp API** ter-commit (`a5e2ff0`) — masih "belum
    keputusan"; jangan diubah sebelum pemilik memilih.
-4. **Tiket 06 (regresi dialog `data/chat.md`) tetap `ready-for-agent`.**
-   Analisis awal sudah dicatat di komentar tiket itu (hasil probe 55 kasus
-   misfire) — baca sebelum mengimplementasikan.
+4. **Tiket 06 (regresi dialog nyata) selesai (`resolved`).** Tes regresi ada di
+   `tests/regresi/`: skenario multi-giliran dari `data/Vira Arman/chat.md`,
+   55 kasus `.scratch/eval-classify.txt` sebagai tes negatif, dan replay
+   keempat transkrip `data/` (bila tersedia). Misfire HARGA/price-hotel
+   diperbaiki; keputusan basa-basi & pertanyaan non-`faq` diimplementasikan.
+   Detail lengkap di komentar tiket 06.
 
 ## Temuan analisis yang menunggu evaluasi (ringkas)
 
@@ -149,9 +152,10 @@ evaluasi — jangan diperbaiki di tengah jalan:
 | --- | --- |
 | Uji coba jalankan bot (runbook di atas) | **sesi berikutnya — fokus utama** |
 | Evaluasi hasil uji coba bersama pemilik | menyusul setelah uji coba |
-| Tiket 06 regresi dialog `data/chat.md` | `ready-for-agent`; analisis awal sudah dicatat di komentar tiket |
+| Tiket 06 regresi dialog nyata | **selesai (`resolved`)** — tes di `tests/regresi/`, lihat komentar tiket 06 |
 | Pemasangan `classifyDenganFallback` ke runtime | menunggu keputusan hasil evaluasi (ukur ulang dengan `scripts/probe-cakupan-gemini.ts`, bandingkan vs 73%) |
-| Keputusan basa-basi & pertanyaan non-`faq` saat pengumpulan | menunggu evaluasi (lihat "Temuan analisis") |
+| Keputusan basa-basi & pertanyaan non-`faq` saat pengumpulan | **diputuskan & terimplementasi** (tiket 06, bagian "Keputusan dua butir terbuka") |
+| Tiket 08 (redam over-faq) & 09 (varian ejaan) | `ready-for-agent`; kriterianya sudah tercatat sebagai tes `todo` di `tests/regresi/regresiDialogNyata.test.ts` |
 | Pilihan penyedia pengganti WhatsApp API | riset selesai (`a5e2ff0`), belum keputusan |
 | VPS + domain tetap (pengganti tunnel, tiket 07 lama) | belum |
 | Nomor produksi `+62 877 4587 3159` (tiket 06 lama) | tertunda, terkunci isu Meta |

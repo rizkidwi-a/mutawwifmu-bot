@@ -35,6 +35,7 @@ Batasi fungsi bot menjadi tiga: merespons cepat setiap chat masuk, menanyakan ke
 
 - Seam tetap `handleInbound(message, context)`; state alur diturunkan dari riwayat percakapan agar seam murni.
 - Nilai bidang disimpan apa adanya dari calon jemaah; tidak ada parafrase atau penafsiran otomatis atas data jemaah.
+- Pesan yang menyela pengumpulan ditangani menurut jenisnya (tiket 06): basa-basi dibalas singkat tanpa mengisi bidang; pertanyaan — termasuk yang tidak didukung — dicatat sebagai bagian kebutuhan dan dibawa ke admin; pernyataan bermuatan kata harga diperlakukan sebagai informasi/kebutuhan, dan Harga Indikatif hanya dijawab untuk pesan bertanda pertanyaan.
 - Regresi end-to-end memakai dialog nyata dari `data/` (mulai `data/Vira Arman/chat.md`, tiket 06): tidak ada pesan yang salah dijawab topik lain; setiap kebutuhan utama skenario muncul pada ringkasan admin.
 - Invarian yang dipertahankan: tanpa klaim harga final, tanpa janji ketersediaan/waktu balasan admin, tanpa data sensitif.
 

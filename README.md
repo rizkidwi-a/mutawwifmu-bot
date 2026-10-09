@@ -2,7 +2,7 @@
 
 Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
 
-Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode, jumlah jemaah, kebutuhan detail; anggaran opsional), Ringkasan Kebutuhan per bidang yang ditampilkan kepada calon jemaah untuk diperiksa sebelum persetujuan, lampiran (pesan non-teks) yang dicatat tanpa isinya ditafsirkan, handoff ke admin yang selalu diawali persetujuan calon jemaah, pembaruan kebutuhan setelah ringkasan terkirim (dikirim ulang ke admin dengan penanda "PEMBARUAN"), jawaban FAQ layanan dari materi bisnis, serta Harga Indikatif dari angka harga yang tercantum materi.
+Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode, jumlah jemaah, kebutuhan detail; anggaran opsional), Ringkasan Kebutuhan per bidang yang ditampilkan kepada calon jemaah untuk diperiksa sebelum persetujuan, lampiran (pesan non-teks) yang dicatat tanpa isinya ditafsirkan, handoff ke admin yang selalu diawali persetujuan calon jemaah, pembaruan kebutuhan setelah ringkasan terkirim (dikirim ulang ke admin dengan penanda "PEMBARUAN"), pesan basa-basi yang dibalas singkat tanpa merusak alur intake, pertanyaan non-harga yang dicatat apa adanya dan dibawa ke admin, serta Harga Indikatif dari angka harga yang tercantum materi.
 
 ## Menjalankan
 
@@ -56,9 +56,13 @@ Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
 
 ## FAQ layanan
 
-Bot menjawab pertanyaan pra-pemesanan langsung dari materi bisnis yang tersedia (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`): definisi Private Premium Umrah & Land Arrangement, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, city tour yang tercantum (umum dan per destinasi), serta layanan lain dalam profil perusahaan — tour guide 190 negara, charity program, dukungan multibahasa, fotografer/videografer, dan custom itinerary. Jawaban disusun hanya dari fakta materi MUTAWWIFMU — rincian paket, layanan, atau ketentuan yang tidak tercantum tidak dikarang — dan diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
+Materi bisnis (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`) mencakup definisi Private Premium Umrah & Land Arrangement, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, city tour, serta layanan lain dalam profil perusahaan — tour guide 190 negara, charity program, dukungan multibahasa, fotografer/videografer, dan custom itinerary. Sejak ADR-0009 (`docs/adr/0009-fokus-intake-kebutuhan.md`) pertanyaan non-harga tidak lagi dijawab dari materi: pertanyaannya dicatat apa adanya sebagai bagian kebutuhan dan dibawa ke admin bersama Ringkasan Kebutuhan. Jawaban yang tersisa di runtime hanyalah Harga Indikatif dari angka yang tercantum materi (lihat bagian berikut) — rincian yang tidak tercantum tidak dikarang — dan seluruh jawaban diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
 
-Pertanyaan yang memerlukan konfirmasi tidak dijawab dari asumsi; pertanyaan yang tidak didukung materi atau tidak pasti mengalir ke alur handoff: penjelasan singkat, lalu permintaan persetujuan sebelum diteruskan ke admin. Jawaban FAQ tidak membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
+Pertanyaan yang memerlukan konfirmasi tidak dijawab dari asumsi; pertanyaan yang tidak didukung materi atau tidak pasti dicatat dan dibawa ke admin, sedangkan kasus yang menuntut penanganan manusia (permintaan berbicara dengan manusia, perjalanan aktif, keadaan darurat) tetap menyela ke alur handoff dengan persetujuan. Tidak ada jawaban yang membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
+
+## Pesan yang menyela pengumpulan
+
+Pesan yang datang di tengah pengumpulan kebutuhan ditangani menurut jenisnya (`.scratch/lead-intake/issues/06-regresi-dialog-chat-md.md`): basa-basi (sapaan, ucapan terima kasih, pengakuan singkat) dibalas singkat sambil mengulang bidang yang sedang ditanya — tanpa mengisi bidang atau mencemari Ringkasan Kebutuhan; pertanyaan, termasuk yang tidak didukung materi, dicatat apa adanya sebagai "Pertanyaan yang dicatat" dan dibawa ke admin; pernyataan — termasuk pernyataan bermuatan kata harga — diperlakukan sebagai informasi/kebutuhan dan disimpan apa adanya. Harga Indikatif hanya dijawab untuk pesan bertanda pertanyaan, sehingga pesan informasi tidak pernah dijawab template yang tidak nyambung.
 
 ## Harga Indikatif
 
@@ -96,6 +100,8 @@ npm run typecheck # pemeriksaan tipe
 ```
 
 Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/conversation/handleInbound.ts`): pesan + konteks percakapan → balasan + tindakan terlihat, provider-agnostic. Tes perilaku pada seam tersebut (pengumpulan bidang Permintaan Tindak Lanjut, anggaran opsional, larangan meminta data sensitif, permintaan persetujuan, penolakan, pemicu handoff) adalah tes utama. Tes transport memastikan pesan masuk dan balasan keluar benar-benar melalui kanal provider, dan tes wiring memastikan handoff diteruskan ke kanal admin serta terhitung sebagai metrik — keduanya tidak menggantikan tes perilaku pada seam tersebut.
+
+Regresi end-to-end dari dialog nyata ada di `tests/regresi/` (tiket 06): skenario multi-giliran yang disusun dari `data/Vira Arman/chat.md`, kumpulan kasus misfire `.scratch/eval-classify.txt` sebagai kasus tes negatif pada tiga konteks percakapan, serta replay seluruh transkrip di `data/` bila direktorinya tersedia (dilewati otomatis bila tidak ada, karena `data/` memuat data pribadi dan tidak ter-versioning).
 
 ## Struktur
 
