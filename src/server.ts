@@ -158,7 +158,6 @@ async function runActions(
         reason: aksi.reason,
         request: aksi.request,
         revision: aksi.revision,
-        history: aksi.history,
       });
       deps.metrics.recordHandOffDelivered(aksi.request !== null);
     } catch (error) {

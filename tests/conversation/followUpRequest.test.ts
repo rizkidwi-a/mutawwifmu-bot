@@ -107,7 +107,7 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
   assert.ok(teruskan && teruskan.kind === "hand-off-to-admin");
   assert.equal(teruskan.reason, "follow-up-request");
   assert.deepEqual(teruskan.request, catat.request);
-  assert.ok(teruskan.history.some((t) => t.text === "Umrah premium, tujuan Mekkah"));
+  assert.equal("history" in teruskan, false);
 
   assert.match(teksBalasan(turn), /teruskan|diteruskan/i);
 });

@@ -3,7 +3,6 @@ import { resolveReplyLanguage, type Language } from "./language.ts";
 import { faqAnswer } from "../knowledge/businessFaq.ts";
 import type {
   BotTurn,
-  ConversationAction,
   ConversationContext,
   ConversationTurn,
   FollowUpRequest,
@@ -264,7 +263,7 @@ interface StepResult {
   readonly next: FlowState;
 }
 
-/** Tindakan sebelum digabung konteks percakapan menjadi ConversationAction. */
+/** Tindakan internal alur percakapan yang dapat diteruskan ke server. */
 type InternalAction =
   | { readonly kind: "record-faq-answer"; readonly topic: string }
   | { readonly kind: "record-follow-up-request"; readonly request: FollowUpRequest }
@@ -304,23 +303,7 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
   const language = resolveReplyLanguage(context.history, message.text ?? "");
   const result =
     message.text === null ? stepLampiran(state, language) : step(state, message.text, language);
-  const nextHistory = [
-    ...context.history,
-    turnForInbound(message),
-    { role: "asisten" as const, text: result.reply },
-  ];
-  const actions: ConversationAction[] = result.actions.map((aksi) =>
-    aksi.kind === "hand-off-to-admin"
-      ? {
-          kind: "hand-off-to-admin",
-          reason: aksi.reason,
-          request: aksi.request,
-          revision: aksi.revision,
-          history: nextHistory,
-        }
-      : aksi,
-  );
-  return { reply: { text: result.reply }, actions };
+  return { reply: { text: result.reply }, actions: result.actions };
 }
 
 /** Satu langkah pemrosesan teks: balasan, tindakan, dan state berikutnya. */

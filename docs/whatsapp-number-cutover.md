@@ -112,9 +112,9 @@ maupun Fonnte) tidak mendukung pemindahan riwayat chat antar nomor.
   antar-proses maupun antar-nomor, dan keputusan penyimpanan persisten serta
   kebijakan retensi data belum diambil (spec).
 - Yang tetap tersedia setelah cutover: isi Permintaan Tindak Lanjut/handoff yang
-  sudah diteruskan ke admin tercatat pada kanal admin saat diteruskan (lengkap
-  dengan ringkasan dan konteks percakapan saat itu) — bukan lewat pemindahan
-  riwayat.
+  sudah diteruskan ke admin tercatat pada kanal admin saat diteruskan (identitas,
+  alasan, dan ringkasan bila tersedia; tanpa riwayat percakapan) — bukan lewat
+  pemindahan riwayat. Transkrip percakapan lokal tetap mengikuti ADR-0007.
 
 ## Checklist keberhasilan cutover
 

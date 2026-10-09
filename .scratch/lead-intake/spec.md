@@ -4,7 +4,7 @@ Status: needs-triage
 
 ## Problem Statement
 
-Konsultasi penjualan land arrangement (lihat `data/chat.md`) tidak dapat digantikan oleh jawaban FAQ otomatis: pertanyaannya multi-giliran, kontekstual, dan memerlukan pengetahuan operasional di luar materi bisnis. Evaluasi pada `.scratch/eval-classify.txt` menunjukkan corpus yang ada justru menghasilkan jawaban salah konteks pada sebagian pesan. Yang dibutuhkan admin bukan jawaban bot yang mendalam, melainkan ringkasan kebutuhan calon jemaah yang siap ditindaklanjuti.
+Konsultasi penjualan land arrangement (lihat `data/Vira Arman/chat.md`) tidak dapat digantikan oleh jawaban FAQ otomatis: pertanyaannya multi-giliran, kontekstual, dan memerlukan pengetahuan operasional di luar materi bisnis. Evaluasi pada `.scratch/eval-classify.txt` menunjukkan corpus yang ada justru menghasilkan jawaban salah konteks pada sebagian pesan. Yang dibutuhkan admin bukan jawaban bot yang mendalam, melainkan ringkasan kebutuhan calon jemaah yang siap ditindaklanjuti.
 
 ## Solution
 
@@ -19,7 +19,7 @@ Batasi fungsi bot menjadi tiga: merespons cepat setiap chat masuk, menanyakan ke
    - Jumlah jemaah (termasuk keterangan anak/lansia bila disebutkan);
    - Kebutuhan detail (kebutuhan visa per jemaah, rute/asal keberangkatan, hotel pesan mandiri atau lewat kami, catatan khusus);
    - Kisaran anggaran (opsional, boleh dilewati).
-3. **Ringkasan untuk admin.** Ringkasan per bidang ditampilkan kepada calon jemaah, meminta persetujuan penerusan, lalu dikirim ke nomor admin bersama konteks percakapan (mengikuti mekanisme yang berlaku: ADR-0006, persetujuan pada spesifikasi lama).
+3. **Ringkasan untuk admin.** Ringkasan per bidang ditampilkan kepada calon jemaah, meminta persetujuan penerusan, lalu dikirim ke nomor admin bersama identitas pengirim dan alasan handoff; riwayat percakapan tidak disertakan (ADR-0010). Handoff tanpa Permintaan Tindak Lanjut tetap mengirim identitas dan alasan, tanpa riwayat.
 4. **Harga Indikatif.** Pertanyaan harga yang angkanya tercantum materi dijawab dengan Harga Indikatif, selalu dengan penegasan bahwa angka bersifat indikatif dan dapat berubah setelah diperiksa admin.
 5. **Pembaruan kebutuhan.** Setelah ringkasan terkirim, calon jemaah masih dapat menambah atau mengubah kebutuhan; ringkasan yang diperbarui dikirim ulang ke admin dengan penanda pembaruan (keputusan rinci pada tiket 05).
 6. **Pesan non-teks.** Gambar/dokumen (mis. bukti booking, bukti transfer) diakui penerimaannya dan dicatat sebagai lampiran pada ringkasan, tanpa bot menafsirkan isinya.
@@ -35,11 +35,12 @@ Batasi fungsi bot menjadi tiga: merespons cepat setiap chat masuk, menanyakan ke
 
 - Seam tetap `handleInbound(message, context)`; state alur diturunkan dari riwayat percakapan agar seam murni.
 - Nilai bidang disimpan apa adanya dari calon jemaah; tidak ada parafrase atau penafsiran otomatis atas data jemaah.
-- Regresi end-to-end memakai dialog nyata dari `data/chat.md` (tiket 06): tidak ada pesan yang salah dijawab topik lain; setiap kebutuhan utama skenario muncul pada ringkasan admin.
+- Regresi end-to-end memakai dialog nyata dari `data/` (mulai `data/Vira Arman/chat.md`, tiket 06): tidak ada pesan yang salah dijawab topik lain; setiap kebutuhan utama skenario muncul pada ringkasan admin.
 - Invarian yang dipertahankan: tanpa klaim harga final, tanpa janji ketersediaan/waktu balasan admin, tanpa data sensitif.
 
 ## Referensi
 
 - Keputusan lingkup: `docs/adr/0009-fokus-intake-kebutuhan.md`
 - Spesifikasi lama (bagian alur percakapan dilampaui; ketentuan kanal/persetujuan/larangan data tetap berlaku): `.scratch/whatsapp-customer-service-chatbot/spec.md`
-- Evaluasi percakapan nyata: `.scratch/eval-classify.txt` (sumber: `data/chat.md`)
+- Evaluasi percakapan nyata: `.scratch/eval-classify.txt` (sumber: `data/Vira Arman/chat.md`)
+- Analisis pencocokan transkrip dengan korpus: `.scratch/pencocokan-korpus-transkrip/analisis.md`; kasus uji dari transkrip nyata: `tests/korpus/transkrip-nyata.json` (tindak lanjut pada tiket 08–10)

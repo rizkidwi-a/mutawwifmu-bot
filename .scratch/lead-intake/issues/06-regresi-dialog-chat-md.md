@@ -37,3 +37,16 @@ probe sementara (55 kasus `.scratch/eval-classify.txt` dijalankan lewat seam
   saat pengumpulan kini juga mengisi bidang — apakah sebaiknya masuk
   `notedQuestions` seperti pertanyaan `faq`? Keduanya memengaruhi apakah
   Ringkasan Kebutuhan tetap bersih saat dialog nyata di-replay apa adanya.
+
+### Sumber regresi diperbarui (sesi 2026-10-10)
+
+`data/chat.md` telah dipindah ke `data/Vira Arman/chat.md` — jalur tes pada tiket
+ini ikut diperbarui. Selain itu tersedia tiga transkrip jemaah lain di `data/`
+(Cut Emelia, Evi N, `+62 812-1008-778`) yang lebih kaya variasi bahasanya.
+Hasil analisis pencocokannya dengan korpus ada di
+`.scratch/pencocokan-korpus-transkrip/analisis.md`; 54 kasus nyata yang sudah
+dianonimkan masuk `tests/korpus/transkrip-nyata.json` dan otomatis dijalankan
+`node scripts/probe-cakupan.ts`. Saat skenario regresi direplay, gunakan keempat
+transkrip sebagai sumber, dan jadikan dua temuan analisis sebagai kriteria:
+misfire over-faq (tiket 08) dan pertanyaan terdukung yang jatuh ke handoff
+(tiket 09).

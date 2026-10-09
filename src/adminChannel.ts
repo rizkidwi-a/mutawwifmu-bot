@@ -6,9 +6,9 @@
  */
 
 import type { MessageSender } from "./messageSender.ts";
-import type { ConversationTurn, FollowUpRequest, HandOffReason } from "./conversation/types.ts";
+import type { FollowUpRequest, HandOffReason } from "./conversation/types.ts";
 
-/** Isi yang diteruskan ke admin: alasan, Ringkasan Kebutuhan, dan konteks percakapan. */
+/** Isi handoff admin: identitas, alasan, dan Ringkasan Kebutuhan bila tersedia. */
 export interface AdminHandoff {
   /** Nomor calon jemaah (E.164 tanpa tanda '+'). */
   readonly from: string;
@@ -21,7 +21,6 @@ export interface AdminHandoff {
    * pengiriman ulang yang disetujui calon jemaah.
    */
   readonly revision?: true;
-  readonly history: readonly ConversationTurn[];
 }
 
 export interface AdminChannel {
@@ -72,8 +71,8 @@ const REASON_LABELS: Record<HandOffReason, string> = {
 };
 
 /**
- * Ringkasan teks untuk admin (tiket 03): identitas pengirim, Ringkasan
- * Kebutuhan per bidang, sebutan lampiran bila ada, dan konteks percakapan.
+ * Pesan handoff untuk admin: identitas pengirim, alasan, dan Ringkasan
+ * Kebutuhan per bidang bila tersedia. Riwayat percakapan tidak disertakan.
  * Istilahnya mengikuti `CONTEXT.md`: Ringkasan Kebutuhan dari Permintaan
  * Tindak Lanjut.
  */
@@ -91,10 +90,6 @@ export function formatAdminHandoff(handoff: AdminHandoff): string {
   if (handoff.request !== null) {
     lines.push("", "Ringkasan Kebutuhan:");
     lines.push(...requestLines(handoff.request));
-  }
-  lines.push("", "Konteks percakapan:");
-  for (const turn of handoff.history) {
-    lines.push(`${turn.role}: ${turn.text}`);
   }
   return lines.join("\n");
 }

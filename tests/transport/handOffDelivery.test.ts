@@ -126,7 +126,7 @@ async function jalankanAlurLengkap(lingkungan: Lingkungan, persetujuan: string):
   await kirimPesan(lingkungan, persetujuan);
 }
 
-test("permintaan yang disetujui diteruskan ke kanal admin lengkap dengan ringkasan dan konteks percakapan", async () => {
+test("permintaan yang disetujui diteruskan ke kanal admin tanpa riwayat percakapan", async () => {
   const lingkungan = await buatLingkungan();
   try {
     await jalankanAlurLengkap(lingkungan, "Ya, setuju");
@@ -145,9 +145,7 @@ test("permintaan yang disetujui diteruskan ke kanal admin lengkap dengan ringkas
       attachmentCount: 0,
       changeNotes: [],
     });
-    const isiRiwayat = handoff.history.map((t) => t.text);
-    assert.ok(isiRiwayat.includes("Umrah premium, tujuan Mekkah"));
-    assert.ok(isiRiwayat.some((t) => t.includes("diteruskan")));
+    assert.equal("history" in handoff, false);
 
     const balasanTerakhir = lingkungan.balasanTerkirim.at(-1);
     assert.ok(balasanTerakhir);

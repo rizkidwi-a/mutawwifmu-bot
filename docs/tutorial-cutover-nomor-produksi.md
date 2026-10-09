@@ -57,8 +57,8 @@ hanya perlu di-restart agar memuatnya.
   > ya
 
 - [ ] **1.4** **Cek ponsel admin `+62 822 8388 6627`.** Pesan handoff harus masuk dari
-  nomor bot, berisi alasan "Permintaan berbicara dengan manusia", nomor Anda
-  (pengirim pesan tadi), dan konteks percakapan.
+  nomor bot, berisi alasan "Permintaan berbicara dengan manusia" dan nomor Anda
+  (pengirim pesan tadi), tanpa riwayat percakapan.
 
 - [ ] **1.5** Di ponsel penguji tadi, balasan bot menyatakan percakapan **telah
   diteruskan** (tanpa janji waktu balasan admin).

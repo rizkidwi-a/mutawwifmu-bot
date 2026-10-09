@@ -136,8 +136,6 @@ export type ConversationAction =
        * untuk pengiriman ulang tersebut.
        */
       readonly revision?: true;
-      /** Konteks percakapan yang diteruskan bersama handoff. */
-      readonly history: readonly ConversationTurn[];
     };
 
 /** Hasil satu pemrosesan pesan masuk pada seam percakapan. */

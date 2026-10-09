@@ -24,10 +24,6 @@ const handoff: AdminHandoff = {
     attachmentCount: 0,
     changeNotes: [],
   },
-  history: [
-    { role: "calon-jemaah", text: "Umrah premium, tujuan Mekkah" },
-    { role: "asisten", text: "Terima kasih. Kapan rencana tanggal atau periode perjalanan Anda?" },
-  ],
 };
 
 /** Stub port MessageSender: mencatat pesan keluar, atau menolak bila diminta. */
@@ -69,15 +65,24 @@ test("pertanyaan yang dicatat ikut dibawa ke ringkasan untuk admin", async () =>
   assert.match(pesan.text, /Pertanyaan yang dicatat: Apa itu land arrangement\?/);
 });
 
-test("pesan untuk admin memuat konteks percakapan dan alasan penerusan", async () => {
+test("kanal admin mengirim ringkasan kebutuhan tanpa riwayat percakapan", async () => {
   const { sender, terkirim } = buatPengirim();
   await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
   const pesan = terkirim[0];
   assert.ok(pesan);
-  assert.match(pesan.text, /calon-jemaah: Umrah premium, tujuan Mekkah/);
-  assert.match(pesan.text, /asisten: Terima kasih/);
+  assert.match(pesan.text, /Ringkasan Kebutuhan:/);
+  assert.match(pesan.text, /Umrah premium, tujuan Mekkah/);
+  assert.doesNotMatch(pesan.text, /Konteks percakapan:|calon-jemaah:|asisten:/);
+});
+
+test("pesan untuk admin mempertahankan alasan dan identitas tanpa riwayat percakapan", async () => {
+  const { sender, terkirim } = buatPengirim();
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
+  const pesan = terkirim[0];
+  assert.ok(pesan);
   assert.match(pesan.text, /follow-up-request/);
   assert.match(pesan.text, /628123456789/);
+  assert.doesNotMatch(pesan.text, /Konteks percakapan:|calon-jemaah:|asisten:/);
 });
 
 test("anggaran yang tidak disampaikan ditandai apa adanya", async () => {
@@ -93,7 +98,7 @@ test("anggaran yang tidak disampaikan ditandai apa adanya", async () => {
   assert.match(pesan.text, /tidak disampaikan/);
 });
 
-test("pesan admin memuat identitas pengirim, seluruh bidang kebutuhan, lampiran, dan konteks percakapan", async () => {
+test("pesan admin memuat ringkasan lengkap tanpa konteks percakapan", async () => {
   const { sender, terkirim } = buatPengirim();
   const request = handoff.request;
   assert.ok(request);
@@ -110,7 +115,7 @@ test("pesan admin memuat identitas pengirim, seluruh bidang kebutuhan, lampiran,
   assert.match(pesan.text, /Kebutuhan detail: Butuh kamar keluarga/);
   assert.match(pesan.text, /Kisaran anggaran: Sekitar 50 juta/);
   assert.match(pesan.text, /Lampiran: 2 pesan non-teks/);
-  assert.match(pesan.text, /Konteks percakapan:/);
+  assert.doesNotMatch(pesan.text, /Konteks percakapan:|calon-jemaah:|asisten:/);
 });
 
 test("ringkasan untuk admin memakai istilah Ringkasan Kebutuhan", async () => {

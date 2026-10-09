@@ -38,8 +38,9 @@ Alasan:
 
 - Nomor admin harus aktif di WhatsApp dan menerima pesan dari nomor bot.
 - Isi handoff selalu dicatat ke log proses sebelum dikirim (jejak audit dan
-  pemulihan), lalu dikirim sebagai satu pesan teks berisi alasan, ringkasan
-  Permintaan Tindak Lanjut bila ada, dan konteks percakapan.
+  pemulihan), lalu dikirim sebagai satu pesan teks. Ketentuan isi awal juga
+  menyertakan konteks percakapan; keputusan itu diperbarui oleh ADR-0010 agar
+  riwayat tidak ikut dikirim.
 - Server **menunggu** hasil pengiriman sebelum mengklaim penerusan: bila
   pengiriman gagal, calon jemaah diberi pemberitahuan gangguan (bukan klaim
   "diteruskan") dan metrik `handOffsForwarded` tidak naik.

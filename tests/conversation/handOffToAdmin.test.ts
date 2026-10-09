@@ -34,7 +34,7 @@ for (const [pesan, alasan] of KASUS_HANDOFF) {
     assert.ok(handoff && handoff.kind === "hand-off-to-admin");
     assert.equal(handoff.reason, alasan);
     assert.equal(handoff.request, null);
-    assert.ok(handoff.history.some((t) => t.text === pesan));
+    assert.equal("history" in handoff, false);
     assert.match(teksBalasan(turn), /teruskan|diteruskan/i);
     assert.deepEqual(
       turn.actions.filter((a) => a.kind === "record-follow-up-request"),

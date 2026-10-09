@@ -112,6 +112,7 @@ test("handoff yang disetujui dikirim sebagai pesan WhatsApp ke nomor admin", asy
     const handoffText = keAdmin[0]?.text ?? "";
     assert.match(handoffText, /human-request/);
     assert.match(handoffText, /628123456789/);
+    assert.doesNotMatch(handoffText, /Konteks percakapan:|Saya mau bicara dengan manusia saja/);
 
     const balasanKeJemaah = lingkungan.pesanKeluar.filter((p) => p.to === "628123456789").at(-1);
     assert.ok(balasanKeJemaah);

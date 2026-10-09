@@ -113,7 +113,7 @@ evaluasi — jangan diperbaiki di tengah jalan:
    kami) → anggaran (boleh "tidak usah").
 3. **Ringkasan** — Ringkasan Kebutuhan tampil per bidang, lalu minta persetujuan.
 4. **Setuju** → bot konfirmasi; **cek di HP admin `+62 822 8388 6627`**:
-   pesan berisi identitas pengirim, bidang kebutuhan, dan riwayat percakapan.
+   pesan berisi identitas pengirim dan Ringkasan Kebutuhan, tanpa riwayat percakapan (ADR-0010).
 5. **Pembaruan** — kirim perubahan ("tambah airport handling") → ringkasan
    diperbarui → setuju → admin menerima penanda **PEMBARUAN**.
 6. **Harga Indikatif** — "Berapa harga fotografer?" → jawaban dengan penegasan
