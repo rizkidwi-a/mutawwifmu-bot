@@ -69,8 +69,12 @@ materinya ada, plus 1 topik meleset:
 - topik meleset: "brp hrg hotel di mekah?" terbaca `hotel-accommodation`,
   bukan `price-hotel`.
 
-Kandidat tiket kecil berikutnya (perluas pola parafrase) atau diserahkan ke
-lapisan Gemini saat dipasang. Bukan alasan menahan uji coba.
+Kandidat tiket kecil berikutnya sudah diterbitkan: **tiket 11**
+(`.scratch/lead-intake/issues/11-celah-pemahaman-dasar.md`, `needs-triage`) —
+kelas A (pola `-nya`, "nemenin", "sedekah", "keliling", "hrg") siap
+dikerjakan; kelas B (pricelist, hotel per malam, budget) butuh keputusan
+pemilik karena bertabrakan dengan keputusan tercatat. Bukan alasan menahan
+uji coba.
 
 ## Runbook: menjalankan bot (uji coba)
 
@@ -170,7 +174,7 @@ evaluasi — jangan diperbaiki di tengah jalan:
 | --- | --- |
 | Uji coba ulang bot + evaluasi bersama pemilik (perilaku tiket 06–10) | **sesi berikutnya — fokus utama** |
 | Keputusan pemasangan `classifyDenganFallback` (Gemini) ke runtime | menunggu evaluasi; ukur ulang `scripts/probe-cakupan-gemini.ts` vs regex 109/118 (92%) |
-| 9 kasus `dasar.json` yang masih jatuh ke handoff + 1 topik meleset | kandidat tiket pemahaman berikutnya (perluas pola parafrase) atau diserahkan ke Gemini |
+| Tutup celah pemahaman `dasar.json` (9 rute + 1 topik meleset) | **tiket 11** `needs-triage` — kelas A siap dikerjakan; kelas B butuh keputusan pemilik; alternatif diserahkan ke Gemini |
 | Migrasi ke WhatsApp Cloud API (tiket 09 lama) | `ready-for-human`: smoke test masuk + handoff; nomor admin belum di penerima uji; ADR provider baru setelah stabil |
 | Cutover nomor produksi `+62 877 4587 3159` (tiket 06 lama) | `ready-for-human`: verifikasi nomor di provider, isi `.env`, `npm run cutover:check` sampai siap, smoke test live |
 | VPS + domain tetap (pengganti tunnel) | belum |
