@@ -1,67 +1,83 @@
-# Handoff Sesi — 2026-10-08: siap uji coba jalankan bot, evaluasi menyusul
+# Handoff Sesi — 2026-10-10: fitur lead-intake tuntas (tiket 01–10), evaluasi uji coba & keputusan Gemini menyusul
 
-> Handoff sebelumnya (2026-10-07) diarsipkan dalam riwayat git, judulnya
-> "bot hidup di Fonnte + keputusan lapisan pemaham LLM". Isinya masih berlaku
-> untuk latar belakang (131031 Meta, Fonnte, baseline 73%).
+> Handoff sebelumnya (2026-10-08, "siap uji coba jalankan bot, evaluasi
+> menyusul") diarsipkan dalam riwayat git. Runbook Fonnte/tunnel dan
+> larangan-larangannya masih berlaku; yang berubah hanya hasil pekerjaan dan
+> daftar pekerjaan open.
+> Analisis transkrip nyata: `.scratch/pencocokan-korpus-transkrip/analisis.md`
+> (`resolved`); korpus hasilnya di `tests/korpus/transkrip-nyata.json`.
 
 ## Tujuan sesi berikutnya (satu fokus)
 
-**Jalankan bot untuk uji coba nyata**, kumpulkan hasilnya apa adanya, lalu
-**evaluasi bersama pemilik** — baru lanjut ke implementasi (tiket 06 regresi,
-pemasangan lapisan pemaham Gemini ke runtime). Jangan mulai perubahan perilaku
-sebelum evaluasi.
+**Uji coba ulang bot dengan perilaku terkini (setelah tiket 06–10), kumpulkan
+hasilnya apa adanya, lalu evaluasi bersama pemilik.** Hasil evaluasi inilah
+yang menentukan apakah lapisan pemahaman Gemini dipasang ke runtime. Jangan
+mulai perubahan perilaku baru sebelum evaluasi.
 
-## Ringkas: apa yang terjadi sejak handoff terakhir
+## Ringkas: apa yang terjadi sejak handoff 2026-10-08
 
-1. **Fitur lead-intake selesai (tiket 01–05, spec `.scratch/lead-intake/spec.md`,
-   ADR-0009).** Bot kini berpusat pada Permintaan Tindak Lanjut: respons cepat →
-   menu Layanan → kumpul bidang (layanan, tanggal/periode, jumlah jemaah,
-   kebutuhan detail, anggaran opsional) → Ringkasan Kebutuhan per bidang →
-   persetujuan → pesan ke admin. FAQ non-harga tidak dijawab dari materi
-   (dicatat sebagai kebutuhan); hanya Harga Indikatif yang dijawab, selalu
-   dengan penegasan "angka dapat berubah setelah diperiksa admin". Setelah
-   ringkasan terkirim, perubahan kebutuhan dikirim ulang berpenanda
-   "PEMBARUAN" dengan persetujuan baru.
-2. **Lapisan pemaham Gemini selesai dibuat dan kini ter-commit** (ADR-0008,
-   commit `5b29068`): `geminiPemaham.ts` + `pengamanAngka.ts` +
-   `classifyDenganFallback.ts` + `scripts/probe-cakupan-gemini.ts` + tes.
-   **Belum terpasang ke runtime** — `handleInbound` masih memakai
-   `classifyInbound` (regex). Bot yang dijalankan nanti = perilaku lead-intake
-   dengan pemahaman regex. Pemasangan menyusul setelah evaluasi.
-3. **Riset pengganti WhatsApp API** ter-commit (`a5e2ff0`) — masih "belum
-   keputusan"; jangan diubah sebelum pemilik memilih.
-4. **Tiket 06 (regresi dialog nyata) selesai (`resolved`).** Tes regresi ada di
-   `tests/regresi/`: skenario multi-giliran dari `data/Vira Arman/chat.md`,
-   55 kasus `.scratch/eval-classify.txt` sebagai tes negatif, dan replay
-   keempat transkrip `data/` (bila tersedia). Misfire HARGA/price-hotel
-   diperbaiki; keputusan basa-basi & pertanyaan non-`faq` diimplementasikan.
-   Detail lengkap di komentar tiket 06.
+1. **Bot pernah dijalankan di Fonnte.** Transkrip `data/transkrip-percakapan.csv`
+   ada (terakhir ditulis 9 Okt). Evaluasi uji coba penuh dengan perilaku
+   terkini belum dicatat — itu fokus sesi berikutnya.
+2. **Analisis pencocokan transkrip nyata selesai** (`.scratch/pencocokan-korpus-transkrip/analisis.md`,
+   `resolved`): 4 transkrip admin–jemaah, 423 pesan, 54 kasus korpus. Dua
+   temuan utama: over-faq (pertanyaan tanpa materi justru dijawab `faq`) dan
+   varian ejaan/parafrase yang lolos ke handoff.
+3. **Tiket lanjutan 06–10 selesai, semuanya `resolved`:**
+   - **06 regresi dialog nyata** — skenario multi-giliran, 55 kasus misfire,
+     replay transkrip di `tests/regresi/`.
+   - **07 handoff tanpa riwayat** — payload handoff hanya nomor + alasan +
+     Ringkasan Kebutuhan (ADR-0010).
+   - **08 redam over-faq** — permintaan harga spesifik, timing, include,
+     kebijakan, topik tanpa materi semuanya jatuh ke handoff.
+   - **09 varian ejaan & false-negative** — normalisasi `mutawwif`/`haramain`/
+     `siskopatuh`, kata harga berimbuhan `-nya`, detail dokumen tanpa kata
+     kunci.
+   - **10 topik gap tetap handoff** (keputusan pemilik) — Raudhah/Nusuk,
+     siskopatuh, asuransi, refund, vaksin, Haramain, metode pembayaran, T&C
+     DP/pelunasan, perlengkapan/zam-zam, konversi SAR→IDR; pertanyaan
+     non-urgent yang menjadi pesan pertama masuk intake lebih dahulu dan
+     tercatat pada Ringkasan Kebutuhan, bukan handoff tanpa isi.
+4. **Seluruh tiket lead-intake 01–10 kini `resolved`.** Tidak ada tiket fitur
+   intake yang terbuka.
+5. **Angka terkini:** `npm test` **289 lulus**; typecheck bersih; probe korpus
+   118 kasus → rute tepat **109/118 (92%)**, `transkrip-nyata` 54/54,
+   `topik-gap` 16/16, `varian-ejaan` 6/6, `typo` 6/6, `dasar.json` 32/41.
+6. **Lapisan Gemini masih belum terpasang ke runtime.** `classifyDenganFallback`
+   hanya dipakai `scripts/probe-cakupan-gemini.ts` dan tes; `handleInbound`
+   masih memakai `classifyInbound` (regex).
+7. **Konfigurasi aktif:** provider **Fonnte**, nomor pengembangan
+   `+62 895 0700 3830`; `npm run cutover:check` masih **belum siap**
+   (`production-sender-number`), nomor produksi `+62 877 4587 3159` belum
+   diverifikasi di provider.
+8. **Cloud API pernah diuji live** lewat nomor uji Meta `+1 555-631-6757`
+   (handshake webhook + kirim keluar berhasil; lihat komentar tiket 09 lama).
+   Sisa: smoke test masuk + handoff, lalu ADR provider baru. `.env` saat ini
+   kembali memakai Fonnte; app Meta masih bernama `tes`.
 
-## Temuan analisis yang menunggu evaluasi (ringkas)
+## Sisa pemahaman yang diketahui (bukan blocker)
 
-Probe 55 kasus `.scratch/eval-classify.txt` lewat seam `handleInbound`:
+Probe korpus masih mencatat 9 kasus `dasar.json` yang jatuh ke handoff padahal
+materinya ada, plus 1 topik meleset:
 
-- ✅ Tidak ada lagi balasan dari topik FAQ non-harga (ADR-0009 menutup kelas
-  misfire itu).
-- ❌ Satu misfire nyata: pesan pernyataan bermuatan kata harga ("...cuma ganti
-  dari harga free cancellation to non refundable...") dijawab **template Harga
-  Indikatif hotel** — padahal itu informasi, bukan pertanyaan harga. Usulan:
-  jawaban harga hanya untuk pesan bertanda pertanyaan.
-- ❓ Dua butir keputusan: (a) basa-basi saat pengumpulan ("makasi ya kak")
-  kini mengisi bidang yang sedang ditanya; (b) pertanyaan non-harga yang
-  routing-nya bukan `faq` saat pengumpulan juga mengisi bidang. Keduanya
-  menentukan apakah Ringkasan Kebutuhan tetap bersih saat dialog nyata
-  di-replay apa adanya.
+- campur-inggris: "boleh minta pricelist?", "price list nya lengkap gak?";
+- parafrase harga: "kisaran biaya hotel per malam brp ya?", "budget buat nginep
+  di makkah kira-kira berapa", "biaya tur kotanya gimana?";
+- parafrase layanan: "yang nemenin ibadah namanya apa ya", "kendaraannya apa
+  aja ya", "keliling madinah bisa dibantu?", "mau kasih sedekah lewat kalian
+  bisa?";
+- topik meleset: "brp hrg hotel di mekah?" terbaca `hotel-accommodation`,
+  bukan `price-hotel`.
 
-Detailnya di `.scratch/lead-intake/issues/06-regresi-dialog-chat-md.md`
-bagian Comments.
+Kandidat tiket kecil berikutnya (perluas pola parafrase) atau diserahkan ke
+lapisan Gemini saat dipasang. Bukan alasan menahan uji coba.
 
 ## Runbook: menjalankan bot (uji coba)
 
 ### 1. Preflight
 
 ```bash
-npm test && npm run typecheck   # terakhir: 239 tes hijau, typecheck bersih
+npm test && npm run typecheck   # terakhir: 289 tes hijau, typecheck bersih
 cat .env                        # pastikan WHATSAPP_PROVIDER=fonnte & token ada
 ```
 
@@ -69,26 +85,24 @@ Jangan menulis isi `.env` (token, kunci) ke berkas mana pun.
 
 ### 2. Perangkat Fonnte
 
-Terakhir tercatat `device_status: disconnect` — bot tidak bisa kirim/menerima
-selama perangkat terputus. Cek status perangkat di dashboard Fonnte
-(`https://fonnte.com`) dan **scan ulang QR** bila terputus. Perangkat:
-nomor bot `6289507003830`, paket Free, kuota ~990, expired 31 Oktober 2026.
+Cek status perangkat di dashboard Fonnte (`https://fonnte.com`); **scan ulang
+QR** bila `disconnect`. Perangkat: nomor bot `6289507003830`, paket Free,
+expired 31 Oktober 2026.
 
 ### 3. Start bot + tunnel
 
 ```bash
-# Terminal 1 — bot (Windows: pakai Start-Process agar tahan lama)
+# Terminal 1 — bot
 node --env-file-if-exists=.env src/main.ts
 # banner benar: "Bot WhatsApp MUTAWWIFMU siap — provider fonnte, nomor pengirim 6289507003830, port 3000"
 
 # Terminal 2 — tunnel
 cloudflared tunnel --url http://localhost:3000
-# catat URL https://....trycloudflare.com
 ```
 
 ### 4. Daftarkan webhook (WAJIB bila URL berubah)
 
-Quick tunnel memberi URL acak setiap restart. Di dashboard Fonnte, set webhook ke:
+Di dashboard Fonnte, set webhook ke:
 
 ```
 https://<url-baru>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN dari .env>
@@ -101,43 +115,47 @@ https://<url-baru>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN dari .env>
 ```bash
 curl http://localhost:3000/metrics
 # kirim pesan dari HP lain (bukan nomor bot) → balasan masuk dalam hitungan detik
-# cek juga data/transkrip-percakapan.csv bertambah dua baris per pesan
+# cek data/transkrip-percakapan.csv bertambah dua baris per pesan
 ```
 
-## Skenario uji coba (dari HP lain, terakhir memakai `6285275258899`)
+## Skenario uji coba (dari HP lain)
 
 Jalankan berurutan, **catat hasilnya apa adanya** (screenshot/transkrip) untuk
 evaluasi — jangan diperbaiki di tengah jalan:
 
 1. **Pembukaan** — "Assalamualaikum, mau tanya land arrangement umroh" →
-   balasan cepat + **Menu Layanan MUTAWWIFMU**.
+   balasan cepat + Menu Layanan MUTAWWIFMU.
 2. **Pengumpulan** — jawab layanan → tanggal/periode → jumlah jemaah →
-   kebutuhan detail (boleh sekaligus: visa per jemaah, rute, hotel mandiri/lewat
-   kami) → anggaran (boleh "tidak usah").
+   kebutuhan detail → anggaran (boleh "tidak usah").
 3. **Ringkasan** — Ringkasan Kebutuhan tampil per bidang, lalu minta persetujuan.
-4. **Setuju** → bot konfirmasi; **cek di HP admin `+62 822 8388 6627`**:
-   pesan berisi identitas pengirim dan Ringkasan Kebutuhan, tanpa riwayat percakapan (ADR-0010).
+4. **Setuju** → cek di HP admin `+62 822 8388 6627`: identitas pengirim +
+   Ringkasan Kebutuhan, tanpa riwayat percakapan (ADR-0010).
 5. **Pembaruan** — kirim perubahan ("tambah airport handling") → ringkasan
    diperbarui → setuju → admin menerima penanda **PEMBARUAN**.
 6. **Harga Indikatif** — "Berapa harga fotografer?" → jawaban dengan penegasan
    "angka dapat berubah setelah diperiksa admin".
-7. **Pertanyaan non-harga** — "Apa itu land arrangement?" → dicatat, tidak
-   dijawab dari materi, terbawa ke ringkasan admin.
-8. **Lampiran** — kirim gambar/dokumen → diakui sebagai lampiran, isinya tidak
+7. **Pertanyaan topik gap sebagai pesan pertama (perilaku tiket 10)** —
+   mulai percakapan baru dengan "berapa biaya siskopatuhnya?" → bot **tidak**
+   langsung meminta persetujuan handoff; pesannya dicatat, pengumpulan
+   kebutuhan berlanjut, dan pertanyaannya muncul di Ringkasan Kebutuhan admin.
+8. **Over-faq (perilaku tiket 08/09)** — "kalo upgrade ke staria tambahannya
+   brp?" dan "muthowif itu biayanya berapa?" → yang pertama handoff (tidak
+   dijawab), yang kedua Harga Indikatif mutawwif.
+9. **Lampiran** — kirim gambar/dokumen → diakui sebagai lampiran, isinya tidak
    ditafsirkan.
-9. **(opsional) Pemicu manusia** — "saya mau bicara dengan manusia" → langsung
-   ke alur handoff.
+10. **(opsional) Pemicu manusia** — "saya mau bicara dengan manusia" → langsung
+    ke alur handoff.
 
 ## Peringatan untuk sesi baru
 
-- **Jangan ubah perilaku percakapan sebelum evaluasi.** Tiket 06 dan pemasangan
-  Gemini menunggu hasil uji coba + keputusan pemilik.
-- **URL tunnel berubah setiap restart** → daftarkan ulang webhook Fonnte
-  (lihat langkah 4).
+- **Jangan ubah perilaku percakapan sebelum evaluasi.** Keputusan pemasangan
+  Gemini menunggu hasil uji coba.
+- **URL tunnel berubah setiap restart** → daftarkan ulang webhook Fonnte.
 - **Uji selalu dari HP lain.** `6289507003830` nomor bot; bot mengabaikan pesan
   dari nomornya sendiri.
-- **Jangan kembali ke Meta Cloud API** sebelum akun bisnis tidak lagi terkunci
-  (131031) dan verifikasi bisnis selesai.
+- **Jangan jadikan Meta Cloud API provider produksi** sebelum smoke test
+  masuk + handoff selesai dan keputusan provider dicatat sebagai ADR baru
+  (menggantikan ADR-0003). Isu akun bisnis 131031 masih relevan.
 - **Angka/harga tidak boleh digenerasi** — hanya template manual
   (`pengamanAngka.ts` menjaganya ada tes). Larangan spec, bukan selera.
 - **Lapisan Gemini belum aktif di runtime.** `GEMINI_API_KEY` di `.env` hanya
@@ -150,15 +168,14 @@ evaluasi — jangan diperbaiki di tengah jalan:
 
 | Butir | Status |
 | --- | --- |
-| Uji coba jalankan bot (runbook di atas) | **sesi berikutnya — fokus utama** |
-| Evaluasi hasil uji coba bersama pemilik | menyusul setelah uji coba |
-| Tiket 06 regresi dialog nyata | **selesai (`resolved`)** — tes di `tests/regresi/`, lihat komentar tiket 06 |
-| Pemasangan `classifyDenganFallback` ke runtime | menunggu keputusan hasil evaluasi (ukur ulang dengan `scripts/probe-cakupan-gemini.ts`, bandingkan vs 73%) |
-| Keputusan basa-basi & pertanyaan non-`faq` saat pengumpulan | **diputuskan & terimplementasi** (tiket 06, bagian "Keputusan dua butir terbuka") |
-| Tiket 08 (redam over-faq) & 09 (varian ejaan) | `ready-for-agent`; kriterianya sudah tercatat sebagai tes `todo` di `tests/regresi/regresiDialogNyata.test.ts` |
-| Pilihan penyedia pengganti WhatsApp API | riset selesai (`a5e2ff0`), belum keputusan |
-| VPS + domain tetap (pengganti tunnel, tiket 07 lama) | belum |
-| Nomor produksi `+62 877 4587 3159` (tiket 06 lama) | tertunda, terkunci isu Meta |
+| Uji coba ulang bot + evaluasi bersama pemilik (perilaku tiket 06–10) | **sesi berikutnya — fokus utama** |
+| Keputusan pemasangan `classifyDenganFallback` (Gemini) ke runtime | menunggu evaluasi; ukur ulang `scripts/probe-cakupan-gemini.ts` vs regex 109/118 (92%) |
+| 9 kasus `dasar.json` yang masih jatuh ke handoff + 1 topik meleset | kandidat tiket pemahaman berikutnya (perluas pola parafrase) atau diserahkan ke Gemini |
+| Migrasi ke WhatsApp Cloud API (tiket 09 lama) | `ready-for-human`: smoke test masuk + handoff; nomor admin belum di penerima uji; ADR provider baru setelah stabil |
+| Cutover nomor produksi `+62 877 4587 3159` (tiket 06 lama) | `ready-for-human`: verifikasi nomor di provider, isi `.env`, `npm run cutover:check` sampai siap, smoke test live |
+| VPS + domain tetap (pengganti tunnel) | belum |
+| Tiket 07 lama: adapter provider BSP sebagai fallback | `needs-info` |
+| Persistent conversation store / retensi | keputusan belum diambil (README) |
 
 ## Konteks singkat (tidak berubah)
 
@@ -166,11 +183,12 @@ evaluasi — jangan diperbaiki di tengah jalan:
 - Runtime: Node >= 22.18, TypeScript via type stripping, **tanpa dependency
   runtime** (ADR-0002).
 - Seam percakapan provider-agnostic: `src/conversation/handleInbound.ts`
-  (`handleInbound(message, context): BotTurn`) — **jangan dirusak**, 239 tes
+  (`handleInbound(message, context): BotTurn`) — **jangan dirusak**; 289 tes
   menjaganya.
-- Spec & tiket fitur aktif: `.scratch/lead-intake/` (spec + issues/01–06);
-  spesifikasi lama `.scratch/whatsapp-customer-service-chatbot/`. ADR di
-  `docs/adr/`.
+- Tiket fitur intake: `.scratch/lead-intake/` (spec + issues/01–10, semuanya
+  `resolved`); spesifikasi lama `.scratch/whatsapp-customer-service-chatbot/`.
+  ADR di `docs/adr/` (terbaru: ADR-0010 handoff tanpa riwayat).
 - Materi bisnis: `BOOKLET MUTAWWIFMU.md`, `HOTEL RATES MUTAWWIFMU (2).md`.
 - `data/` di-gitignore (data pribadi: transkrip + nomor). Korpus uji di
-  `tests/korpus/` sengaja ter-versioning.
+  `tests/korpus/` sengaja ter-versioning; tambah kasus cukup lewat JSON
+  (lihat `tests/korpus/README.md`).
