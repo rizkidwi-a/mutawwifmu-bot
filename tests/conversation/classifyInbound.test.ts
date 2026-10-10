@@ -191,6 +191,18 @@ test("varian ejaan nama layanan tetap dikenali sebagai topik materi", () => {
   }
 });
 
+test("varian ejaan topik tanpa materi tetap jatuh ke handoff, bukan opener", () => {
+  // Tanpa tanda tanya agar hasilnya bergantung pada normalisasi + pola topik.
+  assert.deepEqual(classifyInbound("kalo harramain train on time ga"), {
+    kind: "handoff",
+    trigger: "unsupported-question",
+  });
+  assert.deepEqual(classifyInbound("siskapatuhnya itu wajib ga"), {
+    kind: "handoff",
+    trigger: "unsupported-question",
+  });
+});
+
 test("detail dokumen paspor dikenali tanpa kata kunci visa/dokumen", () => {
   assert.deepEqual(classifyInbound("Paspor nya apakah halaman depan aja atau semuanya?"), {
     kind: "faq",

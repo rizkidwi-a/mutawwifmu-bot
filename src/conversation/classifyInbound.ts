@@ -177,11 +177,13 @@ const POLICY_OR_PROCESS_REQUEST =
 
 /**
  * Kelompok 5 & 6 tiket 08 — topik tanpa padanan materi: kereta Haramain
- * (termasuk "HHR"), Raudhah, dan Nusuk. "kereta gantung" dikecualikan karena
- * rinciannya justru tercantum pada materi city tour Thaif.
+ * (termasuk "HHR"), Raudhah, Nusuk, dan siskopatuh. "kereta gantung"
+ * dikecualikan karena rinciannya justru tercantum pada materi city tour Thaif.
+ * Tiket 09: varian ejaan (harramain, siskapatuh) dinormalkan lebih dahulu, jadi
+ * pola ini cukup memuat bentuk baku.
  */
 const UNSUPPORTED_TOPIC =
-  /\b(raudhah|raudah|rawdhah|raudhatul|rawda|nusuk)\b|\b(?:(?:al\s?)?haramain|harramain|hhr)\b|\bkereta(?!\s*gantung)\b/i;
+  /\b(raudhah|raudah|rawdhah|raudhatul|rawda|nusuk|siskopatuh)\b|\b(?:(?:al\s?)?haramain|hhr)\b|\bkereta(?!\s*gantung)\b/i;
 
 /**
  * Kelompok 6 tiket 08 — kerjasama/kolaborasi pihak ketiga (mis. "ada kerjasama
