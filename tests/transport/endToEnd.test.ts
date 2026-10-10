@@ -7,6 +7,7 @@ import { createTransport } from "../../src/adapters/factory.ts";
 import { loadConfig } from "../../src/config.ts";
 import { InMemoryConversationStore } from "../../src/conversationStore.ts";
 import { InMemoryMetrics } from "../../src/metrics.ts";
+import { JedaStorePalsu } from "../pembantuJeda.ts";
 
 const appSecret = "app-secret-untuk-tanda-tangan";
 
@@ -102,6 +103,7 @@ async function buatLingkungan(): Promise<Lingkungan> {
     adminChannel: { deliver: () => {} },
     metrics: new InMemoryMetrics(),
     transcript: { record: () => {} },
+    jeda: new JedaStorePalsu(),
   });
   const portApp = await dengarkan(server);
 

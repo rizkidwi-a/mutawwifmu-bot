@@ -20,6 +20,7 @@ import {
   CsvConversationTranscript,
   type ConversationTranscript,
 } from "../../src/conversationTranscript.ts";
+import { JedaStorePalsu } from "../pembantuJeda.ts";
 
 const envKonfigurasi: Record<string, string> = {
   WHATSAPP_PROVIDER: "fonnte",
@@ -88,6 +89,7 @@ async function buatLingkungan(opsi: { transcript?: ConversationTranscript } = {}
     adminChannel: { deliver: () => {} },
     metrics: new InMemoryMetrics(),
     transcript,
+    jeda: new JedaStorePalsu(),
   });
   const portApp = await dengarkan(server);
 

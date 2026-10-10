@@ -14,6 +14,7 @@ import { createAppServer } from "../../src/server.ts";
 import { loadConfig } from "../../src/config.ts";
 import { InMemoryConversationStore } from "../../src/conversationStore.ts";
 import { InMemoryMetrics } from "../../src/metrics.ts";
+import { JedaStorePalsu } from "../pembantuJeda.ts";
 import type { AdminChannel, AdminHandoff } from "../../src/adminChannel.ts";
 import type { InboundTransport } from "../../src/inboundTransport.ts";
 import type { MessageSender } from "../../src/messageSender.ts";
@@ -75,6 +76,7 @@ async function buatLingkungan(env: Record<string, string>): Promise<Lingkungan> 
     adminChannel,
     metrics,
     transcript: { record: () => {} },
+    jeda: new JedaStorePalsu(),
   });
   const port = await dengarkan(server);
 

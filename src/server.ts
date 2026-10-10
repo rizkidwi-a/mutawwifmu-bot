@@ -8,12 +8,19 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AdminChannel } from "./adminChannel.ts";
+import {
+  DAFTAR_PERINTAH_ADMIN,
+  applyAdminCommand,
+  isCommandText,
+  parseAdminCommand,
+} from "./adminCommands.ts";
 import type { AppConfig } from "./config.ts";
 import { handleInbound, turnForInbound } from "./conversation/handleInbound.ts";
-import type { ConversationAction, ConversationTurn } from "./conversation/types.ts";
+import type { ConversationAction, ConversationTurn, InboundMessage } from "./conversation/types.ts";
 import type { ConversationStore } from "./conversationStore.ts";
 import type { ConversationRole, ConversationTranscript } from "./conversationTranscript.ts";
 import type { InboundTransport } from "./inboundTransport.ts";
+import type { JedaStore } from "./jedaStore.ts";
 import type { MessageSender } from "./messageSender.ts";
 import type { Metrics } from "./metrics.ts";
 
@@ -30,6 +37,8 @@ export interface AppServerDeps {
   readonly metrics: Metrics;
   /** Catatan transkrip percakapan (tiket 08); efek samping best-effort. */
   readonly transcript: ConversationTranscript;
+  /** State Jeda Percakapan & Nonaktif Sementara (tiket 01); perintah admin + gerbang jeda. */
+  readonly jeda: JedaStore;
 }
 
 /**
@@ -85,6 +94,26 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
       if (pesan.from === deps.config.whatsapp.senderNumber) {
         continue;
       }
+      // Perintah admin diproses sebelum seam percakapan: hanya dari nomor admin
+      // dan tidak pernah memicu balasan `handleInbound`. Pesan berawalan `#`
+      // dari nomor lain jatuh ke jalur biasa di bawah.
+      if (pesan.from === deps.config.adminNumber && isCommandText(pesan.text)) {
+        await handleAdminCommand(deps, pesan);
+        continue;
+      }
+      // Giliran masuk (termasuk sebutan lampiran untuk pesan non-teks) dipakai
+      // baik oleh jalur diam saat jeda maupun jalur percakapan normal.
+      const giliranMasuk = turnForInbound(pesan);
+      // Gerbang Jeda Percakapan (tiket 03): pesan dari kontak yang sedang
+      // dijeda — atau saat Nonaktif Sementara global — hanya dicatat apa adanya
+      // ke transkrip sebagai calon jemaah. Seam tidak dipanggil, state alur
+      // tidak dibaca/ditulis, dan tidak ada balasan apa pun ke calon jemaah.
+      // Perintah admin sudah diproses di atas, sehingga `#lanjut`/`#bot on`
+      // tetap menjadi jalan kembali saat bot nonaktif.
+      if (deps.jeda.isPaused(pesan.from)) {
+        recordTranscript(deps, pesan.from, "calon-jemaah", giliranMasuk.text);
+        continue;
+      }
       const konteks = deps.conversations.load(pesan.from);
       const turn = handleInbound(pesan, konteks);
       const deliveryFailed = await runActions(deps, pesan.from, turn.actions);
@@ -97,7 +126,6 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
       }
       // Giliran lampiran (pesan non-teks) ikut direkam apa adanya dengan
       // sebutannya, agar Ringkasan Kebutuhan dan transkrip dapat menyebutnya.
-      const giliranMasuk = turnForInbound(pesan);
       recordTranscript(deps, pesan.from, "calon-jemaah", giliranMasuk.text);
       const nextHistory: ConversationTurn[] = [...konteks.history, giliranMasuk];
       if (sentText !== null) {
@@ -111,6 +139,33 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
   }
 
   sendJson(res, 404, { error: "tidak ditemukan" });
+}
+
+/**
+ * Proses perintah admin dari `WHATSAPP_ADMIN_NUMBER`: urai, terapkan lewat
+ * port state jeda, lalu kirim balasan singkat hanya ke nomor admin. Pesan
+ * perintah tidak masuk transkrip pelanggan; jejaknya ada di log proses
+ * (siapa, perintah apa).
+ */
+async function handleAdminCommand(deps: AppServerDeps, pesan: InboundMessage): Promise<void> {
+  const teks = (pesan.text ?? "").trim();
+  console.log(`Perintah admin dari ${pesan.from}: ${teks}`);
+  const perintah = parseAdminCommand(teks);
+  const balasan = perintah === null ? DAFTAR_PERINTAH_ADMIN : applyAdminCommand(perintah, { store: deps.jeda });
+  await deps.sender.sendText(pesan.from, balasan);
+}
+
+/**
+ * Catat kontak handoff terakhir untuk `#jeda` tanpa nomor (tiket 02).
+ * Best-effort: handoff yang sudah terkirim tidak boleh dianggap gagal hanya
+ * karena pencatatan nomor gagal.
+ */
+function catatHandoffTerakhir(deps: AppServerDeps, from: string): void {
+  try {
+    deps.jeda.setLastHandoffContact(from);
+  } catch (error) {
+    console.error("Pencatatan kontak handoff terakhir gagal:", error);
+  }
 }
 
 /**
@@ -160,6 +215,7 @@ async function runActions(
         revision: aksi.revision,
       });
       deps.metrics.recordHandOffDelivered(aksi.request !== null);
+      catatHandoffTerakhir(deps, from);
     } catch (error) {
       // Kegagalan penerusan jangan senyap: admin tidak menerima handoff dan
       // calon jemaah tidak boleh diberi klaim palsu.

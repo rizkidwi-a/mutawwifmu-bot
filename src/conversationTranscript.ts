@@ -70,7 +70,7 @@ export class CsvConversationTranscript implements ConversationTranscript {
 }
 
 /** Waktu WIB (UTC+7) format `YYYY-MM-DD HH:MM:SS`, terlepas dari zona waktu proses. */
-function formatWibTime(at: Date): string {
+export function formatWibTime(at: Date): string {
   const wib = new Date(at.getTime() + 7 * 60 * 60 * 1000);
   const pad = (value: number): string => String(value).padStart(2, "0");
   return (

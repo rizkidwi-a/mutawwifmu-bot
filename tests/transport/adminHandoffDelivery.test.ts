@@ -13,6 +13,7 @@ import { loadConfig } from "../../src/config.ts";
 import { WhatsAppAdminChannel } from "../../src/adminChannel.ts";
 import { InMemoryConversationStore } from "../../src/conversationStore.ts";
 import { InMemoryMetrics } from "../../src/metrics.ts";
+import { JedaStorePalsu } from "../pembantuJeda.ts";
 import type { InboundTransport } from "../../src/inboundTransport.ts";
 import type { MessageSender } from "../../src/messageSender.ts";
 import type { InboundMessage } from "../../src/conversation/types.ts";
@@ -63,6 +64,7 @@ async function buatLingkungan(opsi: { adminGagal?: boolean } = {}): Promise<Ling
     adminChannel: new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}),
     metrics,
     transcript: { record: () => {} },
+    jeda: new JedaStorePalsu(),
   });
   const port = await dengarkan(server);
 

@@ -41,3 +41,17 @@ _Avoid_: harga final, harga terkonfirmasi
 **Layanan MUTAWWIFMU**:
 Layanan yang tercantum di profil perusahaan: mutawwif outsourcing, tour guide, visa dan dokumen, hotel dan akomodasi, transportasi, airport handling, charity program, dukungan multibahasa, fotografi dan videografi, serta custom itinerary.
 _Avoid_: hanya layanan hotel, jika yang dimaksud seluruh katalog perusahaan
+
+## Operasional Admin
+
+**Jeda Percakapan**:
+Keadaan bot berhenti membalas satu Calon Jemaah karena percakapan sedang ditangani admin secara manual; pesan yang masuk selama jeda tetap dicatat ke transkrip apa adanya, tetapi tidak dibalas dan tidak mengubah state alur percakapan.
+_Avoid_: blokir pelanggan, mode senyap
+
+**Ambil Alih**:
+Tindakan admin mengambil alih percakapan dari bot dengan menjeda kontak tersebut, sehingga admin membalas langsung dari nomor bot tanpa direbut balasan otomatis.
+_Avoid_: takeover; handoff (handoff adalah penerusan percakapan ke admin, bukan pengambilalihan balasan)
+
+**Nonaktif Sementara**:
+Keadaan bot berhenti membalas semua kontak tanpa mematikan proses; diaktifkan dan diakhiri lewat perintah admin, dan state-nya bertahan saat proses restart.
+_Avoid_: shutdown, mati total

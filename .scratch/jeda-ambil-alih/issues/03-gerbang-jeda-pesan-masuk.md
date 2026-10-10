@@ -10,7 +10,7 @@ Efek yang dijaga: draft Permintaan Tindak Lanjut, mode pembaruan setelah handoff
 
 **Blocked by:** 01: State jeda persisten (per kontak + global)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Gerbang menahan balasan untuk kontak yang dijeda; `sender.sendText` tidak pernah dipanggil untuk kontak tersebut (diuji dengan fake sender).
 - [ ] Gerbang menahan balasan untuk semua kontak saat Nonaktif Sementara, kecuali pesan perintah admin.
@@ -32,3 +32,4 @@ Efek yang dijaga: draft Permintaan Tindak Lanjut, mode pembaruan setelah handoff
 - Sumber: `.scratch/jeda-ambil-alih/spec.md` (bagian Ruang Lingkup #3).
 - Pesan selama jeda sengaja **tidak** masuk riwayat percakapan bot — hanya transkrip CSV. Alasan: memasukkannya akan menggeser state alur (mis. dianggap jawaban pengumpulan kebutuhan) padahal admin yang sedang menangani. Transkrip CSV tetap lengkap sebagai catatan untuk pemilik.
 - ADR-0011 menjadi tempat mencatat alasan keputusan (bot diam penuh, tanpa pemberitahuan otomatis ke pelanggan; state jeda persisten di `data/`).
+- Selesai: gerbang `deps.jeda.isPaused(pesan.from)` di `src/server.ts` ditempatkan **setelah** pemrosesan perintah admin dan **sebelum** `conversations.load`/`handleInbound`. Pesan yang ditahan hanya menulis satu baris transkrip (peran calon jemaah, teks apa adanya termasuk sebutan lampiran); kegagalan transkrip best-effort tidak mengubah keputusan diam. Tes: `tests/transport/jedaPesanMasuk.test.ts` (7 kasus). Perintah admin tetap jalan kembali karena diproses lebih dulu — `#bot on`/`#lanjut` tidak pernah mencapai gerbang.

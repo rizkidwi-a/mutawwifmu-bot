@@ -80,6 +80,29 @@ Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) —
 
 Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FAQ yang terjawab tanpa handoff (metrik pendamping) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
 
+## Jeda & Ambil Alih
+
+Admin dapat menghentikan balasan otomatis untuk satu calon jemaah (**Jeda Percakapan**) atau untuk semua kontak (**Nonaktif Sementara**) lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (lihat bagian perintah admin). Selama jeda, pesan yang masuk tetap tercatat satu baris di transkrip percakapan (peran calon jemaah, apa adanya termasuk sebutan lampiran) tetapi **tidak dibalas**, **tidak melewati seam percakapan**, dan **tidak mengubah state alur** — draft Permintaan Tindak Lanjut serta mode pembaruan setelah handoff tetap utuh sampai admin mengirim `#lanjut`/`#bot on`. Kontak lain tetap dibalas normal.
+
+State jeda disimpan persisten di `data/jeda-state.json` (di-ignore git karena memuat nomor pelanggan) sehingga bertahan saat proses restart. Tidak ada auto-resume: jeda hanya berakhir lewat perintah eksplisit. Batasan yang disadari: selama jeda bot diam penuh — tanpa pemberitahuan apa pun ke pelanggan dan tanpa janji waktu balasan. Keputusan dan alasannya: `docs/adr/0011-jeda-dan-ambil-alih-admin.md`.
+
+## Perintah admin via WhatsApp
+
+Admin mengendalikan balasan bot lewat pesan WhatsApp dari nomor `WHATSAPP_ADMIN_NUMBER` (nomor terpisah dari nomor bot — lihat `docs/adr/0006-kanal-admin-whatsapp.md`). Perintah dikenali tanpa memandang huruf besar/kecil dan spasi longgar:
+
+| Perintah | Efek |
+| --- | --- |
+| `#jeda <nomor>` | Jeda Percakapan untuk kontak tersebut (Ambil Alih) |
+| `#jeda` | Jeda kontak dari handoff terakhir; bila belum ada, bot meminta nomor eksplisit |
+| `#lanjut <nomor>` | Akhiri Jeda Percakapan untuk kontak tersebut |
+| `#bot off` | Nonaktif Sementara global: bot berhenti membalas semua kontak |
+| `#bot on` | Aktifkan kembali balasan otomatis |
+| `#status` | Ringkasan status global + daftar kontak yang dijeda beserta waktu mulai |
+
+Konfirmasi hanya dikirim ke nomor admin, singkat, dan tanpa janji waktu balasan. Konfirmasi `#jeda` menyebut nomor yang dijeda dan cara mengembalikannya (`#lanjut <nomor>`). Nomor pada parameter dinormalisasi E.164 seperti `normalizePhoneNumber`; nomor tidak valid dibalas permintaan nomor yang benar tanpa mengubah state. Perintah berawalan `#` yang tidak dikenal dari admin dibalas daftar perintah; pesan berawalan `#` dari nomor lain tetap diperlakukan sebagai pesan biasa ke jalur percakapan. Setiap perintah tercatat di log proses (siapa, perintah apa), bukan di transkrip CSV pelanggan.
+
+> **Jangan mengetik perintah ini di chat pelanggan.** Admin membalas pelanggan dari nomor bot, sehingga perintah yang diketik di chat pelanggan akan terkirim ke pelanggan. Kirim perintah hanya dari nomor admin. Bila kelak `WHATSAPP_ADMIN_NUMBER` disamakan dengan nomor bot, jalur perintah ini perlu ditinjau ulang.
+
 ## Transkrip percakapan
 
 Selain handoff, setiap pesan teks masuk dan balasan yang benar-benar terkirim dicatat sebagai baris CSV agar riwayat mudah dibaca di Excel/Google Sheets (lihat `docs/adr/0007-transkrip-percakapan-csv.md`). Berkasnya di `data/transkrip-percakapan.csv` (dibuat otomatis, kolom `waktu`, `nomor`, `peran`, `pesan`; waktu WIB). `data/` diabaikan git karena memuat data pribadi — jangan di-commit atau disalin ke tempat publik. Penulisan bersifat best-effort: bila berkas gagal ditulis, balasan bot tetap terkirim dan kegagalannya hanya tercatat di log proses. Mengganti tujuan transkrip cukup mengganti implementasi port `ConversationTranscript` (`src/conversationTranscript.ts`).
