@@ -1,4 +1,4 @@
-# Handoff Sesi — 2026-10-10: fitur lead-intake tuntas (tiket 01–10), evaluasi uji coba & keputusan Gemini menyusul
+# Handoff Sesi — 2026-10-10: fitur lead-intake tuntas (tiket 01–11), evaluasi uji coba & keputusan Gemini menyusul
 
 > Handoff sebelumnya (2026-10-08, "siap uji coba jalankan bot, evaluasi
 > menyusul") diarsipkan dalam riwayat git. Runbook Fonnte/tunnel dan
@@ -9,10 +9,11 @@
 
 ## Tujuan sesi berikutnya (satu fokus)
 
-**Uji coba ulang bot dengan perilaku terkini (setelah tiket 06–10), kumpulkan
+**Uji coba ulang bot dengan perilaku terkini (setelah tiket 06–11), kumpulkan
 hasilnya apa adanya, lalu evaluasi bersama pemilik.** Hasil evaluasi inilah
-yang menentukan apakah lapisan pemahaman Gemini dipasang ke runtime. Jangan
-mulai perubahan perilaku baru sebelum evaluasi.
+yang menentukan apakah lapisan pemahaman Gemini dipasang ke runtime. Tiket 11
+sudah menjadi bagian build ini, jadi tidak ada perubahan perilaku yang
+tersisa sebelum evaluasi; jangan mulai perubahan perilaku baru di luar itu.
 
 ## Ringkas: apa yang terjadi sejak handoff 2026-10-08
 
@@ -23,7 +24,7 @@ mulai perubahan perilaku baru sebelum evaluasi.
    `resolved`): 4 transkrip admin–jemaah, 423 pesan, 54 kasus korpus. Dua
    temuan utama: over-faq (pertanyaan tanpa materi justru dijawab `faq`) dan
    varian ejaan/parafrase yang lolos ke handoff.
-3. **Tiket lanjutan 06–10 selesai, semuanya `resolved`:**
+3. **Tiket lanjutan 06–11 selesai, semuanya `resolved`:**
    - **06 regresi dialog nyata** — skenario multi-giliran, 55 kasus misfire,
      replay transkrip di `tests/regresi/`.
    - **07 handoff tanpa riwayat** — payload handoff hanya nomor + alasan +
@@ -38,11 +39,17 @@ mulai perubahan perilaku baru sebelum evaluasi.
      DP/pelunasan, perlengkapan/zam-zam, konversi SAR→IDR; pertanyaan
      non-urgent yang menjadi pesan pertama masuk intake lebih dahulu dan
      tercatat pada Ringkasan Kebutuhan, bukan handoff tanpa isi.
-4. **Seluruh tiket lead-intake 01–10 kini `resolved`.** Tidak ada tiket fitur
+   - **11 celah pemahaman dasar** — kelas A pola `-nya`/`nemenin`/`sedekah`/
+     `keliling`/`hrg` dikerjakan di regex (akhiran `-nya` hanya untuk pesan
+     bertanya); kelas B (pricelist, kelengkapan price list, hotel per malam,
+     budget hotel) mengikuti keputusan tercatat dan korpus diselaraskan ke
+     `handoff` (opsi ii) dengan alasan per kasus. Probe korpus 118/118.
+4. **Seluruh tiket lead-intake 01–11 kini `resolved`.** Tidak ada tiket fitur
    intake yang terbuka.
-5. **Angka terkini:** `npm test` **289 lulus**; typecheck bersih; probe korpus
-   118 kasus → rute tepat **109/118 (92%)**, `transkrip-nyata` 54/54,
-   `topik-gap` 16/16, `varian-ejaan` 6/6, `typo` 6/6, `dasar.json` 32/41.
+5. **Angka terkini:** `npm test` **294 lulus**; typecheck bersih; probe korpus
+   118 kasus → rute tepat **118/118 (100%)** dan topik tepat **118/118**;
+   `transkrip-nyata` 54/54, `topik-gap` 16/16, `varian-ejaan` 6/6, `typo` 6/6,
+   `dasar.json` 41/41.
 6. **Lapisan Gemini masih belum terpasang ke runtime.** `classifyDenganFallback`
    hanya dipakai `scripts/probe-cakupan-gemini.ts` dan tes; `handleInbound`
    masih memakai `classifyInbound` (regex).
@@ -55,33 +62,32 @@ mulai perubahan perilaku baru sebelum evaluasi.
    Sisa: smoke test masuk + handoff, lalu ADR provider baru. `.env` saat ini
    kembali memakai Fonnte; app Meta masih bernama `tes`.
 
-## Sisa pemahaman yang diketahui (bukan blocker)
+## Celah pemahaman dasar sudah ditutup (tiket 11)
 
-Probe korpus masih mencatat 9 kasus `dasar.json` yang jatuh ke handoff padahal
-materinya ada, plus 1 topik meleset:
+`node scripts/probe-cakupan.ts` kini **118/118 (100%)** rute dan topik, seluruh
+berkas hijau. Tiket 11 (`.scratch/lead-intake/issues/11-celah-pemahaman-dasar.md`,
+`resolved`) memutuskan:
 
-- campur-inggris: "boleh minta pricelist?", "price list nya lengkap gak?";
-- parafrase harga: "kisaran biaya hotel per malam brp ya?", "budget buat nginep
-  di makkah kira-kira berapa", "biaya tur kotanya gimana?";
-- parafrase layanan: "yang nemenin ibadah namanya apa ya", "kendaraannya apa
-  aja ya", "keliling madinah bisa dibantu?", "mau kasih sedekah lewat kalian
-  bisa?";
-- topik meleset: "brp hrg hotel di mekah?" terbaca `hotel-accommodation`,
-  bukan `price-hotel`.
+- **Kelas A (pola) dikerjakan di regex** — akhiran `-nya` pada kata benda lewat
+  `normalkanAkhiranNya` (pencocokan lanjutan hanya untuk pesan bertanya),
+  "nemenin" dalam konteks ibadah, "sedekah", "keliling", dan singkatan
+  "hrg". Dua penjaga regresi ikut dipasang: pertanyaan proses "bagaimana
+  caranya" dan "perubahan harga/biaya/tarif/ongkos" tidak boleh tertarik ke
+  Harga Indikatif.
+- **Kelas B mengikuti keputusan tercatat** (tiket 08/ADR-0005): pricelist,
+  kelengkapan price list, biaya hotel "per malam", dan budget hotel tetap
+  `handoff`; korpus `tests/korpus/dasar.json` diselaraskan dengan catatan
+  alasan per kasus (opsi ii, 2026-10-10). Tidak ada aturan/ADR yang dibalik.
 
-Kandidat tiket kecil berikutnya sudah diterbitkan: **tiket 11**
-(`.scratch/lead-intake/issues/11-celah-pemahaman-dasar.md`, `needs-triage`) —
-kelas A (pola `-nya`, "nemenin", "sedekah", "keliling", "hrg") siap
-dikerjakan; kelas B (pricelist, hotel per malam, budget) butuh keputusan
-pemilik karena bertabrakan dengan keputusan tercatat. Bukan alasan menahan
-uji coba.
+Jadi tidak ada lagi celah pemahaman yang terukur terbuka pada korpus 118
+kasus; hasil uji coba tetap yang menentukan pemasangan Gemini.
 
 ## Runbook: menjalankan bot (uji coba)
 
 ### 1. Preflight
 
 ```bash
-npm test && npm run typecheck   # terakhir: 289 tes hijau, typecheck bersih
+npm test && npm run typecheck   # terakhir: 294 tes hijau, typecheck bersih
 cat .env                        # pastikan WHATSAPP_PROVIDER=fonnte & token ada
 ```
 
@@ -145,15 +151,20 @@ evaluasi — jangan diperbaiki di tengah jalan:
 8. **Over-faq (perilaku tiket 08/09)** — "kalo upgrade ke staria tambahannya
    brp?" dan "muthowif itu biayanya berapa?" → yang pertama handoff (tidak
    dijawab), yang kedua Harga Indikatif mutawwif.
-9. **Lampiran** — kirim gambar/dokumen → diakui sebagai lampiran, isinya tidak
-   ditafsirkan.
-10. **(opsional) Pemicu manusia** — "saya mau bicara dengan manusia" → langsung
+9. **Celah pola tiket 11** — "biaya tur kotanya gimana?" → Harga Indikatif
+   city tour; "kendaraannya apa aja ya" dan "keliling madinah bisa dibantu?"
+   → dikenali sebagai topik materi, dicatat sebagai pertanyaan pada Ringkasan
+   Kebutuhan, lalu pengumpulan kebutuhan berlanjut (bukan handoff).
+10. **Lampiran** — kirim gambar/dokumen → diakui sebagai lampiran, isinya tidak
+    ditafsirkan.
+11. **(opsional) Pemicu manusia** — "saya mau bicara dengan manusia" → langsung
     ke alur handoff.
 
 ## Peringatan untuk sesi baru
 
-- **Jangan ubah perilaku percakapan sebelum evaluasi.** Keputusan pemasangan
-  Gemini menunggu hasil uji coba.
+- **Jangan mulai perubahan perilaku baru sebelum evaluasi.** Tiket 11 sudah
+  menjadi bagian build ini; keputusan pemasangan Gemini menunggu hasil uji
+  coba.
 - **URL tunnel berubah setiap restart** → daftarkan ulang webhook Fonnte.
 - **Uji selalu dari HP lain.** `6289507003830` nomor bot; bot mengabaikan pesan
   dari nomornya sendiri.
@@ -172,9 +183,9 @@ evaluasi — jangan diperbaiki di tengah jalan:
 
 | Butir | Status |
 | --- | --- |
-| Uji coba ulang bot + evaluasi bersama pemilik (perilaku tiket 06–10) | **sesi berikutnya — fokus utama** |
-| Keputusan pemasangan `classifyDenganFallback` (Gemini) ke runtime | menunggu evaluasi; ukur ulang `scripts/probe-cakupan-gemini.ts` vs regex 109/118 (92%) |
-| Tutup celah pemahaman `dasar.json` (9 rute + 1 topik meleset) | **tiket 11** `needs-triage` — kelas A siap dikerjakan; kelas B butuh keputusan pemilik; alternatif diserahkan ke Gemini |
+| Uji coba ulang bot + evaluasi bersama pemilik (perilaku tiket 06–11) | **sesi berikutnya — fokus utama** |
+| Keputusan pemasangan `classifyDenganFallback` (Gemini) ke runtime | menunggu evaluasi; ukur ulang `scripts/probe-cakupan-gemini.ts` vs regex 118/118 (100%) |
+| Tutup celah pemahaman `dasar.json` (9 rute + 1 topik meleset) | **tiket 11 `resolved`** (2026-10-10): kelas A pola di regex, kelas B opsi (ii) — korpus diselaraskan ke `handoff`; probe 118/118 |
 | Migrasi ke WhatsApp Cloud API (tiket 09 lama) | `ready-for-human`: smoke test masuk + handoff; nomor admin belum di penerima uji; ADR provider baru setelah stabil |
 | Cutover nomor produksi `+62 877 4587 3159` (tiket 06 lama) | `ready-for-human`: verifikasi nomor di provider, isi `.env`, `npm run cutover:check` sampai siap, smoke test live |
 | VPS + domain tetap (pengganti tunnel) | belum |
