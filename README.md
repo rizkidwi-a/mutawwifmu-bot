@@ -88,7 +88,7 @@ State jeda disimpan persisten di `data/jeda-state.json` (di-ignore git karena me
 
 ### Deteksi otomatis pesan keluar
 
-Ambil Alih otomatis belum tersedia; gunakan `#jeda <nomor>` atau `#jeda` sebagai pemicu eksplisit. **Fonnte:** dokumentasi webhook menjelaskan payload pesan masuk, tetapi tidak mendokumentasikan pesan yang dikirim dari nomor perangkat sendiri atau field `from_me`; pengamatan live belum dilakukan karena webhook/tunnel saat ini nonaktif. Perilaku pesan keluar Fonnte belum terverifikasi, bukan dianggap tidak ada. **WhatsApp Cloud API:** webhook pesan keluar berisi status `sent`/`delivered`/`read`, bukan isi pesannya; status tersebut tidak dipakai untuk menebak Ambil Alih. Detail kutipan, fixture terdokumentasi, dan batas pengamatan: `.scratch/jeda-ambil-alih/evidence/05-provider-webhook.md`.
+Ambil Alih otomatis di luar cakupan saat ini; gunakan `#jeda <nomor>` atau `#jeda` sebagai pemicu eksplisit. **Fonnte:** dokumentasi webhook menjelaskan payload pesan masuk, tetapi tidak mendokumentasikan pesan yang dikirim dari nomor perangkat sendiri atau field `from_me`; perilaku pesan keluar belum diverifikasi dan tidak diasumsikan tidak ada. **WhatsApp Cloud API:** webhook pesan keluar berisi status `sent`/`delivered`/`read`, bukan isi pesannya; status tersebut tidak dipakai untuk menebak Ambil Alih. Detail kutipan dan fixture terdokumentasi: `.scratch/jeda-ambil-alih/evidence/05-provider-webhook.md`.
 
 ## Perintah admin via WhatsApp
 

@@ -13,7 +13,7 @@ Beri admin kendali atas kapan bot membalas, tanpa mematikan proses:
 1. **Jeda Percakapan** per calon jemaah — bot berhenti membalas satu kontak karena admin menangani langsung (Ambil Alih).
 2. **Nonaktif Sementara** global — bot berhenti membalas semua kontak sementara.
 
-Keduanya dikendalikan lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (nomor admin yang sudah dikonfigurasi, terpisah dari nomor bot — ADR-0006). Pesan yang masuk saat jeda tetap dicatat ke transkrip CSV (ADR-0007) tetapi tidak dibalas dan tidak mengubah state alur percakapan bot. State jeda disimpan persisten di `data/` sehingga bertahan saat proses restart. Ambil Alih otomatis (bot menjeda sendiri saat admin membalas dari nomor bot) menyusul setelah perilaku webhook provider terhadap pesan keluar terverifikasi.
+Keduanya dikendalikan lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (nomor admin yang sudah dikonfigurasi, terpisah dari nomor bot — ADR-0006). Pesan yang masuk saat jeda tetap dicatat ke transkrip CSV (ADR-0007) tetapi tidak dibalas dan tidak mengubah state alur percakapan bot. State jeda disimpan persisten di `data/` sehingga bertahan saat proses restart. Untuk cakupan saat ini, Ambil Alih dilakukan manual melalui perintah admin; deteksi otomatis pesan keluar tidak termasuk scope aktif.
 
 ## Ruang Lingkup
 
@@ -21,7 +21,7 @@ Keduanya dikendalikan lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (nomo
 2. **Perintah admin via WhatsApp.** `#jeda <nomor>`, `#jeda` (kontak handoff terakhir), `#lanjut <nomor>`, `#bot off`, `#bot on`, `#status` — hanya diterima dari `WHATSAPP_ADMIN_NUMBER`, dengan konfirmasi singkat kembali ke nomor admin.
 3. **Gerbang jeda pada pesan masuk.** Kontak yang dijeda (atau saat Nonaktif Sementara): pesan dicatat ke transkrip, tanpa balasan, tanpa perubahan state alur. Kontak lain tetap dibalas normal. Perintah admin tetap diproses saat bot nonaktif.
 4. **Batas waktu jeda.** Diputuskan pemilik (2026-10-10): **tanpa auto-resume** — Jeda Percakapan hanya berakhir lewat perintah eksplisit `#lanjut` / `#bot on` (tiket 04).
-5. **Verifikasi perilaku pesan keluar provider + Ambil Alih otomatis.** Bila pesan yang admin kirim dari nomor bot teramati di webhook, bot menjeda kontak itu otomatis; bila tidak, keterbatasan didokumentasikan dan perintah eksplisit tetap menjadi pemicu.
+5. **Ambil Alih otomatis di luar cakupan saat ini.** Perintah eksplisit admin `#jeda` dan `#lanjut` menjadi satu-satunya pemicu Jeda Percakapan.
 
 ## Di Luar Lingkup
 
