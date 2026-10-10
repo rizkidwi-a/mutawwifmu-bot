@@ -73,7 +73,7 @@ test("pertanyaan non-harga tidak dijawab dari materi, dicatat, dan dibawa ke rin
 });
 
 test("pertanyaan non-harga berbahasa Inggris tidak dijawab dari materi dan dicatat", () => {
-  const percakapan = new Percakapan();
+  const percakapan = new Percakapan("en");
   const balasan = teksBalasan(percakapan.kirim("What is land arrangement?"));
   assert.doesNotMatch(balasan, /Holy Land/);
   assert.match(balasan, /noted/i);

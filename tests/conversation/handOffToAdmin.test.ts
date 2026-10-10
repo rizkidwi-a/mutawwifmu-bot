@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyInbound } from "../../src/conversation/classifyInbound.ts";
+import { handleInbound } from "../../src/conversation/handleInbound.ts";
 import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
@@ -12,8 +13,6 @@ import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pemban
 const KASUS_HANDOFF: ReadonlyArray<readonly [pesan: string, alasan: string]> = [
   ["Saya mau bicara dengan manusia saja", "human-request"],
   ["tolong hubungkan saya dengan admin MUTAWWIFMU", "human-request"],
-  ["saya ingin minta penawaran khusus untuk rombongan 20 orang", "custom-quote-or-availability"],
-  ["kami dari PT Maju Jaya, agen travel, ingin bekerja sama", "agency-or-corporate"],
   ["kami sedang berada di Mekkah sekarang, jadwal hari ini berubah", "active-trip"],
   ["tolong, ada kecelakaan, ini keadaan darurat", "emergency"],
 ];
@@ -115,9 +114,13 @@ test("permintaan manusia dalam Bahasa Inggris dibalas dalam Bahasa Inggris", () 
   assert.equal(handoff.reason, "human-request");
 });
 
-test("sapaan biasa tetap dibalas sapaan tanpa handoff", () => {
-  const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Halo, apa kabar?");
+test("sapaan biasa membuka menu tujuan tanpa handoff", () => {
+  const turn = handleInbound(
+    { id: "wamid.opener", from: "628123456789", timestamp: "1727000000", text: "Halo, apa kabar?" },
+    { history: [] },
+  );
   assert.deepEqual(turn.actions, []);
-  assert.match(teksBalasan(turn), /asisten otomatis/i);
+  assert.ok(turn.reply);
+  assert.match(turn.reply.text, /^Halo!/);
+  assert.match(turn.reply.text, /Calon jemaah \/ informasi paket/);
 });

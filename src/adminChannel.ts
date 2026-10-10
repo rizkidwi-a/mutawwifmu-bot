@@ -68,6 +68,9 @@ const REASON_LABELS: Record<HandOffReason, string> = {
   "booking-or-payment": "Pertanyaan booking/pembayaran",
   "active-trip": "Perjalanan yang sedang berlangsung",
   emergency: "Keadaan darurat",
+  vendor_mitra: "Vendor/mitra bisnis",
+  internal: "Tim internal Mutawwifmu",
+  other: "Keperluan lain / ingin menghubungi admin",
 };
 
 /**

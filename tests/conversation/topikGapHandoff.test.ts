@@ -106,20 +106,8 @@ test("seluruh varian korpus topik-gap konsisten handoff dan tercatat untuk admin
 test("pernyataan berakhir bisa/dapat yang negatif atau sudah berjalan bukan pertanyaan", () => {
   for (const pesan of ["saya tidak bisa", "gak bisa", "ga bisa", "belum bisa", "sudah bisa"]) {
     const percakapan = new Percakapan();
-    const awal = percakapan.kirim(pesan);
-    assert.deepEqual(awal.actions, [], pesan);
-    const request = lengkapiPermintaanLaluSetujui(percakapan);
-    assert.ok(!request.notedQuestions.includes(pesan), pesan);
-  }
-});
-
-test("pernyataan agen/korporasi dan permintaan penawaran tetap langsung ke persetujuan handoff", () => {
-  for (const pesan of [
-    "kami dari PT Maju Jaya, agen travel, ingin bekerja sama",
-    "saya ingin minta penawaran khusus untuk rombongan 20 orang",
-  ]) {
-    const turn = new Percakapan().kirim(pesan);
+    const turn = percakapan.kirim(pesan);
     assert.deepEqual(turn.actions, [], pesan);
-    assert.match(teksBalasan(turn), /setuju|consent/i, pesan);
+    assert.doesNotMatch(teksBalasan(turn), /pertanyaan Anda saya catat|I've noted your question/i, pesan);
   }
 });

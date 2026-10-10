@@ -22,17 +22,15 @@ const MENU_LAYANAN = [
   "lainnya",
 ];
 
-test("langkah pertama menampilkan menu layanan MUTAWWIFMU", () => {
-  const percakapan = new Percakapan();
-  const balasan = teksBalasan(percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah"));
+test("langkah pertama setelah memilih calon jemaah menampilkan menu layanan MUTAWWIFMU", () => {
+  const balasan = teksBalasan(new Percakapan().promptIntake);
   for (const item of MENU_LAYANAN) {
     assert.match(balasan, new RegExp(item, "i"), `menu memuat ${item}`);
   }
 });
 
 test("menu layanan juga ditampilkan untuk calon jemaah berbahasa Inggris", () => {
-  const percakapan = new Percakapan();
-  const balasan = teksBalasan(percakapan.kirim("Hello, I would like a consultation about a private umrah trip"));
+  const balasan = teksBalasan(new Percakapan("en").promptIntake);
   for (const item of ["mutawwif", "visa", "hotel", "transportation", "airport handling", "ziarah/city tour", "tasreh", "photography", "others"]) {
     assert.match(balasan, new RegExp(item, "i"), `menu memuat ${item}`);
   }
@@ -40,14 +38,12 @@ test("menu layanan juga ditampilkan untuk calon jemaah berbahasa Inggris", () =>
 
 test("jawaban layanan bebas diterima tanpa dipaksa memilih menu", () => {
   const percakapan = new Percakapan();
-  percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   const balasan = teksBalasan(percakapan.kirim("lainnya: umrah keluarga sambil city tour"));
   assert.match(balasan, /tanggal|periode/i);
 });
 
 test("pertanyaan kebutuhan detail menyebut rincian yang boleh disampaikan sekaligus", () => {
   const percakapan = new Percakapan();
-  percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Mutawwif dan hotel");
   percakapan.kirim("Rencana Desember 2025");
   const balasan = teksBalasan(percakapan.kirim("4 orang"));
@@ -66,7 +62,6 @@ test("kebutuhan detail dapat diisi dalam satu jawaban panjang dan disimpan utuh 
   const detail =
     "yang butuh visa cuma bapak & ibu mertua, terbang dari Jakarta, hotel pesan sendiri, mohon kamar dekat masjid";
   const percakapan = new Percakapan();
-  percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim(layanan);
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");

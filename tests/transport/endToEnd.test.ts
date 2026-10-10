@@ -131,8 +131,9 @@ test("pesan masuk melalui kanal provider menghasilkan balasan keluar melalui kan
     assert.equal(keluar.url, "/v21.0/PNID-DEV-1/messages");
     assert.equal(keluar.body.to, "628123456789");
     const isi = keluar.body.text as { body: string };
-    assert.match(isi.body, /asisten otomatis/i);
-    assert.match(isi.body, /MUTAWWIFMU/);
+    assert.match(isi.body, /Travel Partner Top #1 Personalized Land Arrangement/);
+    assert.match(isi.body, /1\. Calon jemaah \/ informasi paket/);
+    assert.match(isi.body, /4\. Keperluan lain \/ ingin menghubungi admin/);
   } finally {
     await lingkungan.tutup();
   }

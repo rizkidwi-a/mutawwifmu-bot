@@ -95,17 +95,9 @@ test("pertanyaan harga dalam Bahasa Inggris dijawab sebagai Indicative Price dal
   assert.doesNotMatch(balasan, /Harga Indikatif|penawaran/);
 });
 
-test("permintaan penawaran khusus tetap ke alur admin meski angkanya tercantum materi", () => {
-  // Pernyataan permintaan penawaran (bukan pertanyaan) langsung meminta persetujuan.
-  const pernyataan = new Percakapan().kirim("Saya ingin minta penawaran harga untuk fotografer");
-  const balasanPernyataan = teksBalasan(pernyataan);
-  assert.match(balasanPernyataan, /teruskan|diteruskan/i);
-  assert.match(balasanPernyataan, /setuju/i);
-  assert.doesNotMatch(balasanPernyataan, /SAR|IDR|Rp/);
-  assert.deepEqual(pernyataan.actions, []);
-
-  // Pertanyaan penawaran masuk alur intake lebih dahulu (tiket 10): tidak
-  // dijawab dari materi, dicatat, lalu diteruskan bersama Ringkasan Kebutuhan.
+test("pertanyaan penawaran dalam intake dicatat tanpa dijawab dari materi", () => {
+  // Pertanyaan penawaran dalam alur calon jemaah dicatat lebih dahulu; pilihan
+  // non-calon-jemaah untuk handoff langsung diuji pada menu tujuan chat.
   const pesan = "Bisakah dibuatkan penawaran khusus untuk city tour Madinah?";
   const percakapan = new Percakapan();
   const awal = percakapan.kirim(pesan);

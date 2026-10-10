@@ -11,7 +11,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
+import { handleInbound } from "../../src/conversation/handleInbound.ts";
+import {
+  konteksMenungguTujuanChat,
+  Percakapan,
+  lengkapiPermintaanLaluSetujui,
+  teksBalasan,
+} from "./pembantuPercakapan.ts";
 
 /**
  * Pertanyaan layanan lain dalam profil beserta kata kunci jawaban topiknya yang
@@ -44,7 +50,7 @@ for (const [pesan, , kataKunci] of PERTANYAAN_LAYANAN_LAIN) {
 }
 
 test("pertanyaan layanan lain dalam Bahasa Inggris dibalas tanpa jawaban materi", () => {
-  const percakapan = new Percakapan();
+  const percakapan = new Percakapan("en");
   const balasan = teksBalasan(percakapan.kirim("Do you provide tour guides in other countries?"));
   assert.doesNotMatch(balasan, /190 countries/);
   assert.match(balasan, /noted/i);
@@ -60,31 +66,18 @@ test("pertanyaan layanan lain yang tidak tercantum materi tidak dijawab dengan k
   assert.match(balasan, /catat/i);
 });
 
-test("pertanyaan agen travel dan korporasi diteruskan ke admin, bukan sebagai Permintaan Tindak Lanjut calon jemaah", () => {
+test("vendor dan korporasi yang merespons menu langsung masuk kategori vendor_mitra", () => {
   for (const pesan of [
     "Kami dari agen travel ingin bekerja sama untuk layanan tour guide",
     "Kami dari korporasi ingin mengadakan study tour",
   ]) {
-    const percakapan = new Percakapan();
-    const turn = percakapan.kirim(pesan);
-    const balasan = teksBalasan(turn);
-    assert.match(balasan, /teruskan|diteruskan/i);
-    assert.match(balasan, /setuju/i);
-    assert.deepEqual(turn.actions, []);
-
-    const lanjut = percakapan.kirim("ya");
-    assert.ok(lanjut.actions.some((aksi) => aksi.kind === "hand-off-to-admin"));
-    const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-    assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-    assert.equal(handoff.reason, "agency-or-corporate");
-    assert.deepEqual(
-      lanjut.actions.filter((aksi) => aksi.kind === "record-follow-up-request"),
-      [],
+    const turn = handleInbound(
+      { id: "wamid.vendor", from: "628123456789", timestamp: "1727000000", text: pesan },
+      konteksMenungguTujuanChat(),
     );
-    assert.deepEqual(
-      lanjut.actions.filter((aksi) => aksi.kind === "record-faq-answer"),
-      [],
-    );
+    assert.ok(turn.reply);
+    assert.match(turn.reply.text, /diteruskan/i);
+    assert.deepEqual(turn.actions, [{ kind: "hand-off-to-admin", reason: "vendor_mitra", request: null }]);
   }
 });
 
@@ -113,17 +106,18 @@ test("pertanyaan angka harga layanan lain yang tercantum materi dijawab sebagai 
   );
 });
 
-test("permintaan penawaran harga layanan lain tetap ke alur admin, bukan Harga Indikatif", () => {
-  const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Saya ingin minta penawaran harga untuk fotografer");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /teruskan|diteruskan/i);
-  assert.match(balasan, /setuju/i);
-  assert.doesNotMatch(balasan, /Rp|SAR|USD|\d/);
+test("permintaan penawaran yang bukan pilihan menu diminta memilih tujuan ulang", () => {
+  const turn = handleInbound(
+    {
+      id: "wamid.quote-menu",
+      from: "628123456789",
+      timestamp: "1727000000",
+      text: "Saya ingin minta penawaran harga untuk fotografer",
+    },
+    konteksMenungguTujuanChat(),
+  );
+  assert.ok(turn.reply);
+  assert.match(turn.reply.text, /pilihan belum dikenali/i);
+  assert.match(turn.reply.text, /4\. Keperluan lain \/ ingin menghubungi admin/);
   assert.deepEqual(turn.actions, []);
-
-  const lanjut = percakapan.kirim("ya");
-  const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-  assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-  assert.equal(handoff.reason, "custom-quote-or-availability");
 });

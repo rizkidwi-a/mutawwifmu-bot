@@ -19,23 +19,26 @@ function teksBalasan(turn: BotTurn): string {
   return turn.reply.text;
 }
 
-test("calon jemaah berbahasa Indonesia memperoleh balasan awal dalam Bahasa Indonesia", () => {
+test("calon jemaah berbahasa Indonesia menerima pembuka layanan dan menu tujuan", () => {
   const turn = handleInbound(pesanDariCalonJemaah("Halo, saya ingin bertanya tentang umrah"), percakapanAwal);
-  assert.match(teksBalasan(turn), /asisten otomatis/i);
-  assert.match(teksBalasan(turn), /MUTAWWIFMU/);
+  assert.match(teksBalasan(turn), /^Halo!/);
+  assert.match(teksBalasan(turn), /Travel Partner Top #1 Personalized Land Arrangement/);
+  assert.match(teksBalasan(turn), /1\. Calon jemaah \/ informasi paket/);
 });
 
-test("calon jemaah berbahasa Inggris memperoleh balasan awal dalam Bahasa Inggris", () => {
+test("calon jemaah berbahasa Inggris menerima sapaan dan menu berbahasa Inggris", () => {
   const turn = handleInbound(pesanDariCalonJemaah("Hello, I would like to ask about umrah"), percakapanAwal);
-  assert.match(teksBalasan(turn), /automated assistant/i);
-  assert.match(teksBalasan(turn), /MUTAWWIFMU/);
+  assert.match(teksBalasan(turn), /^Hello!/);
+  assert.match(teksBalasan(turn), /Travel Partner Top #1 Personalized Land Arrangement/);
+  assert.match(teksBalasan(turn), /1\. Prospective pilgrim \/ package information/);
 });
 
-test("balasan awal menyatakan ketersediaan di luar jam kerja admin", () => {
+test("sapaan netral tidak menggunakan balasan salam", () => {
   const id = handleInbound(pesanDariCalonJemaah("Halo"), percakapanAwal);
-  assert.match(teksBalasan(id), /kapan saja/i);
+  assert.match(teksBalasan(id), /^Halo!/);
+  assert.doesNotMatch(teksBalasan(id), /Waalaikumsalam Wr\. Wb/);
   const en = handleInbound(pesanDariCalonJemaah("Hello"), percakapanAwal);
-  assert.match(teksBalasan(en), /anytime/i);
+  assert.match(teksBalasan(en), /^Hello!/);
 });
 
 test("balasan awal tidak menjanjikan waktu balasan admin", () => {

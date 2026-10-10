@@ -101,7 +101,10 @@ export type HandOffReason =
   | "agency-or-corporate"
   | "booking-or-payment"
   | "active-trip"
-  | "emergency";
+  | "emergency"
+  | "vendor_mitra"
+  | "internal"
+  | "other";
 
 /**
  * Tindakan terlihat yang dihasilkan seam — sesuai spec: "mencatat permintaan

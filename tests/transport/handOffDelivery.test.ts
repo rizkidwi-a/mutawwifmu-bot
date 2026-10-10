@@ -118,6 +118,7 @@ async function kirimPesan(lingkungan: Lingkungan, text: string): Promise<Respons
 /** Jalankan alur Permintaan Tindak Lanjut lengkap sampai persetujuan diberikan. */
 async function jalankanAlurLengkap(lingkungan: Lingkungan, persetujuan: string): Promise<void> {
   await kirimPesan(lingkungan, "Halo, saya ingin konsultasi untuk merencanakan umrah");
+  await kirimPesan(lingkungan, "1");
   await kirimPesan(lingkungan, "Umrah premium, tujuan Mekkah");
   await kirimPesan(lingkungan, "Rencana Desember 2025");
   await kirimPesan(lingkungan, "4 orang");
@@ -242,6 +243,8 @@ test("pertanyaan non-harga tidak dijawab dari materi dan tidak dihitung sebagai 
 test("pertanyaan Harga Indikatif dijawab langsung dan dihitung tanpa handoff ke kanal admin", async () => {
   const lingkungan = await buatLingkungan();
   try {
+    await kirimPesan(lingkungan, "Halo");
+    await kirimPesan(lingkungan, "1");
     await kirimPesan(lingkungan, "Berapa harga fotografer?");
 
     assert.deepEqual(lingkungan.handoffs, []);

@@ -118,8 +118,9 @@ test("pesan masuk Fonnte menghasilkan balasan keluar melalui API Fonnte", async 
     assert.equal(keluar.headers.authorization, "token-fonnte");
     assert.equal(keluar.body.target, "628123456789");
     assert.equal(keluar.body.countryCode, "62");
-    assert.match(String(keluar.body.message), /asisten otomatis/i);
-    assert.match(String(keluar.body.message), /MUTAWWIFMU/);
+    assert.match(String(keluar.body.message), /Travel Partner Top #1 Personalized Land Arrangement/);
+    assert.match(String(keluar.body.message), /1\. Calon jemaah \/ informasi paket/);
+    assert.match(String(keluar.body.message), /4\. Keperluan lain \/ ingin menghubungi admin/);
   } finally {
     await lingkungan.tutup();
   }

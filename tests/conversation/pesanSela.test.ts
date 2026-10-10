@@ -88,8 +88,8 @@ test("pernyataan bermuatan kata harga tidak dijawab template Harga Indikatif", (
   const balasan = teksBalasan(turn);
   assert.deepEqual(templateDalamBalasan(balasan), []);
   assert.doesNotMatch(balasan, /Harga Indikatif/);
-  // Pernyataan diperlakukan sebagai informasi/kebutuhan: alur intake dimulai.
-  assert.match(balasan, /layanan|tujuan/i);
+  // Pernyataan menjadi jawaban bidang pertama pada intake yang sudah dipilih.
+  assert.match(balasan, /tanggal|periode/i);
 });
 
 test("pernyataan bermuatan kata harga saat pengumpulan menjadi jawaban bidang apa adanya", () => {

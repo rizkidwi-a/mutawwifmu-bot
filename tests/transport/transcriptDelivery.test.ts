@@ -179,7 +179,7 @@ test("pesan teks Fonnte tercatat dua baris CSV: masuk lalu keluar sesuai balasan
     assert.equal(keluar[1], "628123456789");
     assert.equal(keluar[2], "asisten");
     assert.equal(keluar[3], String(lingkungan.permintaanKeluar[0]!.body.message));
-    assert.match(keluar[3]!, /MUTAWWIFMU/);
+    assert.match(keluar[3]!, /Travel Partner Top #1 Personalized Land Arrangement/);
   } finally {
     await lingkungan.tutup();
   }

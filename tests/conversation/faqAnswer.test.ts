@@ -13,6 +13,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { handleInbound } from "../../src/conversation/handleInbound.ts";
 import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
@@ -25,7 +26,7 @@ const PERTANYAAN_FAQ: ReadonlyArray<
   readonly [pesan: string, topik: string, kataKunci: readonly RegExp[]]
 > = [
   ["Apa itu land arrangement?", "land-arrangement", [/Private Premium Umrah/, /Land Arrangement/]],
-  ["Ceritakan tentang mutawwif Anda", "mutawwif", [/Mutawwif Reguler/, /Mutawwif Bilingual/]],
+  ["Ceritakan tentang mutawwif Anda?", "mutawwif", [/Mutawwif Reguler/, /Mutawwif Bilingual/]],
   ["Apakah bisa urus visa umrah?", "visa-documents", [/Visa Umrah Reguler/, /Asuransi Perjalanan/]],
   ["Kamar hotel tipe apa saja?", "hotel-accommodation", [/Double/, /Junior Suite/]],
   ["Apa saja jenis armada transportasinya?", "transport-fleet", [/Hiace/, /Coaster/]],
@@ -49,7 +50,7 @@ for (const [pesan, , kataKunci] of PERTANYAAN_FAQ) {
 }
 
 test("pertanyaan FAQ non-harga dalam Bahasa Inggris dibalas tanpa jawaban materi", () => {
-  const percakapan = new Percakapan();
+  const percakapan = new Percakapan("en");
   const balasan = teksBalasan(percakapan.kirim("What is land arrangement?"));
   assert.doesNotMatch(balasan, /Holy Land/);
   assert.match(balasan, /noted/i);
@@ -74,14 +75,20 @@ test("pertanyaan non-harga dicatat dan dibawa ke Ringkasan Kebutuhan", () => {
   assert.deepEqual(catat.request.notedQuestions, ["Apa itu land arrangement?"]);
 });
 
-test("permintaan penawaran harga tidak dijawab sebagai penawaran dan mengalir ke persetujuan handoff", () => {
-  const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Saya ingin minta penawaran harga hotel di Mekkah");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /teruskan|diteruskan/i);
-  assert.match(balasan, /setuju/i);
-  // Balasan persetujuan tidak memuat angka harga apa pun.
-  assert.doesNotMatch(balasan, /Rp|USD|\d/);
+test("permintaan penawaran di awal memperoleh menu tujuan, bukan jawaban harga", () => {
+  const turn = handleInbound(
+    {
+      id: "wamid.quote-opening",
+      from: "628123456789",
+      timestamp: "1727000000",
+      text: "Saya ingin minta penawaran harga hotel di Mekkah",
+    },
+    { history: [] },
+  );
+  assert.ok(turn.reply);
+  assert.match(turn.reply.text, /1\. Calon jemaah \/ informasi paket/);
+  assert.match(turn.reply.text, /4\. Keperluan lain \/ ingin menghubungi admin/);
+  assert.doesNotMatch(turn.reply.text, /Rp|USD|Harga Indikatif/);
   assert.deepEqual(turn.actions, []);
 });
 

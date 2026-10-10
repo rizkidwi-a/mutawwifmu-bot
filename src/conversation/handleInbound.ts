@@ -25,6 +25,24 @@ const INITIAL_REPLY_EN =
   "I'm an automated assistant available anytime to note down your travel needs " +
   "so that our team can follow them up.";
 
+const SERVICE_INTRO =
+  "Terima kasih telah menghubungi Mutawwifmu, Travel Partner Top #1 Personalized Land Arrangement dan Premium Umrah Experience terpercaya untuk perjalanan ibadah dan wisata muslim di seluruh dunia 😇";
+
+// Port MessageSender saat ini hanya mendukung pesan teks; gunakan fallback
+// bernomor agar tujuan chat tetap dapat dipilih.
+const MENU_TUJUAN_CHAT_ID =
+  "Silakan pilih tujuan chat dengan membalas angka:\n" +
+  "1. Calon jemaah / informasi paket\n" +
+  "2. Vendor / mitra bisnis\n" +
+  "3. Tim internal Mutawwifmu\n" +
+  "4. Keperluan lain / ingin menghubungi admin";
+const MENU_TUJUAN_CHAT_EN =
+  "Please choose your reason for contacting us by replying with a number:\n" +
+  "1. Prospective pilgrim / package information\n" +
+  "2. Vendor / business partner\n" +
+  "3. Mutawwifmu internal team\n" +
+  "4. Other / contact an admin";
+
 /**
  * Balasan atas pertanyaan non-harga: pertanyaan tidak dijawab dari materi
  * (ADR-0009), melainkan dicatat apa adanya sebagai bagian kebutuhan dan
@@ -296,9 +314,44 @@ const URGENT_TRIGGERS: ReadonlySet<HandoffTrigger> = new Set([
   "human-request",
 ]);
 
+function isUrgentHandoffRequest(text: string | null): boolean {
+  if (text === null) return false;
+  const routing = classifyInbound(text);
+  return routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger);
+}
+
+function isVendorPartnerMessage(text: string): boolean {
+  const routing = classifyInbound(text);
+  return routing.kind === "handoff" && routing.trigger === "agency-or-corporate";
+}
+
+function openingReply(text: string | null, language: Language): string {
+  const greeting =
+    text !== null && containsSalam(text)
+      ? "Waalaikumsalam Wr. Wb"
+      : language === "id"
+        ? "Halo!"
+        : "Hello!";
+  const menu = language === "id" ? MENU_TUJUAN_CHAT_ID : MENU_TUJUAN_CHAT_EN;
+  return `${greeting}\n\n${SERVICE_INTRO}\n\n${menu}`;
+}
+
+function containsSalam(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^a-z]/g, "");
+  return (
+    normalized.startsWith("assalamualaikum") ||
+    normalized.startsWith("asalamualaikum") ||
+    /\bsalam\b/i.test(text)
+  );
+}
+
 /** State alur percakapan; diturunkan dari riwayat sehingga seam tetap murni. */
+type PurposeHandoffReason = Extract<HandOffReason, "vendor_mitra" | "internal" | "other">;
+type PurposeSelection = "prospective" | PurposeHandoffReason;
+
 type FlowState =
   | { readonly kind: "idle" }
+  | { readonly kind: "admin-routed" }
   | { readonly kind: "collecting"; readonly draft: FollowUpDraft }
   | { readonly kind: "awaiting-consent"; readonly draft: FollowUpDraft }
   | {
@@ -362,19 +415,140 @@ export function turnForInbound(message: InboundMessage): ConversationTurn {
  * percakapan, menghasilkan balasan serta tindakan yang terlihat.
  */
 export function handleInbound(message: InboundMessage, context: ConversationContext): BotTurn {
+  if (context.history.length === 0 && !isUrgentHandoffRequest(message.text)) {
+    const language = message.text !== null && containsSalam(message.text)
+      ? "id"
+      : resolveReplyLanguage(context.history, message.text ?? "");
+    return {
+      reply: { text: openingReply(message.text, language) },
+      actions: [],
+    };
+  }
+
   let state: FlowState = { kind: "idle" };
+  let awaitingPurposeSelection = false;
   for (const turn of context.history) {
-    if (turn.role !== "calon-jemaah") {
+    if (turn.role === "asisten") {
+      if (containsPurposeMenu(turn.text)) {
+        state = { kind: "idle" };
+        awaitingPurposeSelection = true;
+      } else {
+        awaitingPurposeSelection = false;
+      }
+      continue;
+    }
+    if (awaitingPurposeSelection) {
+      state = stateAfterMenuInput(turn);
+      awaitingPurposeSelection = false;
       continue;
     }
     // Lampiran tidak pernah menjadi jawaban bidang; penerimaannya dicatat
     // terpisah oleh `nextStateLampiran`.
     state = turn.attachment === true ? nextStateLampiran(state) : nextState(state, turn.text);
   }
+
   const language = resolveReplyLanguage(context.history, message.text ?? "");
+  if (awaitingPurposeSelection) {
+    return handlePurposeSelection(message, language);
+  }
   const result =
     message.text === null ? stepLampiran(state, language) : step(state, message.text, language);
   return { reply: { text: result.reply }, actions: result.actions };
+}
+
+function handlePurposeSelection(message: InboundMessage, language: Language): BotTurn {
+  const selection = message.text === null ? null : parsePurposeSelection(message.text);
+  if (selection === "prospective") {
+    return {
+      reply: { text: promptForNextField(EMPTY_DRAFT, language === "id") },
+      actions: [],
+    };
+  }
+  if (selection !== null) {
+    return purposeHandoff(selection, language);
+  }
+  if (isUrgentHandoffRequest(message.text)) {
+    const result = step({ kind: "idle" }, message.text ?? "", language);
+    return { reply: { text: result.reply }, actions: result.actions };
+  }
+  if (message.text !== null && isVendorPartnerMessage(message.text)) {
+    return purposeHandoff("vendor_mitra", language);
+  }
+  return { reply: { text: retryPurposeMenu(language) }, actions: [] };
+}
+
+function stateAfterMenuInput(turn: ConversationTurn): FlowState {
+  if (turn.attachment === true) {
+    return { kind: "idle" };
+  }
+  const selection = parsePurposeSelection(turn.text);
+  if (selection === "prospective") {
+    return { kind: "collecting", draft: EMPTY_DRAFT };
+  }
+  if (selection !== null) {
+    return { kind: "admin-routed" };
+  }
+  if (isUrgentHandoffRequest(turn.text)) {
+    return nextState({ kind: "idle" }, turn.text);
+  }
+  return isVendorPartnerMessage(turn.text)
+    ? { kind: "admin-routed" }
+    : { kind: "idle" };
+}
+
+function parsePurposeSelection(text: string): PurposeSelection | null {
+  const normalized = text.toLowerCase().trim().replace(/[.():]/g, "").replace(/\s+/g, " ");
+  const choices: Readonly<Record<string, PurposeSelection>> = {
+    "1": "prospective",
+    "calon jemaah": "prospective",
+    "calon jemaah / informasi paket": "prospective",
+    "calon jamaah": "prospective",
+    "informasi paket": "prospective",
+    "prospective pilgrim": "prospective",
+    "prospective pilgrim / package information": "prospective",
+    "package information": "prospective",
+    "2": "vendor_mitra",
+    "vendor": "vendor_mitra",
+    "mitra": "vendor_mitra",
+    "vendor / mitra bisnis": "vendor_mitra",
+    "vendor/mitra bisnis": "vendor_mitra",
+    "vendor / business partner": "vendor_mitra",
+    "3": "internal",
+    "tim internal": "internal",
+    "tim internal mutawwifmu": "internal",
+    "internal": "internal",
+    "mutawwifmu internal team": "internal",
+    "4": "other",
+    "keperluan lain": "other",
+    "keperluan lain / ingin menghubungi admin": "other",
+    "lainnya": "other",
+    "other": "other",
+    "other / contact an admin": "other",
+    "ingin menghubungi admin": "other",
+    "saya ingin menghubungi admin": "other",
+    "contact an admin": "other",
+  };
+  const numberedChoice = normalized.match(/^([1-4])(?:\s|$)/)?.[1];
+  return (numberedChoice ? choices[numberedChoice] : undefined) ?? choices[normalized] ?? null;
+}
+
+function containsPurposeMenu(text: string): boolean {
+  return text.includes(MENU_TUJUAN_CHAT_ID) || text.includes(MENU_TUJUAN_CHAT_EN);
+}
+
+function retryPurposeMenu(language: Language): string {
+  const retry = language === "id"
+    ? "Maaf, pilihan belum dikenali. Silakan pilih salah satu opsi dengan membalas angka."
+    : "Sorry, I didn't recognize that choice. Please reply with one of the option numbers.";
+  const menu = language === "id" ? MENU_TUJUAN_CHAT_ID : MENU_TUJUAN_CHAT_EN;
+  return `${retry}\n\n${menu}`;
+}
+
+function purposeHandoff(reason: PurposeHandoffReason, language: Language): BotTurn {
+  return {
+    reply: { text: language === "id" ? CONFIRM_HANDOFF_FORWARDED_ID : CONFIRM_HANDOFF_FORWARDED_EN },
+    actions: [{ kind: "hand-off-to-admin", reason, request: null }],
+  };
 }
 
 /** Satu langkah pemrosesan teks: balasan, tindakan, dan state berikutnya. */
@@ -430,6 +604,14 @@ function step(state: FlowState, text: string, language: Language): StepResult {
         { kind: "record-follow-up-request", request },
         { kind: "hand-off-to-admin", reason: "follow-up-request", request, revision: true },
       ],
+      next,
+    };
+  }
+
+  if (state.kind === "admin-routed" && next.kind === "admin-routed") {
+    return {
+      reply: indonesian ? BASA_BASI_ID : BASA_BASI_EN,
+      actions: [],
       next,
     };
   }
@@ -590,6 +772,9 @@ function stepLampiran(state: FlowState, language: Language): StepResult {
       next,
     };
   }
+  if (next.kind === "admin-routed") {
+    return { reply: akui, actions: [], next };
+  }
   return {
     reply: balasanDenganPrompt(
       akui,
@@ -642,10 +827,23 @@ function nextState(state: FlowState, text: string): FlowState {
   if (routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger)) {
     return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
   }
+  if (state.kind === "admin-routed") {
+    return state;
+  }
 
   // Basa-basi bukan jawaban bidang, pertanyaan, maupun perubahan kebutuhan
   // (tiket 06); dari idle tetap membuka pengumpulan seperti chat lain.
   if (state.kind !== "idle" && isBasaBasi(text)) {
+    return state;
+  }
+
+  // Pembuka umum setelah pilihan Calon Jemaah belum menjawab bidang layanan;
+  // perilakunya tetap sama dengan pembuka intake sebelum menu tujuan.
+  if (
+    state.kind === "collecting" &&
+    state.draft.interestedServices === null &&
+    /\b(konsultasi|consultation)\b/i.test(text)
+  ) {
     return state;
   }
 
@@ -807,6 +1005,18 @@ function leadHandoff(reason: HandOffReason, indonesian: boolean): string {
     "follow-up-request": [
       "Permintaan Anda dapat ditindaklanjuti oleh tim kami.",
       "Your request can be followed up by our team.",
+    ],
+    vendor_mitra: [
+      "Permintaan vendor atau mitra bisnis akan ditangani tim kami.",
+      "Vendor or business partner enquiries will be handled by our team.",
+    ],
+    internal: [
+      "Pesan untuk tim internal akan diteruskan kepada tim kami.",
+      "Your message for the internal team will be forwarded to our team.",
+    ],
+    other: [
+      "Keperluan Anda akan diteruskan kepada tim kami.",
+      "Your request will be forwarded to our team.",
     ],
   };
   const entry = leads[reason];

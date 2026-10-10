@@ -16,6 +16,13 @@ import type {
 
 export class Percakapan {
   private riwayat: readonly ConversationTurn[] = [];
+  readonly promptIntake: BotTurn;
+
+  constructor(language: "id" | "en" = "id") {
+    // Tes alur intake dimulai setelah percakapan nyata melewati menu tujuan.
+    this.kirim(language === "id" ? "Halo" : "Hello");
+    this.promptIntake = this.kirim("1");
+  }
 
   /** Kirim pesan calon jemaah dan kembalikan giliran bot untuk pesan tersebut. */
   kirim(text: string): BotTurn {
@@ -60,6 +67,23 @@ export function teksBalasan(turn: BotTurn): string {
     throw new Error("pesan teks harus menghasilkan balasan");
   }
   return turn.reply.text;
+}
+
+/** Konteks seam setelah pembuka dikirim dan bot sedang menunggu pilihan tujuan. */
+export function konteksMenungguTujuanChat(): ConversationContext {
+  const pembuka: InboundMessage = {
+    id: "wamid.menu-opening",
+    from: "628123456789",
+    timestamp: "1727000000",
+    text: "Halo",
+  };
+  const turn = handleInbound(pembuka, { history: [] });
+  if (!turn.reply) {
+    throw new Error("pembuka menu tujuan tidak menghasilkan balasan");
+  }
+  return {
+    history: [turnForInbound(pembuka), { role: "asisten", text: turn.reply.text }],
+  };
 }
 
 /**

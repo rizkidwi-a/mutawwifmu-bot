@@ -128,6 +128,32 @@ test("handoff yang disetujui dikirim sebagai pesan WhatsApp ke nomor admin", asy
   }
 });
 
+test("pilihan tujuan bisnis dikirim ke admin sebagai kategori tanpa riwayat percakapan", async () => {
+  for (const [pilihan, reason] of [["2", "vendor_mitra"], ["3", "internal"], ["4", "other"]] as const) {
+    const lingkungan = await buatLingkungan();
+    try {
+      await kirimPesan(lingkungan, "Halo");
+      const response = await kirimPesan(lingkungan, pilihan);
+      assert.equal(response.status, 200);
+
+      const handoff = lingkungan.pesanKeluar.find((pesan) => pesan.to === NOMOR_ADMIN);
+      assert.ok(handoff, `handoff untuk ${reason} harus dikirim`);
+      assert.match(handoff.text, new RegExp(`\\(${reason}\\)`));
+      assert.match(handoff.text, /628123456789/);
+      assert.doesNotMatch(handoff.text, /Halo|Konteks percakapan:|calon-jemaah:|asisten:/i);
+      assert.doesNotMatch(handoff.text, /Ringkasan Kebutuhan:/);
+      assert.deepEqual(lingkungan.metrics.snapshot(), {
+        followUpRequestsRecorded: 0,
+        followUpRequestsForwarded: 0,
+        handOffsForwarded: 1,
+        faqAnswered: 0,
+      });
+    } finally {
+      await lingkungan.tutup();
+    }
+  }
+});
+
 test("kegagalan pengiriman ke nomor admin tidak diklaim sebagai penerusan", async () => {
   const lingkungan = await buatLingkungan({ adminGagal: true });
   try {
