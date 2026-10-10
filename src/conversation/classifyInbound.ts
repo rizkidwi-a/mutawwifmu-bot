@@ -1,6 +1,6 @@
 /**
  * Klasifikasi pesan masuk Calon Jemaah untuk routing percakapan (tiket 03,
- * disempit oleh tiket 05 sesuai ADR-0005).
+ * disempit oleh tiket 05 sesuai ADR-0005, disempit lagi oleh tiket 08).
  *
  * Hasil klasifikasi hanya menentukan jalur percakapan (sejak ADR-0009/tiket
  * 01, lihat perubahan pada `handleInbound`):
@@ -28,7 +28,10 @@
  * ADR-0004 mengasumsikan tiket 05 "menambah atau mengubah entri pada modul
  * pengetahuan yang sama tanpa menyentuh logika klasifikasi". Tiket 05 justru
  * menyempitkan pola harga/ketersediaan di modul ini agar angka yang tercantum
- * materi dapat disebut sebagai Harga Indikatif — lihat ADR-0005.
+ * materi dapat disebut sebagai Harga Indikatif — lihat ADR-0005. Tiket 08
+ * menyempitkan lagi pola topik layanan yang terlalu longgar: pertanyaan yang
+ * menyebut rincian, kebijakan, atau topik tanpa materi tidak lagi dicatat
+ * sebagai `faq`, melainkan diteruskan ke admin (ADR-0009).
  */
 import {
   isPriceTopic,
@@ -110,6 +113,72 @@ const UNVERIFIED_UNIT_REQUEST =
 const UNSUPPORTED_DETAIL =
   /\b(syarat|persyaratan|requirements?|berapa lama|masa berlaku|validity|expired|kadaluarsa|harus (bawa|siapkan|urus|persiapkan)|perlu (bawa|siapkan)|what do i need|what documents|how long)\b/i;
 
+/**
+ * Kelompok 1 tiket 08 — permintaan mencarikan/mengecek harga spesifik dengan
+ * barang, hotel, atau tanggal yang disebut (mis. "tolong di check ... untuk
+ * harganya: 13-20 Januari - Jumeirah Jabal Omar"). Angka akhirnya harus
+ * dicari admin, bukan dijawab dari daftar Harga Indikatif.
+ */
+const SPECIFIC_QUOTE_REQUEST =
+  /\b(tolong|tlg|mohon|minta|boleh)\b[^?!.]{0,80}\b(carikan|dicarikan|dicari|cek|dicek|check|hitungkan|dihitung|hitung)\b/i;
+
+/**
+ * Kelompok 2 tiket 08 — selisih/upgrade harga. Angka delta (mis. "upgrade ke
+ * staria, tambahannya brp?") tidak tercantum materi sehingga tetap ke admin
+ * (ADR-0005). Sengaja hanya "tambahan"/"tambahan(nya)", bukan "tambah", agar
+ * permintaan menambahkan layanan yang punya materi (mis. mutawwif) tidak ikut
+ * tertarik ke handoff.
+ */
+const PRICE_DELTA_REQUEST = /\b(upgrade|up grade|selisih|tambahan(nya)?|surcharge)\b/i;
+
+/**
+ * Kelompok 3 tiket 08 — timing dan ketersediaan dokumen/keberangkatan yang
+ * tidak tercantum materi (mis. "visa nya gpp h-1 bulan? apakah kekejar?",
+ * "berapa bulan sebelum berangkat harus submit utk visa?").
+ */
+const TIMING_OR_DEADLINE_REQUEST =
+  /\b(h\s?-?\s?\d|berapa (bulan|minggu|hari|jam)|kekejar|sebelum (berangkat|keberangkatan)|lead ?time)\b/i;
+
+/**
+ * Kelompok 4 tiket 08 — permintaan menambahkan layanan ke penawaran (mis.
+ * "apakah bisa include dibantu di airportnya untuk bagasi, air zam-zam, dll?").
+ * Permintaan seperti ini adalah perubahan penawaran, bukan pertanyaan materi.
+ */
+const INCLUDE_REQUEST =
+  /\b(apakah|bisakah|bisa|boleh|dapat|can|could)\b[^?!.]{0,50}\binclud(e|kan)\b|\binclud(e|kan)\b[^?!.]{0,40}\b(dibantu|bantuan|dll|dan lain-lain)\b/i;
+
+/**
+ * Kelompok 5 tiket 08 — kebijakan/proses yang tidak tercantum materi: approval
+ * hotel untuk visa, penggantian hotel setelah visa keluar, atau topik Raudhah &
+ * Nusuk. Pola penggantian hotel sengaja menuntut bentuk pertanyaan ("masi bisa
+ * ganti hotel") agar pernyataan perubahan hotel biasa tidak ikut ke handoff.
+ */
+const POLICY_OR_PROCESS_REQUEST =
+  /\b(approval(nya)?|approv(e|ed)|disetujui|di ?acc)\b|\b(abis|habis|setelah)\s+visa\s+(keluar|terbit|terbitkan|jadi|proses)\b|\b(masih|masi|bisa|boleh)\b[^?!.]{0,30}\b(ganti|ubah|tukar)\b[^?!.]{0,30}\b(hotel|kamar|akomodasi|maskapai|pesawat|tiket)\b/i;
+
+/**
+ * Kelompok 5 & 6 tiket 08 — topik tanpa padanan materi: kereta Haramain
+ * (termasuk "HHR"), Raudhah, dan Nusuk. "kereta gantung" dikecualikan karena
+ * rinciannya justru tercantum pada materi city tour Thaif.
+ */
+const UNSUPPORTED_TOPIC =
+  /\b(raudhah|raudah|rawdhah|raudhatul|rawda|nusuk)\b|\b(?:(?:al\s?)?haramain|harramain|hhr)\b|\bkereta(?!\s*gantung)\b/i;
+
+/**
+ * Kelompok 6 tiket 08 — kerjasama/kolaborasi pihak ketiga (mis. "ada kerjasama
+ * dengan jago syariah ya?"). Bukan kebutuhan calon jemaah, jadi ditangani tim.
+ */
+const PARTNERSHIP_REQUEST =
+  /\b(kerja ?sama|kolaborasi|berkolaborasi|collaborat(e|ion|ing)|partnership|partner(ing)?|influencer|influenser|endorse(ment)?)\b/i;
+
+/**
+ * Kelompok 6 tiket 08 — ketersediaan/keberadaan asuransi perjalanan (mis. "ada
+ * asuransi perjalanannya ga ya?"). Pertanyaan angka biayanya tetap dijawab
+ * sebagai Harga Indikatif; yang diteruskan adalah konfirmasi ketersediaannya.
+ */
+const INSURANCE_AVAILABILITY_REQUEST =
+  /\b(ada|punya|tersedia|menyediakan|sediakan|provides?|have|includes?)\b[^?!.]{0,40}\b(asuransi|insurance)\b/i;
+
 /** Basa-basi/sapaan tanpa pertanyaan substantif — tetap dibalas pembuka yang hangat. */
 const PLEASANTRY = /apa kabar|how are you|gimana kabar|kabar (baik|saja)|what'?s up/i;
 
@@ -130,6 +199,16 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
   { trigger: "agency-or-corporate", pattern: AGENCY_OR_CORPORATE },
   { trigger: "booking-or-payment", pattern: BOOKING_OR_PAYMENT },
   { trigger: "unsupported-question", pattern: UNSUPPORTED_DETAIL },
+  // Tiket 08: pertanyaan yang menyebut rincian, kebijakan, atau topik tanpa
+  // materi tidak dicatat sebagai `faq`, melainkan diteruskan ke admin.
+  { trigger: "agency-or-corporate", pattern: PARTNERSHIP_REQUEST },
+  { trigger: "unsupported-question", pattern: UNSUPPORTED_TOPIC },
+  { trigger: "unsupported-question", pattern: TIMING_OR_DEADLINE_REQUEST },
+  { trigger: "unsupported-question", pattern: POLICY_OR_PROCESS_REQUEST },
+  { trigger: "custom-quote-or-availability", pattern: PRICE_DELTA_REQUEST },
+  { trigger: "custom-quote-or-availability", pattern: SPECIFIC_QUOTE_REQUEST },
+  { trigger: "custom-quote-or-availability", pattern: INCLUDE_REQUEST },
+  { trigger: "custom-quote-or-availability", pattern: INSURANCE_AVAILABILITY_REQUEST },
 ];
 
 /**

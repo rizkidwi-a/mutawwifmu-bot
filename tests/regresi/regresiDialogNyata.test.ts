@@ -280,10 +280,11 @@ test("basa-basi pada dialog nyata tidak mencemari Ringkasan Kebutuhan", { skip: 
 // ---------------------------------------------------------------------------
 // Kriteria dua temuan analisis pencocokan transkrip (`.scratch/
 // pencocokan-korpus-transkrip/analisis.md`). Perbaikannya milik tiket 08 dan
-// 09 — dicatat di sini sebagai kriteria replay yang belum terpenuhi.
+// 09 — dicatat di sini sebagai kriteria replay; perbaikan tiket 08 sudah
+// terpenuhi dan dijaga sebagai tes biasa, perbaikan tiket 09 masih tertunda.
 // ---------------------------------------------------------------------------
 
-test("kriteria tiket 08: kasus transkrip-nyata berlabel handoff tidak jatuh ke jalur FAQ", { todo: "perbaikan pola milik tiket 08" }, () => {
+test("kriteria tiket 08: kasus transkrip-nyata berlabel handoff tidak jatuh ke jalur FAQ", () => {
   const korpus = JSON.parse(
     readFileSync(new URL("../../tests/korpus/transkrip-nyata.json", import.meta.url), "utf8"),
   ) as { kasus: { pesan: string; harapan: { jenis: string } }[] };

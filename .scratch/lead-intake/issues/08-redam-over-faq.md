@@ -11,7 +11,7 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Testing Decisions
 
@@ -23,3 +23,35 @@
 
 - Sumber analisis: `.scratch/pencocokan-korpus-transkrip/analisis.md` (bagian "16 selisih rute" dan tabel gap).
 - Prioritas tertinggi di antara tiket hasil analisis transkrip: dampaknya bot menjawab pertanyaan yang tidak didukung materi, bukan sekadar melewatkan pertanyaan.
+
+### Implementasi (sesi 2026-10-10)
+
+Klasifikasi disempitkan di `src/conversation/classifyInbound.ts` dengan kelompok pola baru
+yang diperiksa **sebelum** `matchFaqTopic` (semuanya berujung handoff):
+
+| Kelompok tiket | Pola | Alasan handoff |
+| --- | --- | --- |
+| 1. Harga spesifik | `tolong/tlg/minta ... check/cek/carikan/hitungkan` | `custom-quote-or-availability` |
+| 2. Selisih/upgrade | `upgrade`, `selisih`, `tambahan(nya)` | `custom-quote-or-availability` |
+| 3. Timing & ketersediaan | `h-1`, `berapa bulan/minggu/hari/jam`, `kekejar`, `sebelum berangkat` | `unsupported-question` |
+| 4. Include ke penawaran | `bisa/apakah ... include`, `include ... dibantu/dll` | `custom-quote-or-availability` |
+| 5. Kebijakan/proses | `approval(nya)`, `abis/setelah visa keluar ... ganti hotel`, Raudhah, Nusuk, kereta Haramain/HHR | `unsupported-question` |
+| 6a. Kerjasama pihak ketiga | `kerjasama`, `kolaborasi`, `influencer` | `agency-or-corporate` |
+| 6b. Ketersediaan asuransi | `ada/menyediakan ... asuransi` | `custom-quote-or-availability` |
+
+Catatan penyempitan: `tambahan(nya)` (bukan `tambah`) agar permintaan menambah layanan yang
+ada materinya tetap ke jalur materi; penggantian hotel hanya ditangkap bila berbentuk
+pertanyaan (`masi bisa ganti hotel`) agar pernyataan perubahan hotel tidak ikut ke handoff;
+`kereta gantung` dikecualikan karena rinciannya ada di materi city tour Thaif; pertanyaan
+biaya asuransi tetap dijawab sebagai Harga Indikatif.
+
+Verifikasi:
+
+- `node scripts/probe-cakupan.ts`: rute tepat 70/95 (74%) → **82/95 (86%)**;
+transkrip-nyata 38/54 → **50/54** — seluruh 22 kasus berlabel `handoff` kini `handoff`.
+`dasar.json` tidak berubah (32/41).
+- `npm test` hijau: 266 tes, 265 lulus, 1 `todo` tersisa (kriteria tiket 09).
+- Kriteria tiket ini di `tests/regresi/regresiDialogNyata.test.ts` dilepas dari `todo` dan
+dijaga sebagai tes biasa; 12 pesan over-faq menjadi tes di
+`tests/conversation/classifyInbound.test.ts`, lengkap dengan penjaga agar pertanyaan yang
+didukung materi tidak ikut tertarik ke handoff.

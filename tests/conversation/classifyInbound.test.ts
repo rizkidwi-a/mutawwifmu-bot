@@ -153,3 +153,85 @@ test("kata kerja memesan diperlakukan sebagai booking", () => {
     trigger: "booking-or-payment",
   });
 });
+
+/**
+ * 12 pesan transkrip nyata yang sebelumnya diklasifikasi `faq` padahal layak
+ * diteruskan ke admin (tiket 08). Setiap baris mewakili satu kelompok pola di
+ * tiket; rujukannya ADR-0005 (permintaan harga/ketersediaan spesifik tetap ke
+ * admin) dan ADR-0009 (pertanyaan tanpa materi diteruskan, tidak dikarang).
+ */
+const DI_LUAR_MATERI: ReadonlyArray<readonly [kelompok: string, pesan: string]> = [
+  // 1. Permintaan harga spesifik yang menyebut hotel/tanggal/daftar item.
+  [
+    "harga spesifik",
+    "boleh tolong di check gak yaa untuk harganya: 13-20 Januari - Jumeirah Jabal Omar - " +
+      "Deluxe Room Haram View. 20-24 Januari - Diyar Ajwa. King Room",
+  ],
+  [
+    "harga spesifik",
+    "Boleh minta tlg dicarikan hotel di pelataran at least elaf kinda.. syukur kl bs Safwah " +
+      "Tower atau hotel lain yg deket ke masjidil haram. Di Madinah pengen di golden tulip " +
+      "alwahbi atau hotel lain yg deket. Transport tlg hitungkan kl ke Jeddah-mekkah-madinah-jeddah " +
+      "pk alharamain atau pake mobil kira2 berapa biayanya?",
+  ],
+  // 2. Selisih/upgrade harga — angka delta tidak tercantum materi (ADR-0005).
+  ["selisih harga", "Kalo upgrade ke staria, tambahannya brp?"],
+  // 3. Timing & ketersediaan yang tidak tercantum materi.
+  ["timing", "Visa nya gpp h-1 bulan? Apakah kekejar?"],
+  ["timing", "berapa bulan sebelum berangkat.. harus submit utk visa umroh bapak ibu mertua?"],
+  // 4. Permintaan include/penambahan layanan ke penawaran.
+  [
+    "include ke penawaran",
+    "apakah bisa include dibantu di airportnya untuk bagasi, air zam-zam, dll?",
+  ],
+  // 5. Kebijakan/proses di luar materi.
+  [
+    "kebijakan",
+    "kak, pengalaman client kakak.. abis visa keluar masi bisa ganti hotel gak yah? atau sebaiknya jangan?",
+  ],
+  ["kebijakan", "kalo madinah dan jeddah biasanya handle hotel apa kak yang cepet approvalnya?"],
+  [
+    "kebijakan",
+    "Mba raudhah itu apakah perlu pesan2 gitu? Kami baru pertama kali kalo umroh, tapi kami " +
+      "typical yg udah sering travel ke luar makanya bisa book2 hotel sama pesawat sendiri.",
+  ],
+  // 6. Topik tanpa materi.
+  ["topik tanpa materi", "Mas itu ada asuransi perjalanannya ga ya?"],
+  ["topik tanpa materi", "Mas, mutawwif pilihanmu ada kerjasama dengan jago syariah ya?"],
+  ["topik tanpa materi", "ohh tapi kan dari stasiun HHR ke Jeddah airport itu langsung kan ya?"],
+];
+
+test("pertanyaan di luar materi diteruskan ke handoff, bukan diklasifikasi FAQ", () => {
+  for (const [kelompok, pesan] of DI_LUAR_MATERI) {
+    assert.equal(classifyInbound(pesan).kind, "handoff", `${kelompok}: ${pesan}`);
+  }
+});
+
+test("penyempitan tiket 08 tidak menyeret pertanyaan yang didukung materi", () => {
+  // Pertanyaan yang materinya tersedia tetap di jalur materi.
+  const hargaHotel = classifyInbound("Berapa harga hotel di Mekkah?");
+  assert.equal(hargaHotel.kind, "indicative-price", "harga hotel tetap Harga Indikatif");
+  assert.deepEqual(classifyInbound("Apakah bisa urus visa umrah?"), {
+    kind: "faq",
+    topic: "visa-documents",
+  });
+  assert.deepEqual(classifyInbound("ada pemandu ibadah gak?"), {
+    kind: "faq",
+    topic: "mutawwif",
+  });
+  // "kereta gantung" adalah rincian materi city tour, bukan kereta Haramain.
+  assert.deepEqual(classifyInbound("kereta gantung termasuk dalam paket city tour?"), {
+    kind: "faq",
+    topic: "city-tour",
+  });
+  // Penambahan layanan sebagai pernyataan biasa bukan permintaan penawaran.
+  assert.notEqual(classifyInbound("Tambah airport handling").kind, "handoff");
+  // Pernyataan perubahan hotel (kasus misfire harga) bukan ganti-hotel kebijakan.
+  assert.notEqual(
+    classifyInbound(
+      "sebenernya kita bukannya mau ganti hotel si.. cuma ganti dari harga free cancellation " +
+        "to non refundable soalnya bedanya jauh",
+    ).kind,
+    "handoff",
+  );
+});
