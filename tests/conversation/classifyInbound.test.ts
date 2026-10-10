@@ -264,3 +264,40 @@ test("penyempitan tiket 08 tidak menyeret pertanyaan yang didukung materi", () =
     "handoff",
   );
 });
+
+test("topik gap tiket 10 tetap handoff, termasuk varian ejaan dan bentuk tanya tanpa tanda tanya", () => {
+  for (const text of [
+    // Topik yang diputuskan tetap handoff beserta varian ejaannya.
+    "siskapatuh itu wajib ga ya",
+    "harramain on time ga ya",
+    "raudhah perlu booking ga",
+    "nusuk card kebijakannya gimana",
+    // Ketentuan asuransi bukan sekadar ketersediaan/biaya yang ada materinya.
+    "asuransi perjalanan ketentuannya apa?",
+    "insurance nya include ga?",
+    "asuransi manfaatnya apa saja",
+    "insurance benefitnya apa",
+    "asuransi perjalanan sertakan ga",
+    // Bentuk tanya sehari-hari tanpa tanda tanya yang sebelumnya lolos jadi opener.
+    "perlengkapan umrohnya dapat ga",
+    "dapat air zamzam ga",
+    "konsumsi termasuk ga",
+    "vaksin di malaysia bisa",
+    "bayar cicilan bisa",
+  ]) {
+    assert.equal(classifyInbound(text).kind, "handoff", text);
+  }
+});
+
+test("pernyataan negatif atau sudah berjalan yang berakhir bisa bukan pertanyaan", () => {
+  for (const text of ["saya tidak bisa", "gak bisa", "ga bisa", "belum bisa", "sudah bisa"]) {
+    assert.deepEqual(classifyInbound(text), { kind: "opener" }, text);
+  }
+});
+
+test("pertanyaan biaya asuransi yang tercantum materi tetap dijawab sebagai Harga Indikatif", () => {
+  assert.deepEqual(classifyInbound("berapa biaya asuransi perjalanan?"), {
+    kind: "indicative-price",
+    topic: "price-document-arrangement",
+  });
+});

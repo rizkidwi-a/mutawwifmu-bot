@@ -8,7 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
+import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
  * Pertanyaan harga yang angkanya tercantum materi beserta kata kunci jawabannya.
@@ -96,67 +96,59 @@ test("pertanyaan harga dalam Bahasa Inggris dijawab sebagai Indicative Price dal
 });
 
 test("permintaan penawaran khusus tetap ke alur admin meski angkanya tercantum materi", () => {
-  for (const pesan of [
-    "Saya ingin minta penawaran harga untuk fotografer",
-    "Bisakah dibuatkan penawaran khusus untuk city tour Madinah?",
-  ]) {
-    const percakapan = new Percakapan();
-    const turn = percakapan.kirim(pesan);
-    const balasan = teksBalasan(turn);
-    assert.match(balasan, /teruskan|diteruskan/i);
-    assert.match(balasan, /setuju/i);
-    assert.doesNotMatch(balasan, /SAR|IDR|Rp/);
-    assert.deepEqual(turn.actions, []);
+  // Pernyataan permintaan penawaran (bukan pertanyaan) langsung meminta persetujuan.
+  const pernyataan = new Percakapan().kirim("Saya ingin minta penawaran harga untuk fotografer");
+  const balasanPernyataan = teksBalasan(pernyataan);
+  assert.match(balasanPernyataan, /teruskan|diteruskan/i);
+  assert.match(balasanPernyataan, /setuju/i);
+  assert.doesNotMatch(balasanPernyataan, /SAR|IDR|Rp/);
+  assert.deepEqual(pernyataan.actions, []);
 
-    const lanjut = percakapan.kirim("ya");
-    const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-    assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-    assert.equal(handoff.reason, "custom-quote-or-availability");
-  }
+  // Pertanyaan penawaran masuk alur intake lebih dahulu (tiket 10): tidak
+  // dijawab dari materi, dicatat, lalu diteruskan bersama Ringkasan Kebutuhan.
+  const pesan = "Bisakah dibuatkan penawaran khusus untuk city tour Madinah?";
+  const percakapan = new Percakapan();
+  const awal = percakapan.kirim(pesan);
+  assert.deepEqual(awal.actions, []);
+  assert.doesNotMatch(teksBalasan(awal), /SAR|IDR|Rp|Harga Indikatif/);
+  assert.match(teksBalasan(awal), /catat|noted/i);
+  const request = lengkapiPermintaanLaluSetujui(percakapan);
+  assert.ok(request.notedQuestions.includes(pesan));
 });
 
-test("konfirmasi harga dan ketersediaan tetap ke alur admin, bukan Harga Indikatif", () => {
+test("konfirmasi harga dan ketersediaan tidak dijawab sebagai Harga Indikatif dan tetap ke alur admin", () => {
   for (const pesan of [
     "Apakah city tour Madinah masih tersedia?",
     "Apakah harga hotel ini masih berlaku untuk Desember?",
   ]) {
     const percakapan = new Percakapan();
-    const turn = percakapan.kirim(pesan);
-    const balasan = teksBalasan(turn);
-    assert.match(balasan, /teruskan|diteruskan/i);
-    assert.match(balasan, /setuju/i);
-    assert.doesNotMatch(balasan, /Harga Indikatif|SAR|IDR/);
-    assert.deepEqual(turn.actions, []);
+    const awal = percakapan.kirim(pesan);
+    assert.deepEqual(awal.actions, [], pesan);
+    assert.doesNotMatch(teksBalasan(awal), /Harga Indikatif|SAR|IDR/, pesan);
+    assert.match(teksBalasan(awal), /catat|noted/i, pesan);
+    const request = lengkapiPermintaanLaluSetujui(percakapan);
+    assert.ok(request.notedQuestions.includes(pesan), pesan);
   }
 });
 
 test("pertanyaan harga dengan satuan yang tidak tercantum materi tidak ditafsirkan sendiri", () => {
   for (const pesan of ["Berapa harga hotel per malam?", "How much is the hotel per night?"]) {
     const percakapan = new Percakapan();
-    const turn = percakapan.kirim(pesan);
-    const balasan = teksBalasan(turn);
-    assert.match(balasan, /teruskan|diteruskan|forward/i);
-    assert.match(balasan, /setuju|consent/i);
-    assert.doesNotMatch(balasan, /per orang|per kamar|per person|per room/i);
-    assert.deepEqual(turn.actions, []);
-
-    const lanjut = percakapan.kirim("ya");
-    const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-    assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-    assert.equal(handoff.reason, "custom-quote-or-availability");
+    const awal = percakapan.kirim(pesan);
+    assert.deepEqual(awal.actions, [], pesan);
+    assert.doesNotMatch(teksBalasan(awal), /per orang|per kamar|per person|per room/i, pesan);
+    const request = lengkapiPermintaanLaluSetujui(percakapan);
+    assert.ok(request.notedQuestions.includes(pesan), pesan);
   }
 });
 
 test("permintaan booking dan pembayaran terkait harga tetap ditangani admin, bukan transaksi bot", () => {
+  const pesan = "Saya mau pesan city tour Mekkah, cara pembayarannya bagaimana?";
   const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Saya mau pesan city tour Mekkah, cara pembayarannya bagaimana?");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /teruskan|diteruskan/i);
-  assert.match(balasan, /setuju/i);
-  assert.deepEqual(turn.actions, []);
-
-  const lanjut = percakapan.kirim("ya");
-  const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-  assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-  assert.equal(handoff.reason, "booking-or-payment");
+  const awal = percakapan.kirim(pesan);
+  assert.deepEqual(awal.actions, []);
+  assert.match(teksBalasan(awal), /catat|noted/i);
+  assert.doesNotMatch(teksBalasan(awal), /Harga Indikatif|(pesan|bayar|booking) sekarang/i);
+  const request = lengkapiPermintaanLaluSetujui(percakapan);
+  assert.ok(request.notedQuestions.includes(pesan));
 });

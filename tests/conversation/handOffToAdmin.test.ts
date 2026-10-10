@@ -1,15 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
+import { classifyInbound } from "../../src/conversation/classifyInbound.ts";
+import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
-/** Kasus yang wajib dapat diteruskan ke admin (spec: "kasus diteruskan kepada admin bila..."). */
+/**
+ * Pesan yang langsung meminta persetujuan handoff (spec: "kasus diteruskan
+ * kepada admin bila..."). Sejak tiket 10, pertanyaan non-urgent tidak ada di
+ * daftar ini: pesannya masuk alur intake lebih dahulu agar tercatat pada
+ * Ringkasan Kebutuhan (lihat `PERTANYAAN_HANDOFF` di bawah).
+ */
 const KASUS_HANDOFF: ReadonlyArray<readonly [pesan: string, alasan: string]> = [
   ["Saya mau bicara dengan manusia saja", "human-request"],
   ["tolong hubungkan saya dengan admin MUTAWWIFMU", "human-request"],
-  ["berapa lama masa berlaku visa umrah?", "unsupported-question"],
-  ["bisakah saya memesan paket umrah bulan depan?", "booking-or-payment"],
   ["saya ingin minta penawaran khusus untuk rombongan 20 orang", "custom-quote-or-availability"],
-  ["apakah kamar hotel di Mekkah masih tersedia untuk Desember?", "custom-quote-or-availability"],
   ["kami dari PT Maju Jaya, agen travel, ingin bekerja sama", "agency-or-corporate"],
   ["kami sedang berada di Mekkah sekarang, jadwal hari ini berubah", "active-trip"],
   ["tolong, ada kecelakaan, ini keadaan darurat", "emergency"],
@@ -49,6 +52,32 @@ test("penolakan persetujuan handoff tidak meneruskan informasi apa pun", () => {
   const turn = percakapan.kirim("tidak, tidak usah");
   assert.deepEqual(turn.actions, []);
   assert.match(teksBalasan(turn), /tidak .{0,25}(diteruskan|teruskan)/i);
+});
+
+/**
+ * Pertanyaan yang klasifikasinya tetap handoff (tervalidasi lewat
+ * `classifyInbound`), tetapi datang sebagai pesan pertama: alurnya masuk
+ * intake lebih dahulu supaya pesannya tercatat pada Ringkasan Kebutuhan
+ * (tiket 10), bukan diteruskan ke admin tanpa isi.
+ */
+const PERTANYAAN_HANDOFF: ReadonlyArray<readonly [pesan: string, alasan: string]> = [
+  ["berapa lama masa berlaku visa umrah?", "unsupported-question"],
+  ["bisakah saya memesan paket umrah bulan depan?", "booking-or-payment"],
+  ["apakah kamar hotel di Mekkah masih tersedia untuk Desember?", "custom-quote-or-availability"],
+];
+
+test("pertanyaan pemicu handoff dari awal masuk intake dan tercatat untuk admin", () => {
+  for (const [pesan, alasan] of PERTANYAAN_HANDOFF) {
+    assert.deepEqual(classifyInbound(pesan), { kind: "handoff", trigger: alasan }, pesan);
+    const percakapan = new Percakapan();
+    const awal = percakapan.kirim(pesan);
+    assert.deepEqual(awal.actions, [], pesan);
+    assert.match(teksBalasan(awal), /catat|noted/i, pesan);
+    assert.doesNotMatch(teksBalasan(awal), /setuju|consent/i, pesan);
+
+    const request = lengkapiPermintaanLaluSetujui(percakapan);
+    assert.ok(request.notedQuestions.includes(pesan), pesan);
+  }
 });
 
 test("konfirmasi handoff tidak menjanjikan waktu balasan admin", () => {

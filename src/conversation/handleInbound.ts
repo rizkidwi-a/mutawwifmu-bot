@@ -1,4 +1,9 @@
-import { classifyInbound, type HandoffTrigger, type InboundRouting } from "./classifyInbound.ts";
+import {
+  BENTUK_TANYA_SEHARI_HARI,
+  classifyInbound,
+  type HandoffTrigger,
+  type InboundRouting,
+} from "./classifyInbound.ts";
 import { resolveReplyLanguage, type Language } from "./language.ts";
 import { faqAnswer } from "../knowledge/businessFaq.ts";
 import type {
@@ -42,9 +47,12 @@ const CATAT_PERTANYAAN_EN =
 const PERTANYAAN =
   /\?|\b(apa(kah)?|bagaimana|gimana|kenapa|mengapa|kapan|dimana|di mana|siapa|berapa|bisakah|bolehkah|adakah|do|does|did|is|are|was|were|can|could|should|what|how|when|where|why|who|which|tany(a|akan)|bertanya|info(rmasi|kan)?|mau tahu|ingin tahu|cek|check)\b/i;
 
-/** Apakah pesan berupa pertanyaan (lihat `PERTANYAAN`). */
+/**
+ * Apakah pesan berupa pertanyaan (lihat `PERTANYAAN` dan bentuk tanya
+ * sehari-hari tanpa tanda tanya pada `classifyInbound`).
+ */
 function isPertanyaan(text: string): boolean {
-  return PERTANYAAN.test(text);
+  return PERTANYAAN.test(text) || BENTUK_TANYA_SEHARI_HARI.test(text);
 }
 
 /**
@@ -681,8 +689,16 @@ function nextState(state: FlowState, text: string): FlowState {
     return state;
   }
 
-  if (routing.kind === "handoff") {
+  if (routing.kind === "handoff" && !isPertanyaan(text)) {
     return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
+  }
+  if (routing.kind === "handoff") {
+    // Tiket 10: pertanyaan yang harus diteruskan ke admin (topik tanpa materi,
+    // penawaran/ketersediaan, booking/pembayaran) tetapi datang sebagai pesan
+    // pertama tidak langsung meminta persetujuan handoff tanpa isi. Pesannya
+    // dicatat sebagai bagian kebutuhan dan alur intake berlanjut, sehingga
+    // admin menerima pertanyaannya pada Ringkasan Kebutuhan (ADR-0009).
+    return { kind: "collecting", draft: catatPertanyaan(EMPTY_DRAFT, text) };
   }
   // ADR-0009: setiap pesan prospek yang tidak menyela ke handoff langsung
   // masuk pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.

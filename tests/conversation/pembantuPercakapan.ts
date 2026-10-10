@@ -10,6 +10,7 @@ import type {
   BotTurn,
   ConversationContext,
   ConversationTurn,
+  FollowUpRequest,
   InboundMessage,
 } from "../../src/conversation/types.ts";
 
@@ -59,4 +60,25 @@ export function teksBalasan(turn: BotTurn): string {
     throw new Error("pesan teks harus menghasilkan balasan");
   }
   return turn.reply.text;
+}
+
+/**
+ * Lengkapi bidang Permintaan Tindak Lanjut setelah sebuah pertanyaan menjadi
+ * pesan pertama percakapan (pertanyaannya sudah dicatat pada draft), lalu
+ * kirim persetujuan dan kembalikan Ringkasan Kebutuhan yang tercatat. Dipakai
+ * tes tiket 10: pertanyaan non-urgent dari awal tidak langsung meminta
+ * persetujuan handoff tanpa isi, melainkan masuk alur intake lebih dahulu.
+ */
+export function lengkapiPermintaanLaluSetujui(percakapan: Percakapan): FollowUpRequest {
+  percakapan.kirim("Umrah premium, tujuan Mekkah");
+  percakapan.kirim("Rencana Desember 2025");
+  percakapan.kirim("4 orang");
+  percakapan.kirim("Butuh kamar keluarga");
+  percakapan.kirim("tidak usah");
+  const turn = percakapan.kirim("Ya, setuju");
+  const catat = turn.actions.find((aksi) => aksi.kind === "record-follow-up-request");
+  if (catat === undefined || catat.kind !== "record-follow-up-request") {
+    throw new Error("Ringkasan Kebutuhan tidak tercatat setelah persetujuan");
+  }
+  return catat.request;
 }

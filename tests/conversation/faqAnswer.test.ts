@@ -13,7 +13,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
+import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
  * Pertanyaan yang didukung materi beserta kata kunci jawaban topiknya yang
@@ -85,13 +85,15 @@ test("permintaan penawaran harga tidak dijawab sebagai penawaran dan mengalir ke
   assert.deepEqual(turn.actions, []);
 });
 
-test("pertanyaan ketersediaan tidak dijawab sebagai FAQ dan mengalir ke persetujuan handoff", () => {
+test("pertanyaan ketersediaan tidak dijawab sebagai FAQ dan tetap ke alur admin", () => {
+  const pesan = "Apakah tersedia city tour?";
   const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Apakah tersedia city tour?");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /teruskan|diteruskan/i);
-  assert.match(balasan, /setuju/i);
-  assert.deepEqual(turn.actions, []);
+  const awal = percakapan.kirim(pesan);
+  assert.deepEqual(awal.actions, []);
+  assert.match(teksBalasan(awal), /catat|noted/i);
+  assert.doesNotMatch(teksBalasan(awal), /City Tour Basic|Al Ula/);
+  const request = lengkapiPermintaanLaluSetujui(percakapan);
+  assert.ok(request.notedQuestions.includes(pesan));
 });
 
 test("balasan atas pertanyaan non-harga tidak menjanjikan transaksi", () => {

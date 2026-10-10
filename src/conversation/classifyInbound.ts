@@ -34,7 +34,9 @@
  * sebagai `faq`, melainkan diteruskan ke admin (ADR-0009). Tiket 09 mengoreksi
  * false-negative-nya: varian ejaan nama layanan dinormalkan sebelum pencocokan
  * topik, dan kata harga berimbuhan "-nya" tetap diakui sebagai pertanyaan
- * Harga Indikatif.
+ * Harga Indikatif. Tiket 10 menutup celah kecilnya: ketentuan asuransi dan
+ * bentuk tanya sehari-hari tanpa tanda tanya ("... dapat ga", "... bisa")
+ * terbaca sebagai `handoff`, bukan lolos menjadi `opener`.
  */
 import {
   isPriceTopic,
@@ -116,11 +118,12 @@ const UNVERIFIED_UNIT_REQUEST =
   /\b(per|\/)\s?(malam|night|hari|day|jam|hour|minggu|week|bulan|month|tahun|year)s?\b|\b(nightly|hourly|daily|weekly|monthly|yearly)\b/i;
 
 /**
- * Rincian yang tidak tercantum dalam materi (syarat, durasi, masa berlaku)
- * sehingga tidak pasti dan tidak boleh dikarang.
+ * Rincian yang tidak tercantum dalam materi (syarat, ketentuan, durasi, masa
+ * berlaku) sehingga tidak pasti dan tidak boleh dikarang. "ketentuan" masuk
+ * tiket 10: ketentuan asuransi/pembayaran bukan fakta materi.
  */
 const UNSUPPORTED_DETAIL =
-  /\b(syarat|persyaratan|requirements?|berapa lama|masa berlaku|validity|expired|kadaluarsa|harus (bawa|siapkan|urus|persiapkan)|perlu (bawa|siapkan)|what do i need|what documents|how long)\b/i;
+  /\b(syarat|persyaratan|ketentuan(nya)?|requirements?|berapa lama|masa berlaku|validity|expired|kadaluarsa|harus (bawa|siapkan|urus|persiapkan)|perlu (bawa|siapkan)|what do i need|what documents|how long)\b/i;
 
 /**
  * Tiket 09 — permintaan penerbitan/mengurus paspor (mis. "Apakah MUTAWWIFMU
@@ -196,11 +199,24 @@ const PARTNERSHIP_REQUEST =
 
 /**
  * Kelompok 6 tiket 08 — ketersediaan/keberadaan asuransi perjalanan (mis. "ada
- * asuransi perjalanannya ga ya?"). Pertanyaan angka biayanya tetap dijawab
- * sebagai Harga Indikatif; yang diteruskan adalah konfirmasi ketersediaannya.
+ * asuransi perjalanannya ga ya") dan ketentuan cakupannya (tiket 10, mis.
+ * "insurance nya include ga?", "asuransi cover apa saja"). Pertanyaan angka
+ * biayanya tetap dijawab sebagai Harga Indikatif; yang diteruskan adalah
+ * konfirmasi ketersediaan dan ketentuan yang tidak tercantum materi.
  */
 const INSURANCE_AVAILABILITY_REQUEST =
-  /\b(ada|punya|tersedia|menyediakan|sediakan|provides?|have|includes?)\b[^?!.]{0,40}\b(asuransi|insurance)\b/i;
+  /\b(ada|punya|tersedia|menyediakan|sediakan|provides?|have|includes?)\b[^?!.]{0,40}\b(asuransi|insurance)\b|\b(asuransi|insurance)\b[^?!.]{0,40}\b(ketentuan(nya)?|syarat|persyaratan|coverage|cover|manfaat(nya)?|benefit(nya)?|include|termasuk|sertakan)\b/i;
+
+/**
+ * Bentuk tanya sehari-hari tanpa tanda tanya (tiket 10), mis. "vaksin di
+ * malaysia bisa", "perlengkapan umrohnya dapat ga", "insurance nya include ga".
+ * Pesan seperti ini tidak boleh lolos menjadi pembuka percakapan: pertanyaannya
+ * harus terbaca sebagai pertanyaan agar tercatat pada Ringkasan Kebutuhan.
+ * Dipakai bersama `handleInbound` (lihat `isPertanyaan`) sebagai satu-satunya
+ * sumber pola.
+ */
+export const BENTUK_TANYA_SEHARI_HARI =
+  /\b(bisa|boleh|dapat|wajib|termasuk|include|ada|aman|bagus|bener|benar|ready)\b[^?!.]{0,40}\b(ga|gak|gk|ngga|nggak|engga|tidak|tdk|kan|kah)\b|(?<!\b(?:tidak|tdk|gak|gk|ga|nggak|ngga|engga|kagak|belum|sudah|udah|masih|tetap)\s)\b(bisa|boleh|dapat)\b[?!.]*\s*$/i;
 
 /** Basa-basi/sapaan tanpa pertanyaan substantif — tetap dibalas pembuka yang hangat. */
 const PLEASANTRY = /apa kabar|how are you|gimana kabar|kabar (baik|saja)|what'?s up/i;
@@ -265,7 +281,7 @@ export function classifyInbound(text: string): InboundRouting {
   if (topic !== null) {
     return { kind: "faq", topic };
   }
-  if (!PLEASANTRY.test(pesan) && QUESTION_LIKE.test(pesan)) {
+  if (!PLEASANTRY.test(pesan) && (QUESTION_LIKE.test(pesan) || BENTUK_TANYA_SEHARI_HARI.test(pesan))) {
     return { kind: "handoff", trigger: "unsupported-question" };
   }
   return { kind: "opener" };

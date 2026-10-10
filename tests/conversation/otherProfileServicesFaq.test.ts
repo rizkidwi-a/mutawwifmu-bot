@@ -11,7 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
+import { Percakapan, lengkapiPermintaanLaluSetujui, teksBalasan } from "./pembantuPercakapan.ts";
 
 /**
  * Pertanyaan layanan lain dalam profil beserta kata kunci jawaban topiknya yang
@@ -88,18 +88,14 @@ test("pertanyaan agen travel dan korporasi diteruskan ke admin, bukan sebagai Pe
   }
 });
 
-test("informasi yang tidak tersedia memakai alur handoff tiket 02", () => {
+test("informasi yang tidak tersedia tetap ke alur admin dan tercatat pada Ringkasan Kebutuhan", () => {
+  const pesan = "Apakah MUTAWWIFMU bisa mengurus paspor?";
   const percakapan = new Percakapan();
-  const turn = percakapan.kirim("Apakah MUTAWWIFMU bisa mengurus paspor?");
-  const balasan = teksBalasan(turn);
-  assert.match(balasan, /teruskan|diteruskan/i);
-  assert.match(balasan, /setuju/i);
-  assert.deepEqual(turn.actions, []);
-
-  const lanjut = percakapan.kirim("ya");
-  const handoff = lanjut.actions.find((aksi) => aksi.kind === "hand-off-to-admin");
-  assert.ok(handoff && handoff.kind === "hand-off-to-admin");
-  assert.equal(handoff.reason, "unsupported-question");
+  const awal = percakapan.kirim(pesan);
+  assert.deepEqual(awal.actions, []);
+  assert.match(teksBalasan(awal), /catat|noted/i);
+  const request = lengkapiPermintaanLaluSetujui(percakapan);
+  assert.ok(request.notedQuestions.includes(pesan));
 });
 
 test("pertanyaan angka harga layanan lain yang tercantum materi dijawab sebagai Harga Indikatif", () => {
