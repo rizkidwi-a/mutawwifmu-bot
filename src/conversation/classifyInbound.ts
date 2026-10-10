@@ -167,9 +167,11 @@ const UNSUPPORTED_TOPIC =
 /**
  * Kelompok 6 tiket 08 — kerjasama/kolaborasi pihak ketiga (mis. "ada kerjasama
  * dengan jago syariah ya?"). Bukan kebutuhan calon jemaah, jadi ditangani tim.
+ * Sengaja tidak menangkap kata "influencer" saja agar pesan negosiasi harga
+ * yang kebetulan menyebut influencer tidak berpindah alasan handoff.
  */
 const PARTNERSHIP_REQUEST =
-  /\b(kerja ?sama|kolaborasi|berkolaborasi|collaborat(e|ion|ing)|partnership|partner(ing)?|influencer|influenser|endorse(ment)?)\b/i;
+  /\b(kerja ?sama|kolaborasi|berkolaborasi|collaborat(e|ion|ing)|partnership)\b/i;
 
 /**
  * Kelompok 6 tiket 08 — ketersediaan/keberadaan asuransi perjalanan (mis. "ada
@@ -201,7 +203,7 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
   { trigger: "unsupported-question", pattern: UNSUPPORTED_DETAIL },
   // Tiket 08: pertanyaan yang menyebut rincian, kebijakan, atau topik tanpa
   // materi tidak dicatat sebagai `faq`, melainkan diteruskan ke admin.
-  { trigger: "agency-or-corporate", pattern: PARTNERSHIP_REQUEST },
+  { trigger: "unsupported-question", pattern: PARTNERSHIP_REQUEST },
   { trigger: "unsupported-question", pattern: UNSUPPORTED_TOPIC },
   { trigger: "unsupported-question", pattern: TIMING_OR_DEADLINE_REQUEST },
   { trigger: "unsupported-question", pattern: POLICY_OR_PROCESS_REQUEST },

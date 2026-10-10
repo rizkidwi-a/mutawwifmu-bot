@@ -55,3 +55,7 @@ transkrip-nyata 38/54 → **50/54** — seluruh 22 kasus berlabel `handoff` kini
 dijaga sebagai tes biasa; 12 pesan over-faq menjadi tes di
 `tests/conversation/classifyInbound.test.ts`, lengkap dengan penjaga agar pertanyaan yang
 didukung materi tidak ikut tertarik ke handoff.
+- Invarian tiket 06 dijaga lintas-tiket: `tests/conversation/pesanSela.test.ts` (memakai
+fixture bersama `tests/conversation/kasusDiLuarMateri.ts`) memastikan 12 pertanyaan tiket
+08 saat pengumpulan tetap tercatat sebagai "Pertanyaan yang dicatat" dan tidak mengisi
+bidang yang sedang ditanya.

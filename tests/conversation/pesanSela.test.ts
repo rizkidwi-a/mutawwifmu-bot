@@ -5,13 +5,16 @@
  * - pernyataan bermuatan kata harga diperlakukan sebagai informasi/kebutuhan,
  *   tidak dijawab template Harga Indikatif (misfire kasus HARGA/price-hotel);
  * - pertanyaan yang tidak didukung terbawa ke admin sebagai "Pertanyaan yang
- *   dicatat", bukan mengisi bidang yang sedang ditanya.
+ *   dicatat", bukan mengisi bidang yang sedang ditanya;
+ * - pertanyaan hasil penyempitan tiket 08 saat pengumpulan tetap dicatat dan
+ *   tidak mengisi bidang (invarian tiket 06 yang dijaga lintas-tiket).
  */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 import { templateDalamBalasan } from "../regresi/deteksiMisfire.ts";
+import { DI_LUAR_MATERI } from "./kasusDiLuarMateri.ts";
 
 /** Kasus misfire historis dari `.scratch/eval-classify.txt` (HARGA/price-hotel). */
 const PERNYATAAN_HARGA =
@@ -139,4 +142,33 @@ test("pertanyaan yang tidak didukung terbawa ke admin, bukan mengisi bidang", ()
   assert.ok(catat && catat.kind === "record-follow-up-request");
   assert.deepEqual(catat.request.notedQuestions, [pertanyaan]);
   assert.equal(catat.request.travelDateOrPeriod, "Rencana Desember 2025");
+});
+
+test("pertanyaan tiket 08 saat pengumpulan tetap tercatat, bukan mengisi bidang", () => {
+  for (const [kelompok, pesan] of DI_LUAR_MATERI) {
+    const percakapan = new Percakapan();
+    percakapan.kirim("Halo");
+    percakapan.kirim("Umrah premium, tujuan Mekkah");
+    const selingan = percakapan.kirim(pesan);
+    assert.deepEqual(
+      templateDalamBalasan(teksBalasan(selingan)),
+      [],
+      `${kelompok}: tidak boleh dijawab template materi`,
+    );
+    // Bidang yang sedang ditanya (tanggal/periode) tetap menunggu jawaban.
+    assert.match(teksBalasan(selingan), /tanggal|periode/i, kelompok);
+    percakapan.kirim("Rencana Desember 2025");
+    percakapan.kirim("4 orang");
+    percakapan.kirim("Butuh kamar keluarga");
+    const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+    assert.ok(
+      ringkasan.includes(`Pertanyaan yang dicatat: ${pesan}`),
+      `${kelompok}: pertanyaan tidak terbawa ke Ringkasan Kebutuhan`,
+    );
+    const setuju = percakapan.kirim("Ya, setuju");
+    const catat = setuju.actions.find((aksi) => aksi.kind === "record-follow-up-request");
+    assert.ok(catat && catat.kind === "record-follow-up-request", kelompok);
+    assert.deepEqual(catat.request.notedQuestions, [pesan], kelompok);
+    assert.equal(catat.request.travelDateOrPeriod, "Rencana Desember 2025", kelompok);
+  }
 });
