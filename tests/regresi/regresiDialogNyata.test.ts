@@ -83,8 +83,8 @@ const KEBUTUHAN_UTAMA: ReadonlyArray<readonly [nama: string, pola: RegExp]> = [
 /**
  * Pertanyaan harga yang angkanya tercantum materi dan diizinkan dijawab
  * Harga Indikatif saat replay. Sisanya tidak boleh memunculkan template.
- * Tiga kasus ini masih jatuh ke handoff (tiket 09) — diizinkan agar kriteria
- * "tanpa misfire" tidak tertukar dengan kriteria tiket 09.
+ * Tiga kasus ini adalah pertanyaan terdukung yang sejak tiket 09 dijawab
+ * sebagai Harga Indikatif mutawwif (sebelumnya jatuh ke handoff).
  */
 const HARGA_TERDUKUNG: readonly (readonly [kunci: string, topik: FaqTopic])[] = [
   ["Mutowwif nya ini mendampingi", "price-mutawwif"],
@@ -280,8 +280,8 @@ test("basa-basi pada dialog nyata tidak mencemari Ringkasan Kebutuhan", { skip: 
 // ---------------------------------------------------------------------------
 // Kriteria dua temuan analisis pencocokan transkrip (`.scratch/
 // pencocokan-korpus-transkrip/analisis.md`). Perbaikannya milik tiket 08 dan
-// 09 — dicatat di sini sebagai kriteria replay; perbaikan tiket 08 sudah
-// terpenuhi dan dijaga sebagai tes biasa, perbaikan tiket 09 masih tertunda.
+// 09 — dicatat di sini sebagai kriteria replay; keduanya sudah terpenuhi dan
+// dijaga sebagai tes biasa.
 // ---------------------------------------------------------------------------
 
 test("kriteria tiket 08: kasus transkrip-nyata berlabel handoff tidak jatuh ke jalur FAQ", () => {
@@ -300,7 +300,7 @@ test("kriteria tiket 08: kasus transkrip-nyata berlabel handoff tidak jatuh ke j
   }
 });
 
-test("kriteria tiket 09: pertanyaan terdukung tidak jatuh ke handoff", { todo: "perbaikan pola milik tiket 09" }, () => {
+test("kriteria tiket 09: pertanyaan terdukung tidak jatuh ke handoff", () => {
   const kasus: ReadonlyArray<readonly [pesan: string, topik: FaqTopic]> = [
     ["kl kita mau tambah pakai muthawif itu biayanya berapa ?", "price-mutawwif"],
     ["Mutowwif nya ini mendampingi dari awal proses umroh sampai selesai untuk kami bertiga kan mba harganya?", "price-mutawwif"],

@@ -8,7 +8,7 @@
 
 **Blocked by:** none
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Testing Decisions
 
@@ -20,3 +20,19 @@
 
 - Sumber analisis: `.scratch/pencocokan-korpus-transkrip/analisis.md` (bagian "Salah paham (harus faq, bot handoff)").
 - Pasangan tiket 08: tiket ini menutup false-negative (pertanyaan terdukung yang lolos), tiket 08 menutup false-positive (pertanyaan tak terdukung yang dijawab).
+
+### Implementasi (sesi 2026-10-10)
+
+- **Normalisasi varian ejaan** — `normalkanVarianEjaan` di `src/knowledge/businessFaq.ts`, dipanggil sekali di `classifyInbound` (seluruh pencocokan memakai pesan yang sudah dinormalkan) dan juga di `matchFaqTopic` agar pemanggil langsung tetap toleran:
+  - `mutawwif`: mutawif/muthawwif/muthawif/muthowif/mutthowif/mutowwif/mutowif/mutawwifah;
+  - `haramain`: haramain/harramain;
+  - `siskopatuh`: siskopatuh/siskapatuh (termasuk bentuk `-nya`).
+- **Kata harga berimbuhan `-nya`** (`harganya`, `biayanya`, `tarifnya`, `ongkosnya`) dikenali `PRICE_WORD` dan `CUSTOM_QUOTE_OR_AVAILABILITY`, sehingga pertanyaan harga mutawwif tidak lagi lolos ke handoff.
+- **Cakupan layanan** — `membimbing` ikut menjadi penanda topik mutawwif; `tersedia`/`available` yang didahului penanda syarat (`jika`/`kalau`/`kalo`/`bila`/`if`/`when`) tidak lagi memicu `custom-quote-or-availability`.
+- **Detail dokumen** — `paspor`/`passport` masuk topik `visa-documents`; permintaan penerbitan paspor (`mengurus`/`buat`/`arrange` paspor) tetap `unsupported-question`.
+- **Korpus & tes** — berkas korpus baru `tests/korpus/varian-ejaan.json` (6 kasus ejaan varian), 4 kasus regresi di `tests/conversation/classifyInbound.test.ts`, kriteria tiket di `tests/regresi/regresiDialogNyata.test.ts` dilepas dari `todo`.
+
+Verifikasi:
+
+- `node scripts/probe-cakupan.ts`: rute tepat 101 kasus **92/101 (91%)**; `transkrip-nyata.json` 50/54 → **54/54** (bagian "KASUS GAGAL DIPAHAMI" tidak lagi memuat kasus transkrip); `typo` 5/5; `dasar.json` tetap 32/41.
+- `npm test` hijau: 271 lulus, 0 gagal, 0 `todo`; `npm run typecheck` bersih.

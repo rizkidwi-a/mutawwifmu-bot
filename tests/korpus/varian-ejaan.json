@@ -1,0 +1,13 @@
+{
+  "catatan": "Varian ejaan nama layanan dari rekomendasi 3 analisis pencocokan transkrip (tiket 09): muthowif/mutthowif/Mutowwif → mutawwif, harramain/haramain, siskopatuh/siskapatuh. Pesan disusun mengikuti pola tanya transkrip nyata dan sudah dianonimkan; kasus Mutowwif juga ada di transkrip-nyata.json. Jalankan dengan: node scripts/probe-cakupan.ts",
+  "kasus": [
+    { "pesan": "kl kita mau tambah pakai muthowif itu biayanya berapa ?", "harapan": { "jenis": "faq", "topik": "price-mutawwif" }, "grup": "typo" },
+    { "pesan": "Mutthowif nya ini mendampingi kami dari awal umroh sampai selesai, harganya berapa ya mba?", "harapan": { "jenis": "faq", "topik": "price-mutawwif" }, "grup": "typo" },
+
+    { "pesan": "kalo harramain train itu on time ga ya?", "harapan": { "jenis": "handoff" }, "grup": "typo" },
+    { "pesan": "kalo haramain train itu on time ga yah?", "harapan": { "jenis": "handoff" }, "grup": "baku" },
+
+    { "pesan": "berapa biaya siskapatuhnya mas?", "harapan": { "jenis": "handoff" }, "grup": "typo" },
+    { "pesan": "siskopatuh itu wajib ga ya?", "harapan": { "jenis": "handoff" }, "grup": "gaul" }
+  ]
+}

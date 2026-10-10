@@ -31,11 +31,15 @@
  * materi dapat disebut sebagai Harga Indikatif — lihat ADR-0005. Tiket 08
  * menyempitkan lagi pola topik layanan yang terlalu longgar: pertanyaan yang
  * menyebut rincian, kebijakan, atau topik tanpa materi tidak lagi dicatat
- * sebagai `faq`, melainkan diteruskan ke admin (ADR-0009).
+ * sebagai `faq`, melainkan diteruskan ke admin (ADR-0009). Tiket 09 mengoreksi
+ * false-negative-nya: varian ejaan nama layanan dinormalkan sebelum pencocokan
+ * topik, dan kata harga berimbuhan "-nya" tetap diakui sebagai pertanyaan
+ * Harga Indikatif.
  */
 import {
   isPriceTopic,
   matchFaqTopic,
+  normalkanVarianEjaan,
   type FaqTopic,
 } from "../knowledge/businessFaq.ts";
 
@@ -84,9 +88,14 @@ const BOOKING_OR_PAYMENT =
  * yang berwenang memberikan konfirmasi akhir. Pola ini disempitkan oleh tiket
  * 05 — kata harga umum tidak lagi berada di sini; pertanyaan angka harga yang
  * tercantum materi dijawab lebih dahulu sebagai Harga Indikatif.
+ *
+ * Tiket 09: "tersedia" yang muncul sebagai syarat ("Jika tersedia, mohon ...")
+ * bukan pertanyaan ketersediaan — kalimat lanjutannya justru sering menanyakan
+ * cakupan atau tarif layanan yang ada materinya. Karena itu kata tersebut tidak
+ * memicu handoff bila didahului penanda syarat.
  */
 const QUOTE_OR_AVAILABILITY_REQUEST =
-  /\b(penawaran|quote|quotation|promo|diskon|discount|harga (khusus|spesial|pasti|final|fixed|terbaik)|special (price|offer)|best (price|quote)|konfirmasi (harga|ketersediaan)|confirm (the )?(price|availability)|ketersediaan|ketersediaannya|tersedia|available|availability|kuota|slot|ready|masih (kosong|buka|berlaku)|still (valid|applicable))\b/i;
+  /\b(penawaran|quote|quotation|promo|diskon|discount|harga (khusus|spesial|pasti|final|fixed|terbaik)|special (price|offer)|best (price|quote)|konfirmasi (harga|ketersediaan)|confirm (the )?(price|availability)|ketersediaan|ketersediaannya|(?<!\b(?:jika|kalau|kalo|bila|if|when)\s)(?:tersedia|available|availability)|kuota|slot|ready|masih (kosong|buka|berlaku)|still (valid|applicable))\b/i;
 
 /**
  * Sisa pertanyaan harga/biaya yang tidak dapat dijawab dari daftar Harga
@@ -96,7 +105,7 @@ const QUOTE_OR_AVAILABILITY_REQUEST =
  * `custom-quote-or-availability`.
  */
 const CUSTOM_QUOTE_OR_AVAILABILITY =
-  /\b(harga|biaya|tarif|ongkos|price|priced|pricing|costs?|rates?|how much|budget|anggaran|murah|mahal|cheap|expensive|affordable)\b/i;
+  /\b((harga|biaya|tarif|ongkos)(nya)?|price|priced|pricing|costs?|rates?|how much|budget|anggaran|murah|mahal|cheap|expensive|affordable)\b/i;
 
 /**
  * Satuan harga yang tidak tercantum materi (mis. "per malam" pada daftar hotel
@@ -112,6 +121,16 @@ const UNVERIFIED_UNIT_REQUEST =
  */
 const UNSUPPORTED_DETAIL =
   /\b(syarat|persyaratan|requirements?|berapa lama|masa berlaku|validity|expired|kadaluarsa|harus (bawa|siapkan|urus|persiapkan)|perlu (bawa|siapkan)|what do i need|what documents|how long)\b/i;
+
+/**
+ * Tiket 09 — permintaan penerbitan/mengurus paspor (mis. "Apakah MUTAWWIFMU
+ * bisa mengurus paspor?"). Penerbitan paspor bukan layanan yang tercantum
+ * materi, jadi permintaannya diteruskan ke admin; pertanyaan *detail* dokumen
+ * paspor (mis. "Paspor nya apakah halaman depan aja atau semuanya?") tetap
+ * dikenali sebagai topik visa-documents.
+ */
+const PASSPORT_ARRANGEMENT_REQUEST =
+  /\b(mengurus|diurus|urus|membuat|dibuat|buat(kan)?|dibuatkan|membikin|bikin|dibikin|menerbitkan|diterbitkan|terbitkan|arrange|arranges|issue|issuing)\s+(paspor|passports?)\b/i;
 
 /**
  * Kelompok 1 tiket 08 — permintaan mencarikan/mengecek harga spesifik dengan
@@ -201,6 +220,7 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
   { trigger: "agency-or-corporate", pattern: AGENCY_OR_CORPORATE },
   { trigger: "booking-or-payment", pattern: BOOKING_OR_PAYMENT },
   { trigger: "unsupported-question", pattern: UNSUPPORTED_DETAIL },
+  { trigger: "unsupported-question", pattern: PASSPORT_ARRANGEMENT_REQUEST },
   // Tiket 08: pertanyaan yang menyebut rincian, kebijakan, atau topik tanpa
   // materi tidak dicatat sebagai `faq`, melainkan diteruskan ke admin.
   { trigger: "unsupported-question", pattern: PARTNERSHIP_REQUEST },
@@ -219,28 +239,31 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
  * percakapan agar balasan awal tetap hangat.
  */
 export function classifyInbound(text: string): InboundRouting {
+  // Tiket 09: satu pandangan pesan yang sudah dinormalkan varian ejaannya,
+  // dipakai untuk seluruh pencocokan (pemicu handoff maupun topik materi).
+  const pesan = normalkanVarianEjaan(text);
   for (const { trigger, pattern } of HANDOFF_PATTERNS) {
-    if (pattern.test(text)) {
+    if (pattern.test(pesan)) {
       return { kind: "handoff", trigger };
     }
   }
   // Permintaan penawaran/konfirmasi menyelap Harga Indikatif apa pun isinya.
-  if (QUOTE_OR_AVAILABILITY_REQUEST.test(text)) {
+  if (QUOTE_OR_AVAILABILITY_REQUEST.test(pesan)) {
     return { kind: "handoff", trigger: "custom-quote-or-availability" };
   }
-  const topic = matchFaqTopic(text);
+  const topic = matchFaqTopic(pesan);
   // Harga Indikatif hanya untuk angka yang tercantum materi dengan satuan yang
   // tercantum materi; selain itu tetap ke admin (ADR-0005).
-  if (topic !== null && isPriceTopic(topic) && !UNVERIFIED_UNIT_REQUEST.test(text)) {
+  if (topic !== null && isPriceTopic(topic) && !UNVERIFIED_UNIT_REQUEST.test(pesan)) {
     return { kind: "indicative-price", topic };
   }
-  if (CUSTOM_QUOTE_OR_AVAILABILITY.test(text)) {
+  if (CUSTOM_QUOTE_OR_AVAILABILITY.test(pesan)) {
     return { kind: "handoff", trigger: "custom-quote-or-availability" };
   }
   if (topic !== null) {
     return { kind: "faq", topic };
   }
-  if (!PLEASANTRY.test(text) && QUESTION_LIKE.test(text)) {
+  if (!PLEASANTRY.test(pesan) && QUESTION_LIKE.test(pesan)) {
     return { kind: "handoff", trigger: "unsupported-question" };
   }
   return { kind: "opener" };

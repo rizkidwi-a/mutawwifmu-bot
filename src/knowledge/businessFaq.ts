@@ -19,6 +19,11 @@
  * jawaban untuk topik Harga Indikatif; entri non-harga tetap dipakai
  * `matchFaqTopic` untuk mengenali pertanyaan yang dicatat sebagai bagian
  * kebutuhan, bukan untuk dijawab.
+ *
+ * Tiket 09 menambahkan normalisasi varian ejaan nama layanan sebelum
+ * pencocokan topik (mis. `muthowif`/`Mutowwif` → `mutawwif`) dan memperluas
+ * pola yang didukung materi: bentuk "-nya" pada kata harga serta detail
+ * dokumen paspor.
  */
 import type { Language } from "../conversation/language.ts";
 
@@ -77,9 +82,40 @@ export function isPriceTopic(topic: FaqTopic): topic is PriceTopic {
 /**
  * Kata penanda pertanyaan harga yang dipakai pola topik Harga Indikatif;
  * sengaja tidak memuat "berapa" polos agar "berapa lama ..." tetap jatuh ke
- * rincian yang tidak didukung materi.
+ * rincian yang tidak didukung materi. Bentuk berimbuhan "-nya" ("harganya",
+ * "biayanya") ikut dikenali karena transkrip nyata memakainya (tiket 09).
  */
-const PRICE_WORD = /\b(harga|biaya|tarif|ongkos|prices?|pricing|costs?|rates?|how much)\b/i;
+const PRICE_WORD =
+  /\b((harga|biaya|tarif|ongkos)(nya)?|prices?|pricing|costs?|rates?|how much)\b/i;
+
+/**
+ * Varian ejaan nama layanan dari transkrip nyata (tiket 09, rekomendasi 3
+ * analisis pencocokan transkrip). Kalimat asli tetap dipakai untuk mencatat
+ * kebutuhan; normalisasi hanya menyatukan ejaan agar pola topik sederhana
+ * mengenali maksud yang sama.
+ */
+const VARIAN_EJAAN: ReadonlyArray<readonly [RegExp, string]> = [
+  // mutawwif: mutawif, muthawwif, muthawif, muthowif, mutthowif, mutowwif,
+  // mutowif, termasuk bentuk feminin mutawwifah.
+  [/\bmu+t+h?[ao]w+[ai]f(?:ah)?\b/gi, "mutawwif"],
+  // Kereta Haramain: haramain dan ejaan ganda harramain.
+  [/\bhar+am+[ai]{2}n\b/gi, "haramain"],
+  // Siskopatuh: siskapatuh, termasuk bentuk berimbuhan "-nya".
+  [/\bsisk[oa]patuh(?:nya)?\b/gi, "siskopatuh"],
+];
+
+/**
+ * Normalkan varian ejaan nama layanan pada teks Calon Jemaah. Aman dipanggil
+ * berulang (bentuk baku dinormalkan ke dirinya sendiri) dan tidak mengubah
+ * teks asli milik pemanggil.
+ */
+export function normalkanVarianEjaan(text: string): string {
+  let hasil = text;
+  for (const [pola, baku] of VARIAN_EJAAN) {
+    hasil = hasil.replace(pola, baku);
+  }
+  return hasil;
+}
 
 interface FaqEntry {
   readonly topic: FaqTopic;
@@ -207,7 +243,10 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "price-mutawwif",
-    patterns: [PRICE_WORD, /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|worship guides?)\b/i],
+    patterns: [
+      PRICE_WORD,
+      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing|worship guides?)\b/i,
+    ],
     answer: {
       id:
         "Harga Indikatif layanan mutawwif — bukan penawaran final (satuan per grup sesuai materi): " +
@@ -343,7 +382,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "mutawwif",
-    patterns: [/\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|worship guides?)\b/i],
+    patterns: [/\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing|worship guides?)\b/i],
     answer: {
       id:
         "MUTAWWIFMU menyediakan mutawwif (pemandu ibadah) profesional bersertifikat. " +
@@ -369,7 +408,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "visa-documents",
-    patterns: [/\b(visa|dokumen|document|asuransi|insurance)\b/i],
+    patterns: [/\b(visa|dokumen|document|paspor|passports?|asuransi|insurance)\b/i],
     answer: {
       id:
         "MUTAWWIFMU mengurus visa dan dokumen perjalanan secara lengkap, profesional, dan tanpa ribet. " +
@@ -471,8 +510,11 @@ const ENTRIES: readonly FaqEntry[] = [
  * pemanggil yang menentukan apakah pesan diteruskan ke alur admin.
  */
 export function matchFaqTopic(text: string): FaqTopic | null {
+  // Tiket 09: varian ejaan dinormalkan lebih dahulu agar ejaan yang sama-sama
+  // benar (mis. muthawif/Mutowwif) tidak lolos dari pola topik sederhana.
+  const pesan = normalkanVarianEjaan(text);
   for (const entry of ENTRIES) {
-    if (entry.patterns.every((pattern) => pattern.test(text))) {
+    if (entry.patterns.every((pattern) => pattern.test(pesan))) {
       return entry.topic;
     }
   }

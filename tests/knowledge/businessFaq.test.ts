@@ -153,6 +153,13 @@ test("matchFaqTopic mengenali pertanyaan harga yang tercantum materi sebagai top
   assert.equal(matchFaqTopic("Berapa harga tour guide ke Jepang?"), "tour-guide");
 });
 
+test("matchFaqTopic mengenali varian ejaan sebelum pencocokan topik", () => {
+  assert.equal(matchFaqTopic("Mutowwif nya harganya berapa?"), "price-mutawwif");
+  assert.equal(matchFaqTopic("kl kita mau tambah pakai muthowif itu biayanya berapa ?"), "price-mutawwif");
+  assert.equal(matchFaqTopic("Mutthowif nya ini mendampingi kami, tarifnya berapa?"), "price-mutawwif");
+  assert.equal(matchFaqTopic("Paspor nya apakah halaman depan aja atau semuanya?"), "visa-documents");
+});
+
 test("jawaban tidak mengarang rincian yang tidak ada di materi", () => {
   for (const topic of SEMUA_TOPIK) {
     for (const language of ["id", "en"] as const) {

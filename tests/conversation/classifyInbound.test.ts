@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyInbound } from "../../src/conversation/classifyInbound.ts";
+import type { FaqTopic } from "../../src/knowledge/businessFaq.ts";
 import { DI_LUAR_MATERI } from "./kasusDiLuarMateri.ts";
 
 test("pertanyaan yang didukung materi diklasifikasikan sebagai FAQ", () => {
@@ -159,6 +160,56 @@ test("pertanyaan di luar materi diteruskan ke handoff, bukan diklasifikasi FAQ",
   for (const [kelompok, pesan] of DI_LUAR_MATERI) {
     assert.equal(classifyInbound(pesan).kind, "handoff", `${kelompok}: ${pesan}`);
   }
+});
+
+/**
+ * Tiket 09 — empat kasus transkrip nyata yang jelas didukung materi tetapi
+ * jatuh ke handoff: varian ejaan nama layanan dinormalisasi sebelum pencocokan
+ * topik, pertanyaan harga yang menyebut cakupan layanan (bukan kata "harga")
+ * tetap dijawab sebagai Harga Indikatif, dan detail dokumen paspor dikenali
+ * tanpa kata kunci "visa"/"dokumen".
+ */
+test("varian ejaan nama layanan tetap dikenali sebagai topik materi", () => {
+  const kasus: ReadonlyArray<readonly [pesan: string, topik: FaqTopic]> = [
+    [
+      "kl kita mau tambah pakai muthawif itu biayanya berapa ?",
+      "price-mutawwif",
+    ],
+    [
+      "Mutowwif nya ini mendampingi dari awal proses umroh sampai selesai untuk kami bertiga kan mba harganya?",
+      "price-mutawwif",
+    ],
+    ["Mutthowif nya ini mendampingi kami, harganya berapa ya mba?", "price-mutawwif"],
+    ["Mas, mau tanya kl kita mau pakai muthowif itu biayanya berapa ?", "price-mutawwif"],
+  ];
+  for (const [pesan, topik] of kasus) {
+    const routing = classifyInbound(pesan);
+    if (routing.kind !== "faq" && routing.kind !== "indicative-price") {
+      assert.fail(`pertanyaan terdukung jatuh ke handoff: ${pesan}`);
+    }
+    assert.equal(routing.topic, topik, pesan);
+  }
+});
+
+test("detail dokumen paspor dikenali tanpa kata kunci visa/dokumen", () => {
+  assert.deepEqual(classifyInbound("Paspor nya apakah halaman depan aja atau semuanya?"), {
+    kind: "faq",
+    topic: "visa-documents",
+  });
+  // Permintaan penerbitan paspor sendiri tetap di luar materi.
+  assert.deepEqual(classifyInbound("Apakah MUTAWWIFMU bisa mengurus paspor?"), {
+    kind: "handoff",
+    trigger: "unsupported-question",
+  });
+});
+
+test("ketersediaan sebagai syarat tidak menutup pertanyaan harga yang didukung", () => {
+  assert.deepEqual(
+    classifyInbound(
+      "Jika tersedia, mohon nanti dapat diinfokan juga jasanya apa saja selain membimbing saat umroh, beserta tarifnya",
+    ),
+    { kind: "indicative-price", topic: "price-mutawwif" },
+  );
 });
 
 test("penyempitan tiket 08 tidak menyeret pertanyaan yang didukung materi", () => {
