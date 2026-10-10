@@ -8,13 +8,13 @@
 
 **Blocked by:** 03: Gerbang jeda pada jalur pesan masuk
 
-**Status:** ready-for-agent
+**Status:** needs-info
 
 - [ ] Bukti tercatat (fixture payload + kutipan dokumentasi/hasil amatan) tentang apakah pesan keluar dari nomor bot sampai ke webhook, per provider (Fonnte dan Cloud API).
 - [ ] Bila teramati: Ambil Alih otomatis diimplementasikan di layer transport/server (bukan di seam percakapan), dengan tes memakai fixture payload nyata; konfirmasi ke admin tanpa janji waktu balasan.
 - [ ] Bila tidak teramati: keterbatasan didokumentasikan di README per provider; tidak ada kode deteksi spekulatif yang ditambahkan.
-- [ ] Field provider (`from_me` dsb.) hanya dibaca di `src/adapters/*`; layer percakapan dan state jeda tetap provider-agnostic.
-- [ ] `npm test` dan `npm run typecheck` tetap hijau.
+- [x] Field provider (`from_me` dsb.) hanya dibaca di `src/adapters/*`; layer percakapan dan state jeda tetap provider-agnostic.
+- [x] `npm test` dan `npm run typecheck` tetap hijau (353 tes lulus).
 
 ## Testing Decisions
 
@@ -25,3 +25,4 @@
 
 - Sumber: rekomendasi sesi 2026-10-10 — deteksi otomatis menyusul setelah perilaku Fonnte terverifikasi (`.scratch/jeda-ambil-alih/spec.md` Ruang Lingkup #5).
 - Dugaan awal yang harus dibuktikan, bukan diandalkan: server sekarang me-skip pesan dengan `from === senderNumber` (`src/server.ts`), yang menyiratkan payload dari nomor sendiri pernah terlihat — tetapi bentuk field pengirim untuk pesan keluar (apakah `sender` berisi nomor kontak atau nomor bot) belum diketahui dan menentukan apakah auto-jeda bisa dipasang.
+- Pemeriksaan 2026-10-10: kutipan dokumentasi resmi, fixture terdokumentasi, dan batas kesimpulan dicatat di `.scratch/jeda-ambil-alih/evidence/05-provider-webhook.md`. Tes mengunci fixture payload pesan masuk Fonnte dan status outgoing Cloud API; tidak ada deteksi otomatis yang ditambahkan. Catatan `.scratch/webhook-aktif.md` menyatakan proses/tunnel Fonnte nonaktif, sehingga pengamatan pesan dari nomor bot belum dilakukan. Status `needs-info` sampai endpoint aktif dan payload live dari satu pesan uji yang disetujui tersedia; jangan menyimpulkan Fonnte tidak mengirim pesan keluar dari dokumentasi yang ada.

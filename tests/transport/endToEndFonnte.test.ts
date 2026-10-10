@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { createAppServer } from "../../src/server.ts";
 import { createTransport } from "../../src/adapters/factory.ts";
@@ -123,6 +124,20 @@ test("pesan masuk Fonnte menghasilkan balasan keluar melalui API Fonnte", async 
     assert.match(String(keluar.body.message), /Travel Partner Top #1 Personalized Land Arrangement/);
     assert.match(String(keluar.body.message), /1\. Calon jemaah \/ informasi paket/);
     assert.match(String(keluar.body.message), /4\. Keperluan lain \/ ingin menghubungi admin/);
+  } finally {
+    await lingkungan.tutup();
+  }
+});
+
+test("fixture dokumentasi Fonnte tetap diproses sebagai pesan masuk dari sender", async () => {
+  const lingkungan = await buatLingkungan();
+  try {
+    const fixture = readFileSync(new URL("../fixtures/fonnte-incoming-message.json", import.meta.url), "utf8");
+    const respon = await kirimWebhook(lingkungan, "token-webhook", fixture);
+
+    assert.equal(respon.status, 200);
+    assert.equal(lingkungan.permintaanKeluar.length, 1);
+    assert.equal(lingkungan.permintaanKeluar[0]!.body.target, "628123456789");
   } finally {
     await lingkungan.tutup();
   }

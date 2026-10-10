@@ -84,7 +84,11 @@ Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FA
 
 Admin dapat menghentikan balasan otomatis untuk satu calon jemaah (**Jeda Percakapan**) atau untuk semua kontak (**Nonaktif Sementara**) lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (lihat bagian perintah admin). Selama jeda, pesan yang masuk tetap tercatat satu baris di transkrip percakapan (peran calon jemaah, apa adanya termasuk sebutan lampiran) tetapi **tidak dibalas**, **tidak melewati seam percakapan**, dan **tidak mengubah state alur** — draft Permintaan Tindak Lanjut serta mode pembaruan setelah handoff tetap utuh sampai admin mengirim `#lanjut`/`#bot on`. Kontak lain tetap dibalas normal.
 
-State jeda disimpan persisten di `data/jeda-state.json` (di-ignore git karena memuat nomor pelanggan) sehingga bertahan saat proses restart. Tidak ada auto-resume: jeda hanya berakhir lewat perintah eksplisit. Batasan yang disadari: selama jeda bot diam penuh — tanpa pemberitahuan apa pun ke pelanggan dan tanpa janji waktu balasan. Keputusan dan alasannya: `docs/adr/0011-jeda-dan-ambil-alih-admin.md`.
+State jeda disimpan persisten di `data/jeda-state.json` (di-ignore git karena memuat nomor pelanggan) sehingga bertahan saat proses restart. Tidak ada auto-resume: Jeda Percakapan hanya berakhir lewat `#lanjut <nomor>`; Nonaktif Sementara hanya berakhir lewat `#bot on`. Batasan yang disadari: selama jeda bot diam penuh — tanpa pemberitahuan apa pun ke pelanggan dan tanpa janji waktu balasan. Keputusan dan alasannya: `docs/adr/0011-jeda-dan-ambil-alih-admin.md`.
+
+### Deteksi otomatis pesan keluar
+
+Ambil Alih otomatis belum tersedia; gunakan `#jeda <nomor>` atau `#jeda` sebagai pemicu eksplisit. **Fonnte:** dokumentasi webhook menjelaskan payload pesan masuk, tetapi tidak mendokumentasikan pesan yang dikirim dari nomor perangkat sendiri atau field `from_me`; pengamatan live belum dilakukan karena webhook/tunnel saat ini nonaktif. Perilaku pesan keluar Fonnte belum terverifikasi, bukan dianggap tidak ada. **WhatsApp Cloud API:** webhook pesan keluar berisi status `sent`/`delivered`/`read`, bukan isi pesannya; status tersebut tidak dipakai untuk menebak Ambil Alih. Detail kutipan, fixture terdokumentasi, dan batas pengamatan: `.scratch/jeda-ambil-alih/evidence/05-provider-webhook.md`.
 
 ## Perintah admin via WhatsApp
 

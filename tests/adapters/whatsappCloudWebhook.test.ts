@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   isSignatureValid,
   parseInboundMessages,
@@ -80,6 +81,14 @@ test("payload webhook dikonversi ke pesan masuk", () => {
       text: "Halo, saya ingin bertanya tentang umrah",
     },
   ]);
+});
+
+test("fixture dokumentasi Meta untuk status pesan keluar bukan pesan masuk", () => {
+  const fixture = JSON.parse(
+    readFileSync(new URL("../fixtures/whatsapp-cloud-outgoing-status.json", import.meta.url), "utf8"),
+  ) as unknown;
+
+  assert.deepEqual(parseInboundMessages(fixture), []);
 });
 
 test("pesan non-teks diteruskan sebagai pesan tanpa isi teks", () => {
