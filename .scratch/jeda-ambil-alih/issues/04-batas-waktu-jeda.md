@@ -9,16 +9,17 @@ Tersisa untuk implementasi: mengunci perilaku (a) dengan tes dan dokumentasi.
 
 **Blocked by:** 03: Gerbang jeda pada jalur pesan masuk
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Pemilik memilih (a) atau (b), dengan nilai N bila (b); keputusan dan alasannya tercatat di komentar tiket ini.
-- [ ] Perilaku tanpa auto-resume dikunci dengan tes: jeda tetap aktif melewati waktu lama, tidak ada kadaluarsa otomatis (tiket 01 menyimpan waktu mulai jeda hanya untuk ditampilkan `#status`, bukan untuk kadaluarsa).
-- [ ] `README.md` mencatat singkat bahwa jeda hanya berakhir lewat perintah eksplisit.
-- [ ] `npm test` dan `npm run typecheck` tetap hijau.
+- [x] Perilaku tanpa auto-resume dikunci dengan tes: jeda tetap aktif melewati waktu lama, tidak ada kadaluarsa otomatis (tiket 01 menyimpan waktu mulai jeda hanya untuk ditampilkan `#status`, bukan untuk kadaluarsa).
+- [x] `README.md` mencatat singkat bahwa jeda hanya berakhir lewat perintah eksplisit.
+- [x] `npm test` dan `npm run typecheck` tetap hijau.
 
 ## Comments
 
 - Sumber: bagian opsional pada rekomendasi sesi 2026-10-10 (`.scratch/jeda-ambil-alih/spec.md` Ruang Lingkup #4). Rekomendasi awal: mulai dari (a); pertimbangkan (b) hanya setelah tiket 05 membuktikan aktivitas admin bisa diamati.
+- Selesai: tes `FileJedaStore` memastikan jeda kontak dan global tetap aktif setelah sepuluh tahun serta restart; README menyebut perintah eksplisit `#lanjut <nomor>` dan `#bot on`.
 
 ### Keputusan pemilik (2026-10-10)
 

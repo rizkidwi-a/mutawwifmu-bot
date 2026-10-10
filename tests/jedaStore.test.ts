@@ -99,6 +99,26 @@ test("restart membaca kembali jeda kontak, Nonaktif Sementara, dan handoff terak
   assert.equal(sesi2.isPaused("628123456789"), true);
 });
 
+test("jeda kontak dan global tetap aktif setelah bertahun-tahun dan restart", () => {
+  const path = pathState();
+  const mulaiLama = new Date("2020-10-10T03:00:00.000Z");
+  let sekarang = mulaiLama;
+  const sesi1 = new FileJedaStore(path, { now: () => sekarang });
+  sesi1.pauseContact("628123456789");
+  sesi1.pauseGlobally();
+
+  sekarang = new Date("2030-10-10T03:00:00.000Z");
+  const sesi2 = new FileJedaStore(path, { now: () => sekarang });
+
+  assert.equal(sesi2.isPaused("628123456789"), true);
+  assert.equal(sesi2.isPaused("628987654321"), true);
+  assert.deepEqual(sesi2.snapshot(), {
+    globallyPaused: true,
+    pausedContacts: [{ number: "628123456789", since: mulaiLama }],
+    lastHandoffContact: null,
+  });
+});
+
 test("berkas belum ada -> state kosong tanpa peringatan", () => {
   const peringatan: string[] = [];
   const store = new FileJedaStore(pathState(), { warn: (message) => peringatan.push(message) });
