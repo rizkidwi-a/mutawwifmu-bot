@@ -245,7 +245,7 @@ const ENTRIES: readonly FaqEntry[] = [
     topic: "price-mutawwif",
     patterns: [
       PRICE_WORD,
-      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing|worship guides?)\b/i,
+      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing(?=[^?!.]{0,30}\b(ibadah|umroh|umrah)\b)|worship guides?)\b/i,
     ],
     answer: {
       id:
@@ -382,7 +382,9 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "mutawwif",
-    patterns: [/\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing|worship guides?)\b/i],
+    patterns: [
+      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing(?=[^?!.]{0,30}\b(ibadah|umroh|umrah)\b)|worship guides?)\b/i,
+    ],
     answer: {
       id:
         "MUTAWWIFMU menyediakan mutawwif (pemandu ibadah) profesional bersertifikat. " +

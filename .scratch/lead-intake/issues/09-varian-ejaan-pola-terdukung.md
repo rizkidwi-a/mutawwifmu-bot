@@ -28,7 +28,7 @@
   - `haramain`: haramain/harramain;
   - `siskopatuh`: siskopatuh/siskapatuh (termasuk bentuk `-nya`).
 - **Kata harga berimbuhan `-nya`** (`harganya`, `biayanya`, `tarifnya`, `ongkosnya`) dikenali `PRICE_WORD` dan `CUSTOM_QUOTE_OR_AVAILABILITY`, sehingga pertanyaan harga mutawwif tidak lagi lolos ke handoff.
-- **Cakupan layanan** — `membimbing` ikut menjadi penanda topik mutawwif; `tersedia`/`available` yang didahului penanda syarat (`jika`/`kalau`/`kalo`/`bila`/`if`/`when`) tidak lagi memicu `custom-quote-or-availability`.
+- **Cakupan layanan** — `membimbing` ikut menjadi penanda topik mutawwif, tetapi hanya bila dalam 30 karakter diikuti `ibadah`/`umroh`/`umrah` agar harga tour guide tidak terbaca sebagai harga mutawwif; `tersedia`/`available` yang didahului penanda syarat (`jika`/`kalau`/`kalo`/`bila`/`if`/`when`) tidak lagi memicu `custom-quote-or-availability`.
 - **Topik tanpa materi** — `siskopatuh` masuk `UNSUPPORTED_TOPIC` bersama Raudhah/Nusuk/kereta Haramain; pola Haramain dan siskopatuh kini cukup memuat bentuk baku karena varian ejaan dinormalkan lebih dahulu. Sebagian kasus korpus varian ditulis tanpa tanda tanya agar hasilnya bergantung pada normalisasi, bukan heuristik pertanyaan.
 - **Detail dokumen** — `paspor`/`passport` masuk topik `visa-documents`; permintaan penerbitan paspor (`mengurus`/`buat`/`arrange` paspor) tetap `unsupported-question`.
 - **Korpus & tes** — berkas korpus baru `tests/korpus/varian-ejaan.json` (7 kasus ejaan varian), 4 kasus regresi di `tests/conversation/classifyInbound.test.ts`, kriteria tiket di `tests/regresi/regresiDialogNyata.test.ts` dilepas dari `todo`.
@@ -36,4 +36,4 @@
 Verifikasi:
 
 - `node scripts/probe-cakupan.ts`: rute tepat 102 kasus **93/102 (91%)**; `transkrip-nyata.json` 50/54 → **54/54** (bagian "KASUS GAGAL DIPAHAMI" tidak lagi memuat kasus transkrip); `typo` 6/6; `dasar.json` tetap 32/41.
-- `npm test` hijau: 272 lulus, 0 gagal, 0 `todo`; `npm run typecheck` bersih.
+- `npm test` hijau: 273 lulus, 0 gagal, 0 `todo`; `npm run typecheck` bersih.

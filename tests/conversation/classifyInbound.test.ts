@@ -224,6 +224,18 @@ test("ketersediaan sebagai syarat tidak menutup pertanyaan harga yang didukung",
   );
 });
 
+test("membimbing menandai mutawwif hanya bila konteksnya ibadah/umroh", () => {
+  assert.deepEqual(classifyInbound("Berapa biaya jasa membimbing ibadah?"), {
+    kind: "indicative-price",
+    topic: "price-mutawwif",
+  });
+  // Pemandu wisata bukan mutawwif; harga tour guide tidak tercantum materi.
+  assert.deepEqual(classifyInbound("Berapa biaya tour guide yang membimbing kami?"), {
+    kind: "handoff",
+    trigger: "custom-quote-or-availability",
+  });
+});
+
 test("penyempitan tiket 08 tidak menyeret pertanyaan yang didukung materi", () => {
   // Pertanyaan yang materinya tersedia tetap di jalur materi.
   const hargaHotel = classifyInbound("Berapa harga hotel di Mekkah?");
