@@ -295,6 +295,105 @@ test("pernyataan negatif atau sudah berjalan yang berakhir bisa bukan pertanyaan
   }
 });
 
+/**
+ * Tiket 11 — enam celah pola korpus dasar yang jelas didukung materi:
+ * akhiran "-nya" (tur kotanya, kendaraannya), "nemenin" dalam konteks ibadah,
+ * "sedekah", "keliling", dan singkatan "hrg". Toleransi "-nya" sengaja hanya
+ * berlaku untuk pesan berbentuk pertanyaan agar pernyataan biasa tidak
+ * tertarik menjadi topik materi.
+ */
+test("akhiran -nya tidak menghalangi topik dan harga yang didukung materi", () => {
+  assert.deepEqual(classifyInbound("biaya tur kotanya gimana?"), {
+    kind: "indicative-price",
+    topic: "price-city-tour",
+  });
+  assert.deepEqual(classifyInbound("kendaraannya apa aja ya"), {
+    kind: "faq",
+    topic: "transport-fleet",
+  });
+});
+
+test("akhiran -nya pada pernyataan biasa tidak menyeret topik materi", () => {
+  for (const text of ["kendaraannya bersih banget", "hotelnya bagus ya"]) {
+    assert.deepEqual(classifyInbound(text), { kind: "opener" }, text);
+  }
+});
+
+test("nemenin menandai mutawwif hanya bila konteksnya ibadah/umroh", () => {
+  assert.deepEqual(classifyInbound("yang nemenin ibadah namanya apa ya"), {
+    kind: "faq",
+    topic: "mutawwif",
+  });
+  // Tanpa konteks ibadah/umroh, "nemenin" bukan penanda mutawwif.
+  assert.deepEqual(classifyInbound("yang nemenin kami nanti siapa ya"), {
+    kind: "handoff",
+    trigger: "unsupported-question",
+  });
+});
+
+test("penanda layanan sehari-hari tetap dikenali sebagai topik materi", () => {
+  assert.deepEqual(classifyInbound("mau kasih sedekah lewat kalian bisa?"), {
+    kind: "faq",
+    topic: "charity-program",
+  });
+  assert.deepEqual(classifyInbound("keliling madinah bisa dibantu?"), {
+    kind: "faq",
+    topic: "city-tour-madinah",
+  });
+  assert.deepEqual(classifyInbound("brp hrg hotel di mekah?"), {
+    kind: "indicative-price",
+    topic: "price-hotel",
+  });
+  // "hrg" yang tidak punya topik materi tetap permintaan penawaran ke admin.
+  assert.deepEqual(classifyInbound("brp hrg paket umrah?"), {
+    kind: "handoff",
+    trigger: "custom-quote-or-availability",
+  });
+});
+
+test("toleransi -nya tidak menyeret pertanyaan proses dan perubahan penawaran", () => {
+  // Tiket 08: "bagaimana caranya" adalah pertanyaan proses, bukan topik hotel.
+  assert.equal(
+    classifyInbound("Mas, utk cek hotelnya itu nanti bagaimana caranya?").kind,
+    "handoff",
+  );
+  // Pertanyaan perubahan penawaran bukan permintaan Harga Indikatif transportasi.
+  assert.equal(
+    classifyInbound(
+      "tapi kl misalnya kita putuskan ditake out untuk transportnya karena perubahan harga tsb apakah memungkinkan mas?",
+    ).kind,
+    "handoff",
+  );
+});
+
+test("pernyataan bermuatan harga tetap bukan Harga Indikatif walau kata bendanya berakhiran -nya", () => {
+  // Kalimat yang berakhir "... boleh/bisa" adalah pernyataan, bukan pertanyaan
+  // (spec: Harga Indikatif hanya dijawab untuk pesan bertanda pertanyaan).
+  for (const text of ["harga mutawwifnya boleh", "tarif transportnya bisa", "kendaraannya bisa"]) {
+    const routing = classifyInbound(text);
+    assert.notEqual(routing.kind, "faq", text);
+    assert.notEqual(routing.kind, "indicative-price", text);
+  }
+});
+
+/**
+ * Tiket 11 kelas B — keputusan pemilik (opsi ii, 2026-10-10): pricelist,
+ * kelengkapan price list, biaya hotel "per malam", dan budget hotel tetap
+ * `handoff` mengikuti keputusan tiket 08/ADR-0005. Dijaga di sini agar
+ * korpusnya (`tests/korpus/dasar.json`) ikut terjaga `npm test`, bukan hanya
+ * oleh `node scripts/probe-cakupan.ts`.
+ */
+test("keputusan kelas B tetap handoff dan tidak dijawab dari materi", () => {
+  for (const text of [
+    "boleh minta pricelist?",
+    "price list nya lengkap gak?",
+    "kisaran biaya hotel per malam brp ya?",
+    "budget buat nginep di makkah kira-kira berapa",
+  ]) {
+    assert.equal(classifyInbound(text).kind, "handoff", text);
+  }
+});
+
 test("pertanyaan biaya asuransi yang tercantum materi tetap dijawab sebagai Harga Indikatif", () => {
   assert.deepEqual(classifyInbound("berapa biaya asuransi perjalanan?"), {
     kind: "indicative-price",

@@ -83,10 +83,27 @@ export function isPriceTopic(topic: FaqTopic): topic is PriceTopic {
  * Kata penanda pertanyaan harga yang dipakai pola topik Harga Indikatif;
  * sengaja tidak memuat "berapa" polos agar "berapa lama ..." tetap jatuh ke
  * rincian yang tidak didukung materi. Bentuk berimbuhan "-nya" ("harganya",
- * "biayanya") ikut dikenali karena transkrip nyata memakainya (tiket 09).
+ * "biayanya") ikut dikenali karena transkrip nyata memakainya (tiket 09),
+ * dan singkatan "hrg" dari korpus dasar ikut dikenali (tiket 11).
  */
 const PRICE_WORD =
-  /\b((harga|biaya|tarif|ongkos)(nya)?|prices?|pricing|costs?|rates?|how much)\b/i;
+  /\b((harga|biaya|tarif|ongkos)(nya)?|hrg|prices?|pricing|costs?|rates?|how much)\b/i;
+
+/**
+ * Penanda topik mutawwif (tiket 09, diperluas tiket 11). "membimbing" dan
+ * kata sehari-hari "nemenin/nemani/menemani" hanya menandai mutawwif bila
+ * konteks ibadah/umroh muncul dalam satu klausa (maksimal 30 karakter); dengan
+ * begitu "tour guide yang membimbing kami" tetap bukan mutawwif.
+ */
+const PENANDA_MUTAWWIF =
+  /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|(?:membimbing|nemenin|nemanin|nemani|menemani)(?=[^?!.]{0,30}\b(ibadah|umroh|umrah)\b)|worship guides?)\b/i;
+
+/**
+ * Kata pengantar city tour; destinasi ditentukan pola kedua tiap entri.
+ * "keliling" masuk tiket 11 dari korpus dasar ("keliling madinah bisa
+ * dibantu?").
+ */
+const KATA_CITY_TOUR = /\b(city tour|tour|tur|wisata|ziarah|jalan-jalan|keliling)\b/i;
 
 /**
  * Varian ejaan nama layanan dari transkrip nyata (tiket 09, rekomendasi 3
@@ -115,6 +132,19 @@ export function normalkanVarianEjaan(text: string): string {
     hasil = hasil.replace(pola, baku);
   }
   return hasil;
+}
+
+/**
+ * Akhiran "-nya" pada kata benda ("tur kotanya", "kendaraannya") — tiket 11.
+ * Dipakai `classifyInbound` sebagai pencocokan lanjutan hanya untuk pesan
+ * berbentuk pertanyaan, agar pernyataan biasa ("kendaraannya bersih") tidak
+ * tertarik menjadi topik materi. Batang minimal empat huruf supaya partikel
+ * seperti "hanya", "punya", dan "tanya" tidak ikut terpotong.
+ */
+const AKHIRAN_NYA = /\b(\p{L}{4,})nya\b/giu;
+
+export function normalkanAkhiranNya(text: string): string {
+  return text.replace(AKHIRAN_NYA, "$1");
 }
 
 interface FaqEntry {
@@ -243,10 +273,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "price-mutawwif",
-    patterns: [
-      PRICE_WORD,
-      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing(?=[^?!.]{0,30}\b(ibadah|umroh|umrah)\b)|worship guides?)\b/i,
-    ],
+    patterns: [PRICE_WORD, PENANDA_MUTAWWIF],
     answer: {
       id:
         "Harga Indikatif layanan mutawwif — bukan penawaran final (satuan per grup sesuai materi): " +
@@ -320,7 +347,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "city-tour-thaif",
-    patterns: [/\b(city tour|tour|tur|wisata|ziarah|jalan-jalan)\b/i, /\b(thaif|taif|tha'if)\b/i],
+    patterns: [KATA_CITY_TOUR, /\b(thaif|taif|tha'if)\b/i],
     answer: {
       id:
         "City Tour Premium Thaif mencakup kunjungan ke Masjid Abdullah bin Abbas dan Pabrik Parfum Mawar. " +
@@ -332,7 +359,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "city-tour-alula",
-    patterns: [/\b(city tour|tour|tur|wisata|ziarah|jalan-jalan)\b/i, /\b(al ?ula|al-ula)\b/i],
+    patterns: [KATA_CITY_TOUR, /\b(al ?ula|al-ula)\b/i],
     answer: {
       id:
         "City Tour Premium Exclusive Al Ula mencakup Maraya Concert Hall, Old Town Al Ula, Elephant Rock, dan Habitas Al-Ula. " +
@@ -344,7 +371,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "city-tour-makkah",
-    patterns: [/\b(city tour|tour|tur|wisata|ziarah|jalan-jalan)\b/i, /\b(makkah|mekah|mekkah)\b/i],
+    patterns: [KATA_CITY_TOUR, /\b(makkah|mekah|mekkah)\b/i],
     answer: {
       id:
         "City Tour Basic Makkah mencakup kunjungan ke Jabal Tsur (Gua Nabi Muhammad), Padang Arafah (tempat wukuf), Jabal Rahmah, Muzdalifah dan Mina, serta Jabal Nur (Gua Hira). " +
@@ -356,7 +383,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "city-tour-madinah",
-    patterns: [/\b(city tour|tour|tur|wisata|ziarah|jalan-jalan)\b/i, /\b(madinah|medinah|medina)\b/i],
+    patterns: [KATA_CITY_TOUR, /\b(madinah|medinah|medina)\b/i],
     answer: {
       id:
         "City Tour Basic Madinah mencakup kunjungan ke Masjid Bilal, shalat di Masjid Quba, Kebun Kurma, dan Jabal Uhud (Perang Uhud). " +
@@ -368,7 +395,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "city-tour",
-    patterns: [/\b(city tour|citytour|tur kota|tour (kota|ziarah|sejarah|tanah suci)|ziarah)\b/i],
+    patterns: [/\b(city tour|citytour|tur kota|keliling|tour (kota|ziarah|sejarah|tanah suci)|ziarah)\b/i],
     answer: {
       id:
         "City Tour Saudi Arabia dari MUTAWWIFMU mengajak Anda menjelajahi situs-situs bersejarah dan ikonik di tanah suci. " +
@@ -382,9 +409,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "mutawwif",
-    patterns: [
-      /\b(mutawwif|mutawif|muthawwif|pemandu ibadah|pembimbing ibadah|membimbing(?=[^?!.]{0,30}\b(ibadah|umroh|umrah)\b)|worship guides?)\b/i,
-    ],
+    patterns: [PENANDA_MUTAWWIF],
     answer: {
       id:
         "MUTAWWIFMU menyediakan mutawwif (pemandu ibadah) profesional bersertifikat. " +
@@ -462,7 +487,7 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "charity-program",
-    patterns: [/\b(charity|charities|amal|donasi|donation(s)?|program sosial|social program|kegiatan sosial|social (activity|activities|impact))\b/i],
+    patterns: [/\b(charity|charities|amal|donasi|donation(s)?|sedekah|program sosial|social program|kegiatan sosial|social (activity|activities|impact))\b/i],
     answer: {
       id:
         "Charity Program MUTAWWIFMU adalah program sosial yang terintegrasi dalam perjalanan — berbagi dan memberdayakan komunitas lokal di destinasi. " +

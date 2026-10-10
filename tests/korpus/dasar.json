@@ -1,5 +1,5 @@
 {
-  "catatan": "Korpus uji pemahaman bahasa Indonesia. Jalankan dengan: node scripts/probe-cakupan.ts",
+  "catatan": "Korpus uji pemahaman bahasa Indonesia. Jalankan dengan: node scripts/probe-cakupan.ts. Tiket 11 (2026-10-10): empat kasus kelas B (pricelist, kelengkapan price list, biaya hotel per malam, budget hotel) diselaraskan menjadi handoff dengan alasan pada catatan masing-masing kasus.",
   "caraMenambah": {
     "lokasi": "Simpan berkas JSON baru di folder ini (data/korpus/), apa pun namanya. Seluruh .json di folder ini otomatis digabung dan diuji.",
     "formatSatuKasus": {
@@ -21,12 +21,12 @@
     { "pesan": "brp hrg hotel di mekah?", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
     { "pesan": "harga hotel d makkah berapa", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "typo" },
     { "pesan": "daftar harga hotel dong", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
-    { "pesan": "boleh minta pricelist?", "harapan": { "jenis": "faq" }, "grup": "campur-inggris" },
+    { "pesan": "boleh minta pricelist?", "harapan": { "jenis": "handoff" }, "grup": "campur-inggris", "catatan": "Tiket 11 (2026-10-10, opsi ii): permintaan daftar harga tanpa topik materi diteruskan ke admin (keputusan tiket 08) — tanpa topik, pemicunya unsupported-question dan bot tidak boleh mengarang topik." },
     { "pesan": "minta price list hotel", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "campur-inggris" },
-    { "pesan": "price list nya lengkap gak?", "harapan": { "jenis": "faq" }, "grup": "campur-inggris" },
-    { "pesan": "kisaran biaya hotel per malam brp ya?", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
+    { "pesan": "price list nya lengkap gak?", "harapan": { "jenis": "handoff" }, "grup": "campur-inggris", "catatan": "Tiket 11 (2026-10-10, opsi ii): pertanyaan kelengkapan daftar tidak dapat diklaim dari materi (invarian tanpa klaim final) sehingga diteruskan ke admin." },
+    { "pesan": "kisaran biaya hotel per malam brp ya?", "harapan": { "jenis": "handoff" }, "grup": "gaul", "catatan": "Tiket 11 (2026-10-10, opsi ii): satuan \"per malam\" tidak tercantum materi dan tidak ditafsirkan (ADR-0005) — perilaku handoff sekarang yang benar." },
     { "pesan": "tarif penginapan di madinah gimana", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "parafrase" },
-    { "pesan": "budget buat nginep di makkah kira-kira berapa", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "parafrase" },
+    { "pesan": "budget buat nginep di makkah kira-kira berapa", "harapan": { "jenis": "handoff" }, "grup": "parafrase", "catatan": "Tiket 11 (2026-10-10, opsi ii): kata \"budget/anggaran\" sengaja memicu custom-quote-or-availability (tiket 05/08); permintaan penawaran diteruskan ke admin." },
     { "pesan": "harga city tour berapa?", "harapan": { "jenis": "faq", "topik": "price-city-tour" }, "grup": "baku" },
     { "pesan": "biaya tur kotanya gimana?", "harapan": { "jenis": "faq", "topik": "price-city-tour" }, "grup": "parafrase" },
     { "pesan": "ongkos transport selama disana berapa", "harapan": { "jenis": "faq", "topik": "price-transport" }, "grup": "parafrase" },

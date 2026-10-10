@@ -36,11 +36,15 @@
  * topik, dan kata harga berimbuhan "-nya" tetap diakui sebagai pertanyaan
  * Harga Indikatif. Tiket 10 menutup celah kecilnya: ketentuan asuransi dan
  * bentuk tanya sehari-hari tanpa tanda tanya ("... dapat ga", "... bisa")
- * terbaca sebagai `handoff`, bukan lolos menjadi `opener`.
+ * terbaca sebagai `handoff`, bukan lolos menjadi `opener`. Tiket 11 menutup
+ * celah pola korpus dasar: akhiran "-nya" pada kata benda ("tur kotanya",
+ * "kendaraannya"), "nemenin" dalam konteks ibadah, "sedekah", "keliling",
+ * dan singkatan "hrg".
  */
 import {
   isPriceTopic,
   matchFaqTopic,
+  normalkanAkhiranNya,
   normalkanVarianEjaan,
   type FaqTopic,
 } from "../knowledge/businessFaq.ts";
@@ -104,10 +108,11 @@ const QUOTE_OR_AVAILABILITY_REQUEST =
  * Indikatif — angkanya tidak tercantum materi (mis. paket umrah) atau
  * pertanyaannya lebih bersifat permintaan penawaran (mis. murah/mahal,
  * anggaran) — tetap diteruskan ke admin dengan alasan
- * `custom-quote-or-availability`.
+ * `custom-quote-or-availability`. Singkatan `hrg` dari korpus dasar ikut
+ * dikenali (tiket 11).
  */
 const CUSTOM_QUOTE_OR_AVAILABILITY =
-  /\b((harga|biaya|tarif|ongkos)(nya)?|price|priced|pricing|costs?|rates?|how much|budget|anggaran|murah|mahal|cheap|expensive|affordable)\b/i;
+  /\b((harga|biaya|tarif|ongkos)(nya)?|hrg|price|priced|pricing|costs?|rates?|how much|budget|anggaran|murah|mahal|cheap|expensive|affordable)\b/i;
 
 /**
  * Satuan harga yang tidak tercantum materi (mis. "per malam" pada daftar hotel
@@ -149,9 +154,12 @@ const SPECIFIC_QUOTE_REQUEST =
  * staria, tambahannya brp?") tidak tercantum materi sehingga tetap ke admin
  * (ADR-0005). Sengaja hanya "tambahan"/"tambahan(nya)", bukan "tambah", agar
  * permintaan menambahkan layanan yang punya materi (mis. mutawwif) tidak ikut
- * tertarik ke handoff.
+ * tertarik ke handoff. Tiket 11 menambahkan "perubahan harga/biaya/tarif/ongkos":
+ * pertanyaan perubahan penawaran ("...perubahan harga tsb apakah memungkinkan?")
+ * bukan permintaan Harga Indikatif, walau menyebut kata harga dan topik layanan.
  */
-const PRICE_DELTA_REQUEST = /\b(upgrade|up grade|selisih|tambahan(nya)?|surcharge)\b/i;
+const PRICE_DELTA_REQUEST =
+  /\b(upgrade|up grade|selisih|tambahan(nya)?|surcharge)\b|\bperubahan\s+(harga|biaya|tarif|ongkos)\b/i;
 
 /**
  * Kelompok 3 tiket 08 — timing dan ketersediaan dokumen/keberangkatan yang
@@ -174,9 +182,12 @@ const INCLUDE_REQUEST =
  * hotel untuk visa, penggantian hotel setelah visa keluar, atau topik Raudhah &
  * Nusuk. Pola penggantian hotel sengaja menuntut bentuk pertanyaan ("masi bisa
  * ganti hotel") agar pernyataan perubahan hotel biasa tidak ikut ke handoff.
+ * Tiket 11 menambahkan pertanyaan proses "bagaimana/gimana caranya": toleransi
+ * akhiran "-nya" tidak boleh menariknya menjadi topik materi (fixture transkrip
+ * "Mas, utk cek hotelnya itu nanti bagaimana caranya?").
  */
 const POLICY_OR_PROCESS_REQUEST =
-  /\b(approval(nya)?|approv(e|ed)|disetujui|di ?acc)\b|\b(abis|habis|setelah)\s+visa\s+(keluar|terbit|terbitkan|jadi|proses)\b|\b(masih|masi|bisa|boleh)\b[^?!.]{0,30}\b(ganti|ubah|tukar)\b[^?!.]{0,30}\b(hotel|kamar|akomodasi|maskapai|pesawat|tiket)\b/i;
+  /\b(approval(nya)?|approv(e|ed)|disetujui|di ?acc)\b|\b(abis|habis|setelah)\s+visa\s+(keluar|terbit|terbitkan|jadi|proses)\b|\b(masih|masi|bisa|boleh)\b[^?!.]{0,30}\b(ganti|ubah|tukar)\b[^?!.]{0,30}\b(hotel|kamar|akomodasi|maskapai|pesawat|tiket)\b|\b(bagaimana|gimana)\s+caranya\b/i;
 
 /**
  * Kelompok 5 & 6 tiket 08 — topik tanpa padanan materi: kereta Haramain
@@ -252,6 +263,26 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
 ];
 
 /**
+ * Cocokkan topik materi beserta toleransi akhiran "-nya" pada kata benda
+ * (tiket 11: "tur kotanya", "kendaraannya"). Toleransi hanya diberlakukan
+ * untuk pesan yang memuat penanda pertanyaan eksplisit (`QUESTION_LIKE`),
+ * bukan `BENTUK_TANYA_SEHARI_HARI`: penanda terakhir menganggap kalimat yang
+ * berakhir "... bisa/boleh/dapat" sebagai pertanyaan, sehingga pernyataan
+ * bermuatan harga ("harga mutawwifnya boleh") akan salah terjawab sebagai
+ * Harga Indikatif. Pencocokan langsung tetap berlaku untuk semua pesan.
+ */
+function cocokkanTopik(pesan: string): FaqTopic | null {
+  const langsung = matchFaqTopic(pesan);
+  if (langsung !== null) {
+    return langsung;
+  }
+  if (!QUESTION_LIKE.test(pesan)) {
+    return null;
+  }
+  return matchFaqTopic(normalkanAkhiranNya(pesan));
+}
+
+/**
  * Klasifikasikan pesan Calon Jemaah ke jalur percakapan yang sesuai.
  * Pesan non-pertanyaan yang tidak dikenal diperlakukan sebagai pembuka
  * percakapan agar balasan awal tetap hangat.
@@ -269,7 +300,7 @@ export function classifyInbound(text: string): InboundRouting {
   if (QUOTE_OR_AVAILABILITY_REQUEST.test(pesan)) {
     return { kind: "handoff", trigger: "custom-quote-or-availability" };
   }
-  const topic = matchFaqTopic(pesan);
+  const topic = cocokkanTopik(pesan);
   // Harga Indikatif hanya untuk angka yang tercantum materi dengan satuan yang
   // tercantum materi; selain itu tetap ke admin (ADR-0005).
   if (topic !== null && isPriceTopic(topic) && !UNVERIFIED_UNIT_REQUEST.test(pesan)) {

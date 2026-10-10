@@ -42,7 +42,7 @@ catat alasannya di komentar tiket ini:
 
 **Blocked by:** none
 
-**Status:** needs-triage
+**Status:** resolved
 
 ## Testing Decisions
 
@@ -69,3 +69,58 @@ catat alasannya di komentar tiket ini:
   Gemini (`classifyDenganFallback`, ADR-0008) bila diputuskan dipasang ke
   runtime; tetapi pola `-nya`, "sedekah", dan "hrg" tetap layak diperbaiki di
   regex karena murah dan tidak berisiko.
+
+### Implementasi (sesi 2026-10-10)
+
+**Kelas A — seluruhnya dikerjakan di regex.**
+
+- **Akhiran `-nya` sistematis** — `normalkanAkhiranNya` baru di
+  `src/knowledge/businessFaq.ts` (batang kata minimal empat huruf, jadi
+  "hanya"/"punya"/"tanya" tidak terpotong). `classifyInbound` memakainya lewat
+  `cocokkanTopik` sebagai pencocokan lanjutan **hanya bila pesan berbentuk
+  pertanyaan**, agar pernyataan biasa ("kendaraannya bersih") tidak tertarik
+  menjadi topik materi. Hasil: "biaya tur kotanya gimana?" →
+  `indicative-price`/`price-city-tour`, "kendaraannya apa aja ya" →
+  `faq`/`transport-fleet`.
+- **"nemenin"** — `PENANDA_MUTAWWIF` (dipakai bersama entri `mutawwif` dan
+  `price-mutawwif`) menerima "nemenin/nemanin/nemani/menemani" hanya bila dalam
+  ≤30 karakter diikuti konteks ibadah/umroh, mengikuti pola "membimbing"
+  tiket 09. "yang nemenin kami nanti siapa ya" tetap bukan mutawwif.
+- **"sedekah"** masuk topik `charity-program`; **"keliling"** masuk
+  `KATA_CITY_TOUR` (seluruh entri city tour + entri generik); **"hrg"** masuk
+  `PRICE_WORD` dan `CUSTOM_QUOTE_OR_AVAILABILITY`.
+- Dua penjaga regresi ikut dipasang agar toleransi `-nya` tidak memperlebar
+  pola: pertanyaan proses "bagaimana/gimana caranya" masuk
+  `POLICY_OR_PROCESS_REQUEST` (fixture transkrip "Mas, utk cek hotelnya itu
+  nanti bagaimana caranya?") dan "perubahan harga/biaya/tarif/ongkos" masuk
+  `PRICE_DELTA_REQUEST` (fixture transkrip "...perubahan harga tsb apakah
+  memungkinkan mas?"). Tanpa keduanya, `transkrip-nyata.json` turun ke 53/54.
+
+**Kelas B — keputusan pemilik: opsi (ii), 2026-10-10.** Perilaku sekarang
+sesuai keputusan tercatat, jadi korpus diselaraskan menjadi `handoff` dengan
+catatan alasan per kasus di `tests/korpus/dasar.json`; tidak ada aturan/ADR yang
+dibalik:
+
+- "boleh minta pricelist?" — permintaan daftar harga tanpa topik materi;
+  tiket 08 sudah memutuskan permintaan penawaran/daftar harga → admin, dan
+  memilih topik apa pun akan mengarang. Bandingkan "minta price list hotel"
+  yang tetap `faq`/`price-hotel` karena topiknya eksplisit.
+- "price list nya lengkap gak?" — pertanyaan kelengkapan daftar, bukan angka
+  yang tercantum; menjawabnya berarti mengklaim kelengkapan yang tidak dapat
+  diverifikasi (invarian tanpa klaim final).
+- "kisaran biaya hotel per malam brp ya?" — ADR-0005: satuan "per malam"
+  tidak tercantum materi dan tidak ditafsirkan.
+- "budget buat nginep di makkah kira-kira berapa" — kata "budget/anggaran"
+  sengaja memicu `custom-quote-or-availability` (tiket 05/08).
+
+**Verifikasi:**
+
+- `node scripts/probe-cakupan.ts`: rute tepat 109/118 (92%) → **118/118
+  (100%)**, topik tepat **118/118**; `dasar.json` 32/41 → **41/41** tanpa
+  mengubah `harapan` di luar empat keputusan kelas B; `transkrip-nyata` 54/54,
+  `topik-gap` 16/16, `varian-ejaan` 6/6, `typo` 6/6.
+- Seluruh kasus kelas A menjadi tes tetap di
+  `tests/conversation/classifyInbound.test.ts`, ditambah penjaga pernyataan
+  biasa (akhiran `-nya`), pertanyaan proses, dan perubahan penawaran.
+- `npm test` hijau: **294 lulus**, 0 gagal, 0 `todo`; `npm run typecheck`
+  bersih.
