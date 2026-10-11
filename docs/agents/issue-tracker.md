@@ -31,3 +31,5 @@ Digunakan oleh `/wayfinder`. **Map** adalah satu file dengan satu file anak per 
 - **Frontier**: periksa `.scratch/<effort>/issues/` untuk menemukan tiket terbuka, tidak terblokir, dan belum diklaim; pilih nomor terkecil terlebih dahulu.
 - **Claim**: ubah `Status:` menjadi `claimed` dan simpan sebelum mulai bekerja.
 - **Resolve**: tambahkan jawaban di bawah `## Answer`, ubah `Status:` menjadi `resolved`, lalu tambahkan pointer konteks (ringkasan + tautan) ke Decisions-so-far di `map.md`.
+
+> **Prerequisite:** the `gh` CLI must be installed and authenticated (`gh auth status`).

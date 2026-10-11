@@ -1,0 +1,18 @@
+# Text files: normalise to LF in the repo, platform-native on checkout
+* text=auto
+
+# Shell scripts must stay LF or they break under Git Bash / CI
+*.sh text eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary

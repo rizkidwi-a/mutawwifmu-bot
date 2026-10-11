@@ -32,6 +32,18 @@ _Avoid_: quotation, penawaran (produk admin setelah konsultasi)
 Perubahan atau penambahan kebutuhan yang disampaikan Calon Jemaah setelah Ringkasan Kebutuhan terkirim, yang dikirim ulang kepada admin dengan penanda "PEMBARUAN".
 _Avoid_: prospek baru, jika yang dimaksud revisi Permintaan Tindak Lanjut yang sudah terkirim
 
+**Pertanyaan Menyela**:
+Pertanyaan yang disampaikan Calon Jemaah di tengah bot sedang menanyakan kebutuhan dan ditandai kata kunci seperti "ingin bertanya" atau "ada yang ingin ditanyakan". Isinya disimpan apa adanya di Bagian Pertanyaan dan dikonfirmasi admin; tidak pernah menjadi jawaban bidang.
+_Avoid_: pertanyaan non-harga biasa (tanpa kata kunci); Harga Indikatif
+
+**Bagian Pertanyaan**:
+Kumpulan pertanyaan Calon Jemaah pada Ringkasan Kebutuhan (baris "Pertanyaan yang dicatat") yang dibawa kepada admin untuk dikonfirmasi dan ditindaklanjuti.
+_Avoid_: FAQ, jika yang dimaksud jawaban dari materi
+
+**Perbaikan Bidang**:
+Permintaan Calon Jemaah untuk mengosongkan dan mengulang jawaban bagian tertentu Permintaan Tindak Lanjut (mis. "hapus bagian tanggal"); bot meminta ulang jawaban bagian itu lalu alur kembali ke state sebelumnya.
+_Avoid_: Pembaruan Kebutuhan; reset seluruh Permintaan Tindak Lanjut
+
 ## Penawaran
 
 **Harga Indikatif**:

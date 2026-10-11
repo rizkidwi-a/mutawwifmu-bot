@@ -5,6 +5,11 @@ import {
   type InboundRouting,
 } from "./classifyInbound.ts";
 import { resolveReplyLanguage, type Language } from "./language.ts";
+import {
+  deteksiPenyela,
+  URUTAN_BIDANG,
+  type BidangKebutuhan,
+} from "./penyelaPengumpulan.ts";
 import { faqAnswer } from "../knowledge/businessFaq.ts";
 import type {
   BotTurn,
@@ -54,6 +59,21 @@ const CATAT_PERTANYAAN_ID =
 const CATAT_PERTANYAAN_EN =
   "Thank you, I've noted your question and will include it in the " +
   "follow-up request for our team.";
+
+/**
+ * Balasan atas pertanyaan menyela berkata kunci (mis. "ingin bertanya",
+ * "ada yang ingin ditanyakan"): pertanyaan disimpan di Bagian Pertanyaan dan
+ * dikonfirmasi admin bersama Ringkasan Kebutuhan, bukan menjadi jawaban bidang
+ * (spesifikasi `.scratch/penyela-pengumpulan`, tiket 01).
+ */
+const PERTANYAAN_MENYELA_ID =
+  "Baik, akan saya simpan di bagian pertanyaan dan nanti dikonfirmasi admin.";
+const PERTANYAAN_MENYELA_EN =
+  "Alright, I'll save this in the questions section and the admin will confirm it later.";
+
+/** Permintaan isi pertanyaan setelah kata kunci pertanyaan polos (tiket 01). */
+const MINTA_PERTANYAAN_ID = "Baik, silakan sampaikan pertanyaannya.";
+const MINTA_PERTANYAAN_EN = "Sure, please go ahead and ask your question.";
 
 /**
  * Penanda pesan yang berupa pertanyaan, bukan jawaban bidang. Dipakai agar
@@ -367,7 +387,24 @@ type FlowState =
   /** Ringkasan Kebutuhan sudah terkirim ke admin (tiket 05). */
   | { readonly kind: "sent"; readonly draft: FollowUpDraft }
   /** Menunggu persetujuan pengiriman ulang ringkasan yang diperbarui (tiket 05). */
-  | { readonly kind: "awaiting-revision-consent"; readonly draft: FollowUpDraft };
+  | { readonly kind: "awaiting-revision-consent"; readonly draft: FollowUpDraft }
+  /**
+   * Bidang tertentu sedang diulang jawabannya setelah permintaan perbaikan
+   * (mis. "hapus bagian tanggal"); state `resume` dilanjutkan kembali setelah
+   * seluruh bidang pada `sisa` dijawab ulang (tiket 02 penyela-pengumpulan).
+   */
+  | {
+      readonly kind: "reasking-field";
+      readonly draft: FollowUpDraft;
+      readonly sisa: readonly BidangKebutuhan[];
+      readonly resume: FlowState;
+    }
+  /**
+   * Menunggu isi pertanyaan setelah kata kunci pertanyaan polos ("ingin
+   * bertanya" tanpa isi); pesan berikutnya menjadi pertanyaan, lalu alur
+   * kembali ke `resume` (tiket 01 penyela-pengumpulan).
+   */
+  | { readonly kind: "awaiting-question"; readonly resume: FlowState };
 
 const EMPTY_DRAFT: FollowUpDraft = {
   interestedServices: null,
@@ -565,6 +602,69 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     next,
   };
 
+  // Penyela pengumpulan ditangani sebelum jawaban persetujuan agar "ya, hapus
+  // bagian tanggal" berarti perbaikan bidang, bukan persetujuan pengiriman.
+  // Prioritas: pemicu mendesak > pertanyaan menyela > perbaikan bidang.
+  const mendesak = isUrgentHandoffRequest(text);
+  const penyela = mendesak ? null : deteksiPenyela(text);
+  const pertanyaanHarga = routing.kind === "indicative-price" && isPertanyaan(text);
+  if (!mendesak) {
+    if (state.kind === "awaiting-question") {
+      if (penyela?.jenis === "perbaikan-bidang") {
+        return hasilPerbaikan(state, penyela.bidang, next, indonesian);
+      }
+      if (isBasaBasi(text)) {
+        return {
+          reply: balasanDenganPrompt(
+            indonesian ? BASA_BASI_ID : BASA_BASI_EN,
+            indonesian ? MINTA_PERTANYAAN_ID : MINTA_PERTANYAAN_EN,
+          ),
+          actions: [],
+          next,
+        };
+      }
+      if (penyela?.jenis === "pertanyaan-polos") {
+        return {
+          reply: indonesian ? MINTA_PERTANYAAN_ID : MINTA_PERTANYAAN_EN,
+          actions: [],
+          next,
+        };
+      }
+      // Pesan apa pun (non-mendesak) berikutnya adalah isi pertanyaannya.
+      return {
+        reply: balasanDenganPrompt(
+          indonesian ? PERTANYAAN_MENYELA_ID : PERTANYAAN_MENYELA_EN,
+          promptMenyela(next, indonesian),
+        ),
+        actions: [],
+        next,
+      };
+    }
+    if (penyela !== null && !pertanyaanHarga && stateMemilikiDraft(state)) {
+      if (penyela.jenis === "perbaikan-bidang") {
+        return hasilPerbaikan(state, penyela.bidang, next, indonesian);
+      }
+      if (penyela.jenis === "pertanyaan-polos") {
+        return {
+          reply: indonesian ? MINTA_PERTANYAAN_ID : MINTA_PERTANYAAN_EN,
+          actions: [],
+          next,
+        };
+      }
+      return {
+        reply: balasanDenganPrompt(
+          indonesian ? PERTANYAAN_MENYELA_ID : PERTANYAAN_MENYELA_EN,
+          promptMenyela(next, indonesian),
+        ),
+        actions: [],
+        next,
+      };
+    }
+    if (penyela?.jenis === "perbaikan-bidang" && state.kind === "idle") {
+      return hasilPerbaikan(state, penyela.bidang, next, indonesian);
+    }
+  }
+
   if (state.kind === "awaiting-handoff-consent" && menjawabPersetujuan) {
     if (menolak) {
       return ditolak;
@@ -658,6 +758,35 @@ function step(state: FlowState, text: string, language: Language): StepResult {
       next,
     };
   }
+  if (state.kind === "reasking-field") {
+    // Jawaban ulang bidang: tampilkan bidang berikutnya yang masih diulang,
+    // atau kembali ke state sebelumnya (ringkasan/konfirmasi/pengumpulan).
+    const menyela = isPertanyaanTercatat(text, routing);
+    if (menyela && routing.kind === "indicative-price" && isPertanyaan(text)) {
+      return {
+        reply: balasanDenganPrompt(
+          faqAnswer(routing.topic, language),
+          promptBidang(state.sisa[0], indonesian),
+        ),
+        actions: [{ kind: "record-faq-answer", topic: routing.topic }],
+        next,
+      };
+    }
+    if (menyela) {
+      return {
+        reply: balasanDenganPrompt(leadPertanyaan, promptBidang(state.sisa[0], indonesian)),
+        actions: [],
+        next,
+      };
+    }
+    return {
+      reply: next.kind === "reasking-field"
+        ? promptBidang(next.sisa[0], indonesian)
+        : promptKembali(next, indonesian),
+      actions: [],
+      next,
+    };
+  }
   if (next.kind === "awaiting-consent") {
     const reask = indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
     if (state.kind !== "awaiting-consent") {
@@ -723,6 +852,114 @@ function balasanDenganPrompt(lead: string, prompt: string): string {
   return `${lead}\n\n${prompt}`;
 }
 
+/** Sebutan bidang pada balasan perbaikan bidang (mengikuti label ringkasan). */
+const LABEL_BIDANG: Record<BidangKebutuhan, readonly [id: string, en: string]> = {
+  interestedServices: ["Layanan yang diminati", "Services of interest"],
+  travelDateOrPeriod: ["Tanggal/periode", "Travel date/period"],
+  travellerCount: ["Jumlah jemaah", "Number of travellers"],
+  detailedNeeds: ["Kebutuhan detail", "Detailed needs"],
+  budgetRange: ["Kisaran anggaran", "Budget range"],
+};
+
+function labelBidang(bidang: readonly BidangKebutuhan[], indonesian: boolean): string {
+  return bidang
+    .map((b) => (indonesian ? LABEL_BIDANG[b][0] : LABEL_BIDANG[b][1]))
+    .join(indonesian ? " dan " : " and ");
+}
+
+/** Prompt pengumpulan sebuah bidang (dipakai saat bidang diulang). */
+function promptBidang(bidang: BidangKebutuhan | undefined, indonesian: boolean): string {
+  if (bidang === undefined) {
+    return "";
+  }
+  switch (bidang) {
+    case "interestedServices":
+      return indonesian ? COLLECT_INTERESTED_SERVICES_ID : COLLECT_INTERESTED_SERVICES_EN;
+    case "travelDateOrPeriod":
+      return indonesian ? COLLECT_TRAVEL_DATE_OR_PERIOD_ID : COLLECT_TRAVEL_DATE_OR_PERIOD_EN;
+    case "travellerCount":
+      return indonesian ? COLLECT_TRAVELLER_COUNT_ID : COLLECT_TRAVELLER_COUNT_EN;
+    case "detailedNeeds":
+      return indonesian ? COLLECT_DETAILED_NEEDS_ID : COLLECT_DETAILED_NEEDS_EN;
+    case "budgetRange":
+      return indonesian ? COLLECT_BUDGET_ID : COLLECT_BUDGET_EN;
+  }
+}
+
+/** Prompt yang tertunda pada state yang dilanjutkan setelah pesan penyela. */
+function promptMenyela(next: FlowState, indonesian: boolean): string {
+  switch (next.kind) {
+    case "collecting":
+      return promptForNextField(next.draft, indonesian);
+    case "reasking-field":
+      return promptBidang(next.sisa[0], indonesian);
+    case "awaiting-consent":
+      return indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
+    case "awaiting-revision-consent":
+      return revisiConsentPrompt(next.draft, indonesian);
+    default:
+      return "";
+  }
+}
+
+/** Prompt state sebelumnya setelah seluruh bidang yang diulang dijawab. */
+function promptKembali(next: FlowState, indonesian: boolean): string {
+  switch (next.kind) {
+    case "collecting":
+      return promptForNextField(next.draft, indonesian);
+    case "awaiting-consent":
+      return consentPrompt(next.draft, indonesian);
+    case "awaiting-revision-consent":
+      return revisiConsentPrompt(next.draft, indonesian);
+    case "reasking-field":
+      return promptBidang(next.sisa[0], indonesian);
+    default:
+      return "";
+  }
+}
+
+/**
+ * Balasan perbaikan bidang: akui bidang yang dikosongkan dan minta ulang,
+ * akui bidang yang memang belum terisi, lalu tampilkan prompt yang sesuai.
+ */
+function hasilPerbaikan(
+  state: FlowState,
+  bidang: readonly BidangKebutuhan[],
+  next: FlowState,
+  indonesian: boolean,
+): StepResult {
+  const draft = draftDari(state);
+  const terisi = bidang.filter((b) => bidangTerisi(draft, b));
+  const belum = bidang.filter((b) => !bidangTerisi(draft, b));
+  const bagian: string[] = [];
+  if (terisi.length > 0) {
+    bagian.push(
+      indonesian
+        ? `Baik, bagian ${labelBidang(terisi, indonesian)} saya hapus. Silakan isi ulang jawabannya:`
+        : `Alright, I've cleared the ${labelBidang(terisi, indonesian)} part. Please provide it again:`,
+    );
+  }
+  if (belum.length > 0) {
+    bagian.push(
+      indonesian
+        ? `Bagian ${labelBidang(belum, indonesian)} memang belum terisi.`
+        : `The ${labelBidang(belum, indonesian)} part hasn't been filled in yet.`,
+    );
+  }
+  const prompt =
+    next.kind === "reasking-field"
+      ? promptBidang(next.sisa[0], indonesian)
+      : state.kind === "idle"
+        ? promptForNextField(EMPTY_DRAFT, indonesian)
+        : promptSetelahBasaBasi(state, indonesian);
+  const kepala = bagian.join("\n\n");
+  return {
+    reply: prompt === "" ? kepala : balasanDenganPrompt(kepala, prompt),
+    actions: [],
+    next,
+  };
+}
+
 /**
  * Langkah kelanjutan alur setelah basa-basi (tiket 06): ulangi bidang yang
  * sedang ditanya atau permintaan konfirmasi yang sedang menunggu. Kosong bila
@@ -737,6 +974,10 @@ function promptSetelahBasaBasi(state: FlowState, indonesian: boolean): string {
       return indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
     case "awaiting-revision-consent":
       return indonesian ? REVISI_REASK_ID : REVISI_REASK_EN;
+    case "reasking-field":
+      return promptBidang(state.sisa[0], indonesian);
+    case "awaiting-question":
+      return indonesian ? MINTA_PERTANYAAN_ID : MINTA_PERTANYAAN_EN;
     default:
       return "";
   }
@@ -768,6 +1009,23 @@ function stepLampiran(state: FlowState, language: Language): StepResult {
   if (next.kind === "awaiting-revision-consent") {
     return {
       reply: balasanDenganPrompt(akui, revisiConsentPrompt(next.draft, indonesian)),
+      actions: [],
+      next,
+    };
+  }
+  if (next.kind === "reasking-field") {
+    return {
+      reply: balasanDenganPrompt(akui, promptBidang(next.sisa[0], indonesian)),
+      actions: [],
+      next,
+    };
+  }
+  if (state.kind === "awaiting-question") {
+    return {
+      reply: balasanDenganPrompt(
+        akui,
+        indonesian ? MINTA_PERTANYAAN_ID : MINTA_PERTANYAAN_EN,
+      ),
       actions: [],
       next,
     };
@@ -804,6 +1062,12 @@ function nextStateLampiran(state: FlowState): FlowState {
   if (state.kind === "sent" || state.kind === "awaiting-revision-consent") {
     return { kind: "awaiting-revision-consent", draft: denganLampiran(state.draft) };
   }
+  if (state.kind === "reasking-field") {
+    return { ...state, draft: denganLampiran(state.draft) };
+  }
+  if (state.kind === "awaiting-question") {
+    return { kind: "awaiting-question", resume: nextStateLampiran(state.resume) };
+  }
   return state;
 }
 
@@ -813,6 +1077,40 @@ function denganLampiran(draft: FollowUpDraft): FollowUpDraft {
 
 /** Transisi state murni dari state saat ini dan teks calon jemaah. */
 function nextState(state: FlowState, text: string): FlowState {
+  const routing = classifyInbound(text);
+  const mendesak = isUrgentHandoffRequest(text);
+  const penyela = mendesak ? null : deteksiPenyela(text);
+  const pertanyaanHarga = routing.kind === "indicative-price" && isPertanyaan(text);
+
+  // Penyela pengumpulan (`.scratch/penyela-pengumpulan`): pertanyaan berkata
+  // kunci tidak pernah menjadi jawaban bidang — isinya dicatat ke Bagian
+  // Pertanyaan — dan permintaan "hapus bagian X" mengosongkan bidang itu untuk
+  // diulang jawabannya. Pertanyaan Harga Indikatif tetap dijawab dari materi.
+  if (!mendesak) {
+    if (state.kind === "awaiting-question") {
+      if (penyela?.jenis === "perbaikan-bidang") {
+        return nextStatePerbaikan(state, penyela.bidang);
+      }
+      if (penyela?.jenis === "pertanyaan-polos" || isBasaBasi(text)) {
+        return state;
+      }
+      // Pesan apa pun (non-mendesak) berikutnya adalah isi pertanyaannya.
+      return catatKePertanyaan(state.resume, text);
+    }
+    if (penyela !== null && !pertanyaanHarga && stateMemilikiDraft(state)) {
+      if (penyela.jenis === "perbaikan-bidang") {
+        return nextStatePerbaikan(state, penyela.bidang);
+      }
+      return penyela.jenis === "pertanyaan-polos"
+        ? { kind: "awaiting-question", resume: resumeDari(state) }
+        : catatKePertanyaan(state, text);
+    }
+    if (penyela?.jenis === "perbaikan-bidang" && state.kind === "idle") {
+      // Belum ada yang bisa dihapus; langsung arahkan ke pengumpulan.
+      return { kind: "collecting", draft: EMPTY_DRAFT };
+    }
+  }
+
   const menungguPersetujuan =
     state.kind === "awaiting-consent" ||
     state.kind === "awaiting-handoff-consent" ||
@@ -820,8 +1118,6 @@ function nextState(state: FlowState, text: string): FlowState {
   if (menungguPersetujuan && (CONSENT_NO.test(text) || isConsentYes(text))) {
     return setelahPersetujuan(state, text);
   }
-
-  const routing = classifyInbound(text);
 
   // Pemicu yang menuntut manusia selalu menyela, termasuk saat pengumpulan.
   if (routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger)) {
@@ -847,6 +1143,17 @@ function nextState(state: FlowState, text: string): FlowState {
     return state;
   }
 
+  if (state.kind === "reasking-field") {
+    // Jawaban ulang bidang; pertanyaan yang menyela dicatat tanpa mengisi
+    // bidang yang sedang diulang (invarian tiket 06).
+    const pertanyaanMenyela = isPertanyaanTercatat(text, routing);
+    if (pertanyaanMenyela) {
+      return routing.kind === "indicative-price"
+        ? state
+        : { ...state, draft: catatPertanyaan(state.draft, text) };
+    }
+    return isiUlangBidang(state, text);
+  }
   if (state.kind === "collecting") {
     const pertanyaanMenyela = isPertanyaanTercatat(text, routing);
     if (pertanyaanMenyela) {
@@ -929,7 +1236,9 @@ function setelahPersetujuan(state: FlowState, text: string): FlowState {
 
 /** State yang dipulihkan setelah handoff; tumpukan handoff diratakan. */
 function resumeDari(state: FlowState): FlowState {
-  return state.kind === "awaiting-handoff-consent" ? state.resume : state;
+  return state.kind === "awaiting-handoff-consent" || state.kind === "awaiting-question"
+    ? state.resume
+    : state;
 }
 
 /** Catat perubahan kebutuhan apa adanya sebagai bagian Ringkasan Kebutuhan. */
@@ -940,6 +1249,161 @@ function catatPerubahan(draft: FollowUpDraft, text: string): FollowUpDraft {
 /** Catat pertanyaan non-harga apa adanya sebagai bagian kebutuhan. */
 function catatPertanyaan(draft: FollowUpDraft, text: string): FollowUpDraft {
   return { ...draft, notedQuestions: [...draft.notedQuestions, text] };
+}
+
+/**
+ * Catat pertanyaan menyela ke Bagian Pertanyaan state yang sedang berjalan,
+ * apa adanya, tanpa mengubah alur: pengumpulan berlanjut, konfirmasi tetap
+ * menunggu, dan setelah ringkasan terkirim masuk alur pembaruan (tiket 05).
+ */
+function catatKePertanyaan(state: FlowState, text: string): FlowState {
+  switch (state.kind) {
+    case "collecting":
+      return { kind: "collecting", draft: catatPertanyaan(state.draft, text) };
+    case "awaiting-consent":
+      return { kind: "awaiting-consent", draft: catatPertanyaan(state.draft, text) };
+    case "sent":
+    case "awaiting-revision-consent":
+      return { kind: "awaiting-revision-consent", draft: catatPertanyaan(state.draft, text) };
+    case "reasking-field":
+      return { ...state, draft: catatPertanyaan(state.draft, text) };
+    default:
+      return state;
+  }
+}
+
+/** State punya draft yang dapat diperbaiki/ditambahi Bagian Pertanyaan. */
+function stateMemilikiDraft(state: FlowState): boolean {
+  return (
+    state.kind === "collecting" ||
+    state.kind === "awaiting-consent" ||
+    state.kind === "awaiting-revision-consent" ||
+    state.kind === "sent" ||
+    state.kind === "reasking-field"
+  );
+}
+
+function draftDari(state: FlowState): FollowUpDraft {
+  switch (state.kind) {
+    case "collecting":
+    case "awaiting-consent":
+    case "awaiting-revision-consent":
+    case "sent":
+    case "reasking-field":
+      return state.draft;
+    case "awaiting-question":
+      return draftDari(state.resume);
+    default:
+      return EMPTY_DRAFT;
+  }
+}
+
+function bidangTerisi(draft: FollowUpDraft, bidang: BidangKebutuhan): boolean {
+  switch (bidang) {
+    case "interestedServices":
+      return draft.interestedServices !== null;
+    case "travelDateOrPeriod":
+      return draft.travelDateOrPeriod !== null;
+    case "travellerCount":
+      return draft.travellerCount !== null;
+    case "detailedNeeds":
+      return draft.detailedNeeds !== null;
+    case "budgetRange":
+      return draft.budgetRange !== null;
+  }
+}
+
+function kosongkanBidang(draft: FollowUpDraft, bidang: BidangKebutuhan): FollowUpDraft {
+  switch (bidang) {
+    case "interestedServices":
+      return { ...draft, interestedServices: null };
+    case "travelDateOrPeriod":
+      return { ...draft, travelDateOrPeriod: null };
+    case "travellerCount":
+      return { ...draft, travellerCount: null };
+    case "detailedNeeds":
+      return { ...draft, detailedNeeds: null };
+    case "budgetRange":
+      return { ...draft, budgetRange: null, budgetResolved: false };
+  }
+}
+
+/** Isi satu bidang yang sedang diulang jawabannya; anggaran tetap boleh dilewati. */
+function isiBidang(draft: FollowUpDraft, bidang: BidangKebutuhan, text: string): FollowUpDraft {
+  if (bidang === "budgetRange") {
+    return {
+      ...draft,
+      budgetRange: SKIP_ANSWER.test(text) ? null : text,
+      budgetResolved: true,
+    };
+  }
+  switch (bidang) {
+    case "interestedServices":
+      return { ...draft, interestedServices: text };
+    case "travelDateOrPeriod":
+      return { ...draft, travelDateOrPeriod: text };
+    case "travellerCount":
+      return { ...draft, travellerCount: text };
+    case "detailedNeeds":
+      return { ...draft, detailedNeeds: text };
+  }
+}
+
+/**
+ * Transisi perbaikan bidang: kosongkan bidang yang disebut dan sudah terisi,
+ * lalu minta ulang jawabannya satu per satu sebelum kembali ke state
+ * sebelumnya. Bidang yang belum terisi tidak mengubah state.
+ */
+function nextStatePerbaikan(
+  state: FlowState,
+  bidang: readonly BidangKebutuhan[],
+): FlowState {
+  const draft = draftDari(state);
+  const terisi = bidang.filter((b) => bidangTerisi(draft, b));
+  if (terisi.length === 0) {
+    return state.kind === "idle" ? { kind: "collecting", draft: EMPTY_DRAFT } : state;
+  }
+  const dikosongkan = terisi.reduce(kosongkanBidang, draft);
+  const sisaSebelum = state.kind === "reasking-field" ? state.sisa : [];
+  return {
+    kind: "reasking-field",
+    draft: dikosongkan,
+    sisa: URUTAN_BIDANG.filter((b) => terisi.includes(b) || sisaSebelum.includes(b)),
+    // Pengulangan yang belum selesai digabung; state yang dikembalikan tetap
+    // yang sebelum pengulangan pertama.
+    resume: state.kind === "reasking-field" ? state.resume : resumeDari(state),
+  };
+}
+
+/**
+ * Jawaban ulang satu bidang pada `sisa[0]`; bila sudah habis, kembali ke
+ * state sebelumnya dengan draft yang sudah diperbarui.
+ */
+function isiUlangBidang(
+  state: Extract<FlowState, { readonly kind: "reasking-field" }>,
+  text: string,
+): FlowState {
+  const [pertama, ...sisa] = state.sisa;
+  if (pertama === undefined) {
+    return state;
+  }
+  const draft = isiBidang(state.draft, pertama, text);
+  return sisa.length > 0
+    ? { ...state, draft, sisa }
+    : kembaliDariReask(state.resume, draft);
+}
+
+/** State sebelumnya yang dipulihkan setelah seluruh bidang diulang. */
+function kembaliDariReask(resume: FlowState, draft: FollowUpDraft): FlowState {
+  switch (resume.kind) {
+    case "awaiting-consent":
+      return { kind: "awaiting-consent", draft };
+    case "sent":
+    case "awaiting-revision-consent":
+      return { kind: "awaiting-revision-consent", draft };
+    default:
+      return { kind: "collecting", draft };
+  }
 }
 
 function isConsentYes(text: string): boolean {
