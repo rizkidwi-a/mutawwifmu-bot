@@ -24,8 +24,16 @@
  * pencocokan topik (mis. `muthowif`/`Mutowwif` → `mutawwif`) dan memperluas
  * pola yang didukung materi: bentuk "-nya" pada kata harga serta detail
  * dokumen paspor.
+ *
+ * Fitur harga-transportasi-per-rute: angka topik `price-transport` kini dari
+ * tabel transport terbaru (`data/transportasi harga/`, 2026-10-12; SAR per
+ * kendaraan/per grup) yang menggantikan angka BOOKLET, dan jawabannya
+ * dirender per rute lewat `jawabanFaq()` sesuai kata kunci tujuan pada pesan
+ * (lihat `transportRute.ts`). `faqAnswer("price-transport")` tetap memuat
+ * seluruh rute sebagai materi acuan grounding angka.
  */
 import type { Language } from "../conversation/language.ts";
+import { susunJawabanTransport, susunMateriTransport } from "./transportRute.ts";
 
 /**
  * Topik Harga Indikatif (tiket 05): angka harga yang tercantum materi,
@@ -88,6 +96,19 @@ export function isPriceTopic(topic: FaqTopic): topic is PriceTopic {
  */
 const PRICE_WORD =
   /\b((harga|biaya|tarif|ongkos)(nya)?|hrg|prices?|pricing|costs?|rates?|how much)\b/i;
+
+/**
+ * Kata penanda topik transportasi (dipakai pola `price-transport` sekaligus
+ * penolak pola `price-city-tour`): pertanyaan "harga transport ziarah Makkah"
+ * menanyakan rute transport (Ziarah Makkah pada tabel transport), bukan paket
+ * city tour, sehingga jatuh ke topik transport (fitur
+ * harga-transportasi-per-rute).
+ */
+const KATA_TRANSPORT =
+  /\b(transportasi|transports?|armada|kendaraan|vehicles?|mobils?|minibus|buses?|hiace|coaster|staria|camry|sonata|gmc|sopir|drivers?|penjemputan|jemput|transfers?|shuttle)\b/i;
+
+/** Pola penolak: pesan TIDAK memuat kata penanda transportasi. */
+const TANPA_KATA_TRANSPORT = new RegExp(`^(?!.*${KATA_TRANSPORT.source})`, "i");
 
 /**
  * Penanda topik mutawwif (tiket 09, diperluas tiket 11). "membimbing" dan
@@ -206,7 +227,11 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "price-city-tour",
-    patterns: [PRICE_WORD, /\b(city ?tour|tur kota|tour (kota|ziarah|sejarah|tanah suci)|ziarah)\b/i],
+    patterns: [
+      PRICE_WORD,
+      /\b(city ?tour|tur kota|tour (kota|ziarah|sejarah|tanah suci)|ziarah)\b/i,
+      TANPA_KATA_TRANSPORT,
+    ],
     answer: {
       id:
         "Harga Indikatif city tour — bukan penawaran final. " +
@@ -228,29 +253,10 @@ const ENTRIES: readonly FaqEntry[] = [
   },
   {
     topic: "price-transport",
-    patterns: [
-      PRICE_WORD,
-      /\b(transportasi|transports?|armada|kendaraan|vehicles?|mobils?|minibus|buses?|hiace|coaster|staria|camry|sonata|gmc|sopir|drivers?|penjemputan|jemput|transfers?|shuttle)\b/i,
-    ],
+    patterns: [PRICE_WORD, KATA_TRANSPORT],
     answer: {
-      id:
-        "Harga Indikatif transportasi tercantum per rute dan armada — bukan penawaran final. " +
-        "Contoh angka pada materi: Jeddah Airport–Makkah Hotel mulai SAR 500 (Camry/Sonata) hingga SAR 1.050 (Bus); " +
-        "Makkah Hotel–Jeddah Airport mulai SAR 450 hingga SAR 1.050; Makkah–Madinah (PP) mulai SAR 700 hingga SAR 1.450; " +
-        "Madinah Airport–Madinah Hotel mulai SAR 400 hingga SAR 950; Madinah Hotel–Madinah Airport mulai SAR 370 hingga SAR 950; " +
-        "Madinah Hotel–Jeddah Airport (PP) mulai SAR 750 hingga SAR 1.650. " +
-        "Catatan: nilai pada tabel tercantum dalam SAR sementara catatan kaki materi menyebut \"IDR per grup\", " +
-        "sehingga ketentuannya belum konsisten dan harus dikonfirmasi admin — saya tidak menafsirkan sendiri satuannya. " +
-        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi rute, armada, dan harga terkini kepada tim kami.",
-      en:
-        "Indicative Prices for transportation, listed per route and fleet — not a final offer. " +
-        "Figures from our materials: Jeddah Airport–Makkah Hotel from SAR 500 (Camry/Sonata) up to SAR 1,050 (Bus); " +
-        "Makkah Hotel–Jeddah Airport from SAR 450 up to SAR 1,050; Makkah–Madinah (round trip) from SAR 700 up to SAR 1,450; " +
-        "Madinah Airport–Madinah Hotel from SAR 400 up to SAR 950; Madinah Hotel–Madinah Airport from SAR 370 up to SAR 950; " +
-        "Madinah Hotel–Jeddah Airport (round trip) from SAR 750 up to SAR 1,650. " +
-        "Note: the table figures are in SAR while the material footnote states \"IDR per group\", " +
-        "so the terms are not yet consistent and must be confirmed by our admin — I do not interpret the unit myself. " +
-        "Figures may change after being reviewed by our admin — please confirm the route, fleet, and current price with our team.",
+      id: susunMateriTransport("id"),
+      en: susunMateriTransport("en"),
     },
   },
   {
@@ -555,4 +561,18 @@ export function faqAnswer(topic: FaqTopic, language: Language): string {
     throw new Error(`Topik FAQ tidak dikenal: ${topic}`);
   }
   return language === "id" ? entry.answer.id : entry.answer.en;
+}
+
+/**
+ * Jawaban FAQ untuk sebuah pesan (fitur harga-transportasi-per-rute).
+ * Topik `price-transport` dirender per rute sesuai kata kunci tujuan pada
+ * pesan; topik lain memakai `faqAnswer` apa adanya. `faqAnswer` tetap memuat
+ * materi lengkap — termasuk seluruh rute transport — sebagai acuan grounding
+ * angka (`pengamanAngka`).
+ */
+export function jawabanFaq(topic: FaqTopic, pesan: string, language: Language): string {
+  if (topic === "price-transport") {
+    return susunJawabanTransport(pesan, language);
+  }
+  return faqAnswer(topic, language);
 }

@@ -10,7 +10,7 @@ import {
   URUTAN_BIDANG,
   type BidangKebutuhan,
 } from "./penyelaPengumpulan.ts";
-import { faqAnswer } from "../knowledge/businessFaq.ts";
+import { jawabanFaq } from "../knowledge/businessFaq.ts";
 import type {
   BotTurn,
   ConversationContext,
@@ -763,7 +763,7 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     isPertanyaan(text) &&
     (state.kind === "sent" || state.kind === "awaiting-revision-consent")
   ) {
-    const jawaban = faqAnswer(routing.topic, language);
+    const jawaban = jawabanFaq(routing.topic, text, language);
     const aksi: InternalAction = { kind: "record-faq-answer", topic: routing.topic };
     if (state.kind === "sent") {
       return { reply: jawaban, actions: [aksi], next };
@@ -789,7 +789,7 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     if (menyela && routing.kind === "indicative-price" && isPertanyaan(text)) {
       return {
         reply: balasanDenganPrompt(
-          faqAnswer(routing.topic, language),
+          jawabanFaq(routing.topic, text, language),
           promptBidang(state.sisa[0], indonesian),
         ),
         actions: [{ kind: "record-faq-answer", topic: routing.topic }],
@@ -845,7 +845,7 @@ function step(state: FlowState, text: string, language: Language): StepResult {
     // pengumpulan Permintaan Tindak Lanjut, tanpa pola pembuka khusus.
     if (routing.kind === "indicative-price" && isPertanyaan(text)) {
       return {
-        reply: balasanDenganPrompt(faqAnswer(routing.topic, language), prompt),
+        reply: balasanDenganPrompt(jawabanFaq(routing.topic, text, language), prompt),
         actions: [{ kind: "record-faq-answer", topic: routing.topic }],
         next,
       };

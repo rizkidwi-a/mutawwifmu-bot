@@ -103,7 +103,9 @@ test("jawaban Harga Indikatif menyatakan angka dapat berubah setelah diperiksa a
 });
 
 test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
-  // Angka di bawah dikutip dari BOOKLET MUTAWWIFMU.md / HOTEL RATES MUTAWWIFMU (2).md.
+  // Angka di bawah dikutip dari BOOKLET MUTAWWIFMU.md / HOTEL RATES MUTAWWIFMU (2).md,
+  // kecuali price-transport yang memakai tabel transport 2026-10-12
+  // (SAR per kendaraan/per grup — lihat `src/knowledge/transportRute.ts`).
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 300/);
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 350/);
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 400/);
@@ -112,8 +114,8 @@ test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
   assert.match(faqAnswer("price-airport-handling", "id"), /IDR 350\.000/);
   assert.match(faqAnswer("price-airport-handling", "id"), /SAR 300/);
   assert.match(faqAnswer("price-airport-handling", "id"), /SAR 900/);
-  assert.match(faqAnswer("price-transport", "id"), /SAR 500/);
-  assert.match(faqAnswer("price-transport", "id"), /SAR 1\.650/);
+  assert.match(faqAnswer("price-transport", "id"), /SAR 400/);
+  assert.match(faqAnswer("price-transport", "id"), /SAR 1\.950/);
   assert.match(faqAnswer("price-city-tour", "id"), /SAR 820/);
   assert.match(faqAnswer("price-city-tour", "id"), /SAR 1\.705/);
   assert.match(faqAnswer("price-city-tour", "id"), /SAR 2\.095/);
