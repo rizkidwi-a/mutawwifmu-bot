@@ -54,7 +54,6 @@ test("kanal admin menerima Ringkasan Kebutuhan sebagai pesan WhatsApp", async ()
   assert.match(pesan.text, /Rencana Desember 2025/);
   assert.match(pesan.text, /4 orang/);
   assert.match(pesan.text, /kamar keluarga/);
-  assert.match(pesan.text, /50 juta/);
 });
 
 test("pertanyaan yang dicatat ikut dibawa ke ringkasan untuk admin", async () => {
@@ -85,17 +84,12 @@ test("pesan untuk admin mempertahankan alasan dan identitas tanpa riwayat percak
   assert.doesNotMatch(pesan.text, /Konteks percakapan:|calon-jemaah:|asisten:/);
 });
 
-test("anggaran yang tidak disampaikan ditandai apa adanya", async () => {
+test("baris kisaran anggaran tidak lagi dikirim ke admin", async () => {
   const { sender, terkirim } = buatPengirim();
-  const request = handoff.request;
-  assert.ok(request);
-  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver({
-    ...handoff,
-    request: { ...request, budgetRange: null },
-  });
+  await new WhatsAppAdminChannel(sender, NOMOR_ADMIN, () => {}).deliver(handoff);
   const pesan = terkirim[0];
   assert.ok(pesan);
-  assert.match(pesan.text, /tidak disampaikan/);
+  assert.doesNotMatch(pesan.text, /Kisaran anggaran/);
 });
 
 test("pesan admin memuat ringkasan lengkap tanpa konteks percakapan", async () => {
@@ -113,7 +107,7 @@ test("pesan admin memuat ringkasan lengkap tanpa konteks percakapan", async () =
   assert.match(pesan.text, /Tanggal\/periode: Rencana Desember 2025/);
   assert.match(pesan.text, /Jumlah jemaah: 4 orang/);
   assert.match(pesan.text, /Kebutuhan detail: Butuh kamar keluarga/);
-  assert.match(pesan.text, /Kisaran anggaran: Sekitar 50 juta/);
+  assert.doesNotMatch(pesan.text, /Kisaran anggaran/);
   assert.match(pesan.text, /Lampiran: 2 pesan non-teks/);
   assert.doesNotMatch(pesan.text, /Konteks percakapan:|calon-jemaah:|asisten:/);
 });

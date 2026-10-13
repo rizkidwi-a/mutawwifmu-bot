@@ -13,13 +13,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
-/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran dilewati). */
+/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran tidak ditanyakan). */
 function kumpulkan(percakapan: Percakapan): void {
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
 }
 
 test("kata kunci dengan isi pertanyaan tidak mengisi bidang dan masuk Bagian Pertanyaan", () => {
@@ -34,8 +33,7 @@ test("kata kunci dengan isi pertanyaan tidak mengisi bidang dan masuk Bagian Per
   assert.match(balasan, /tanggal|periode/i);
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.ok(ringkasan.includes(`Pertanyaan yang dicatat: ${pertanyaan}`));
   assert.match(ringkasan, /Tanggal\/periode: Rencana Desember 2025/);
   const setuju = percakapan.kirim("ya, setuju");
@@ -58,8 +56,7 @@ test("'ada yang ingin ditanyakan' polos meminta isi pertanyaan lalu kembali ke s
   assert.match(balasan, /tanggal|periode/i);
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.ok(
     ringkasan.includes("Pertanyaan yang dicatat: apakah hotelnya dekat dengan Masjidil Haram?"),
   );
@@ -116,7 +113,6 @@ test("basa-basi saat menunggu isi pertanyaan tidak menjadi pertanyaan", () => {
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
   const setuju = percakapan.kirim("ya, setuju");
   const catat = setuju.actions.find((aksi) => aksi.kind === "record-follow-up-request");
   assert.ok(catat && catat.kind === "record-follow-up-request");

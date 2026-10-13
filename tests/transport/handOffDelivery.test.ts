@@ -125,7 +125,6 @@ async function jalankanAlurLengkap(lingkungan: Lingkungan, persetujuan: string):
   await kirimPesan(lingkungan, "Rencana Desember 2025");
   await kirimPesan(lingkungan, "4 orang");
   await kirimPesan(lingkungan, "Butuh kamar keluarga");
-  await kirimPesan(lingkungan, "Sekitar 50 juta");
   await kirimPesan(lingkungan, persetujuan);
 }
 
@@ -143,7 +142,7 @@ test("permintaan yang disetujui diteruskan ke kanal admin tanpa riwayat percakap
       travelDateOrPeriod: "Rencana Desember 2025",
       travellerCount: "4 orang",
       detailedNeeds: "Butuh kamar keluarga",
-      budgetRange: "Sekitar 50 juta",
+      budgetRange: null,
       notedQuestions: [],
       attachmentCount: 0,
       changeNotes: [],

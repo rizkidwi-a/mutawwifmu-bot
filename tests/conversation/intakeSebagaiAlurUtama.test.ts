@@ -14,13 +14,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
-/** Jalankan pengumpulan sampai Ringkasan Kebutuhan (anggaran dilewati). */
+/** Jalankan pengumpulan sampai Ringkasan Kebutuhan muncul (anggaran tidak ditanyakan). */
 function kumpulkanSampaiRingkasan(percakapan: Percakapan): string {
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  return teksBalasan(percakapan.kirim("tidak usah"));
+  return teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
 }
 
 test("pembuka tanpa pola konsultasi langsung diarahkan ke pengumpulan kebutuhan", () => {
@@ -37,8 +36,9 @@ test("pengumpulan berjalan setelah pembuka tanpa pola konsultasi", () => {
   assert.match(teksBalasan(percakapan.kirim("Umrah premium, tujuan Mekkah")), /tanggal|periode/i);
   assert.match(teksBalasan(percakapan.kirim("Rencana Desember 2025")), /jumlah jemaah/i);
   assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan detail/i);
-  assert.match(teksBalasan(percakapan.kirim("Butuh kamar keluarga")), /anggaran/i);
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
+  // Pertanyaan anggaran dihapus: kebutuhan detail langsung ke Ringkasan Kebutuhan.
+  assert.match(ringkasan, /Ringkasan Kebutuhan/);
   assert.match(ringkasan, /Umrah premium/);
   assert.match(ringkasan, /setuju/i);
 });
@@ -122,7 +122,9 @@ test("jawaban bidang yang memuat kata harga tetap dicatat sebagai jawaban bidang
   percakapan.kirim("Hotel di Mekkah");
   percakapan.kirim("Desember 2025");
   percakapan.kirim("4 orang");
-  assert.match(teksBalasan(percakapan.kirim("biaya hotel ditanggung kami, visa diurus sendiri")), /anggaran/i);
+  const balasan = teksBalasan(percakapan.kirim("biaya hotel ditanggung kami, visa diurus sendiri"));
+  // Jawaban menjadi kebutuhan detail, bukan jawaban harga atau anggaran.
+  assert.match(balasan, /Kebutuhan detail: biaya hotel ditanggung kami, visa diurus sendiri/);
 });
 
 test("pertanyaan non-harga saat menunggu persetujuan dicatat tanpa menggagalkan konfirmasi", () => {
@@ -132,7 +134,6 @@ test("pertanyaan non-harga saat menunggu persetujuan dicatat tanpa menggagalkan 
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
 
   const selingan = percakapan.kirim("Kamar hotel tipe apa saja?");
   assert.match(teksBalasan(selingan), /catat/i);

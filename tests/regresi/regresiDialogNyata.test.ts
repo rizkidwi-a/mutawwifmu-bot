@@ -53,8 +53,7 @@ const SKENARIO: readonly string[] = [
     "Deluxe Room Haram View. 20-24 Januari - Diyar Ajwa. King Room.",
   // Pertanyaan yang tidak didukung lain (17.23).
   "kak, mau tanya lagi.. kalo harramain train itu sbnrnya on-time banget ga yah?",
-  // Anggaran opsional dilewati.
-  "tidak usah",
+  // Persetujuan penerusan Ringkasan Kebutuhan (pertanyaan anggaran dihapus).
   // Persetujuan penerusan Ringkasan Kebutuhan.
   "ya, setuju",
   // Perubahan kebutuhan (17.09) — sekaligus kasus misfire HARGA/price-hotel.

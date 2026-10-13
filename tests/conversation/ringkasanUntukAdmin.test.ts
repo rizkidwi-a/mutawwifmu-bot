@@ -10,14 +10,15 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
-/** Jalankan pengumpulan lengkap sampai Ringkasan Kebutuhan (anggaran diberikan). */
+/** Jalankan pengumpulan lengkap sampai Ringkasan Kebutuhan (anggaran tidak ditanyakan). */
 function kumpulkanSampaiRingkasan(percakapan: Percakapan): string {
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Mutawwif dan hotel");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("yang butuh visa cuma bapak & ibu mertua, terbang dari Jakarta");
-  return teksBalasan(percakapan.kirim("Sekitar 50 juta"));
+  return teksBalasan(
+    percakapan.kirim("yang butuh visa cuma bapak & ibu mertua, terbang dari Jakarta"),
+  );
 }
 
 test("ringkasan sebelum persetujuan menampilkan setiap bidang Permintaan Tindak Lanjut", () => {
@@ -30,7 +31,8 @@ test("ringkasan sebelum persetujuan menampilkan setiap bidang Permintaan Tindak 
     ringkasan,
     /Kebutuhan detail: yang butuh visa cuma bapak & ibu mertua, terbang dari Jakarta/,
   );
-  assert.match(ringkasan, /Kisaran anggaran: Sekitar 50 juta/);
+  // Baris kisaran anggaran dihapus dari Ringkasan Kebutuhan.
+  assert.doesNotMatch(ringkasan, /Kisaran anggaran/);
   assert.match(ringkasan, /setuju/i);
 });
 
@@ -54,8 +56,7 @@ test("pesan non-teks diakui penerimaannya dan disebut sebagai lampiran pada ring
   const diakui = teksBalasan(percakapan.kirimLampiran());
   assert.match(diakui, /lampiran/i);
   percakapan.kirim("4 orang");
-  percakapan.kirim("yang butuh visa cuma bapak & ibu mertua");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("yang butuh visa cuma bapak & ibu mertua"));
   assert.match(ringkasan, /Lampiran: 1 pesan non-teks/i);
 });
 
@@ -73,8 +74,7 @@ test("lampiran tidak mengisi bidang kebutuhan", () => {
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirimLampiran();
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = percakapan.kirim("tidak usah");
+  const ringkasan = percakapan.kirim("Butuh kamar keluarga");
   // Balasan atas lampiran tidak mengonsumsi bidang yang sedang ditanya.
   assert.match(teksBalasan(ringkasan), /setuju/i);
   assert.deepEqual(ringkasan.actions, []);
@@ -100,7 +100,6 @@ test("pesan non-teks saat menunggu persetujuan tetap muncul pada ringkasan sebel
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
   const diperbarui = teksBalasan(percakapan.kirimLampiran());
   assert.match(diperbarui, /Lampiran: 1 pesan non-teks/i);
   assert.match(diperbarui, /setuju/i);
@@ -113,8 +112,7 @@ test("ringkasan Bahasa Inggris menyebut lampiran untuk pesan non-teks", () => {
   percakapan.kirim("December 2025");
   percakapan.kirimLampiran();
   percakapan.kirim("4 travellers");
-  percakapan.kirim("Visa for my parents only");
-  const ringkasan = teksBalasan(percakapan.kirim("no budget for now"));
+  const ringkasan = teksBalasan(percakapan.kirim("Visa for my parents only"));
   assert.match(ringkasan, /summary of your needs/i);
   assert.match(ringkasan, /attachments?: 1 non-text/i);
   assert.doesNotMatch(ringkasan, /requestSummary/i);

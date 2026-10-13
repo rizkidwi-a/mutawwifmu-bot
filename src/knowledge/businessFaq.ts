@@ -193,13 +193,13 @@ const ENTRIES: readonly FaqEntry[] = [
     patterns: [PRICE_WORD, /\b(visas?|dokumen|documents?|asuransi|insurance)\b/i],
     answer: {
       id:
-        "Harga Indikatif pengurusan dokumen — bukan penawaran final (satuan per pax sesuai materi): " +
-        "Visa Umrah Reguler IDR 3.200.000 per pax dan Asuransi Perjalanan IDR 100.000 per pax. " +
+        "Harga Indikatif pengurusan visa — bukan penawaran final (satuan per pax sesuai materi): " +
+        "Visa Umrah Reguler IDR 2.980.000 per pax dan Asuransi Perjalanan IDR 100.000 per pax. " +
         "Untuk Visa Umrah Express materi tidak mencantumkan angka dan menyarankan menghubungi admin dengan harga yang menyesuaikan. " +
         "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
       en:
-        "Indicative Prices for document arrangement — not a final offer (per pax as stated in our materials): " +
-        "Regular Umrah Visa IDR 3,200,000 per pax and Travel Insurance IDR 100,000 per pax. " +
+        "Indicative Prices for visa arrangement — not a final offer (per pax as stated in our materials): " +
+        "Regular Umrah Visa IDR 2,980,000 per pax and Travel Insurance IDR 100,000 per pax. " +
         "For the Express Umrah Visa our materials list no figure and direct you to contact the admin with an adjusted price. " +
         "Figures may change after being reviewed by our admin — please confirm the current price with our team.",
     },

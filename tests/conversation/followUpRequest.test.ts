@@ -27,15 +27,20 @@ test("bot mengumpulkan bidang Permintaan Tindak Lanjut secara berurutan", () => 
   assert.match(teksBalasan(percakapan.kirim("4 orang")), /kebutuhan detail/i);
 });
 
-test("setelah kebutuhan detail, kisaran anggaran ditawarkan secara opsional", () => {
+test("setelah kebutuhan detail, bot langsung meminta persetujuan tanpa menanyakan anggaran", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  const balasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga dan mutawwif berbahasa Indonesia"));
-  assert.match(balasan, /anggaran/i);
-  assert.match(balasan, /opsional|lewati/i);
+  const balasan = teksBalasan(
+    percakapan.kirim("Butuh kamar keluarga dan mutawwif berbahasa Indonesia"),
+  );
+  // Pertanyaan kisaran anggaran sudah dihapus dari urutan pengumpulan.
+  assert.doesNotMatch(balasan, /Apakah ada kisaran anggaran/i);
+  assert.match(balasan, /Ringkasan Kebutuhan/);
+  assert.match(balasan, /ditindaklanjuti/i);
+  assert.match(balasan, /setuju/i);
 });
 
 test("sebelum meneruskan, bot menjelaskan tujuan penerusan dan meminta persetujuan", () => {
@@ -44,39 +49,35 @@ test("sebelum meneruskan, bot menjelaskan tujuan penerusan dan meminta persetuju
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const balasan = teksBalasan(percakapan.kirim("Sekitar 50 juta"));
+  const balasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.match(balasan, /ditindaklanjuti/i);
   assert.match(balasan, /customer service|penjualan/i);
   assert.match(balasan, /teruskan|diteruskan/i);
   assert.match(balasan, /setuju/i);
 });
 
-test("ringkasan persetujuan memuat bidang yang dikumpulkan termasuk anggaran bila diberikan", () => {
+test("ringkasan persetujuan memuat bidang yang dikumpulkan", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const balasan = teksBalasan(percakapan.kirim("Sekitar 50 juta"));
+  const balasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.match(balasan, /Umrah premium/);
   assert.match(balasan, /Desember 2025/);
   assert.match(balasan, /4 orang/);
   assert.match(balasan, /kamar keluarga/);
-  assert.match(balasan, /50 juta/);
 });
 
-test("anggaran yang dilewati dicatat sebagai tidak disampaikan tanpa menghalangi persetujuan", () => {
+test("kisaran anggaran tidak ditanyakan dan tidak muncul pada ringkasan", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Halo, saya ingin konsultasi untuk merencanakan umrah");
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const balasan = teksBalasan(percakapan.kirim("tidak usah"));
-  assert.match(balasan, /anggaran/i);
-  assert.match(balasan, /tidak disampaikan/i);
+  const balasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
+  assert.doesNotMatch(balasan, /kisaran anggaran|budget range/i);
+  assert.match(balasan, /Kebutuhan detail: Butuh kamar keluarga/);
   assert.match(balasan, /setuju/i);
 });
 
@@ -87,7 +88,6 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("Sekitar 50 juta");
   const turn = percakapan.kirim("Ya, setuju");
 
   const catat = turn.actions.find((a) => a.kind === "record-follow-up-request");
@@ -97,7 +97,7 @@ test("persetujuan diberikan: permintaan dicatat dan diteruskan beserta konfirmas
     travelDateOrPeriod: "Rencana Desember 2025",
     travellerCount: "4 orang",
     detailedNeeds: "Butuh kamar keluarga",
-    budgetRange: "Sekitar 50 juta",
+    budgetRange: null,
     notedQuestions: [],
     attachmentCount: 0,
     changeNotes: [],
@@ -119,7 +119,6 @@ test("konfirmasi penerusan tidak menjanjikan waktu balasan admin", () => {
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("Sekitar 50 juta");
   const balasan = teksBalasan(percakapan.kirim("Ya, setuju"));
   assert.doesNotMatch(balasan, /(admin|tim)[^.]{0,30}(akan )?(membalas|menanggapi|merespon|respond)/i);
   assert.doesNotMatch(balasan, /dalam \d+ (jam|menit|hari)/i);
@@ -132,7 +131,6 @@ test("persetujuan ditolak: informasi tidak diteruskan", () => {
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("Sekitar 50 juta");
   const turn = percakapan.kirim("Tidak, jangan diteruskan");
   assert.deepEqual(turn.actions, []);
   assert.match(teksBalasan(turn), /tidak .{0,25}(diteruskan|teruskan)/i);
@@ -145,7 +143,6 @@ test("jawaban persetujuan yang tidak jelas membuat bot meminta konfirmasi ulang"
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("Sekitar 50 juta");
   const turn = percakapan.kirim("mungkin seperti itu ya");
   assert.deepEqual(turn.actions, []);
   assert.match(teksBalasan(turn), /setuju/i);
@@ -160,7 +157,6 @@ test("bot tidak meminta paspor atau informasi kesehatan untuk konsultasi awal", 
     "Rencana Desember 2025",
     "4 orang",
     "Butuh kamar keluarga",
-    "tidak usah",
   ]) {
     balasanBot.push(teksBalasan(percakapan.kirim(pesan)));
   }

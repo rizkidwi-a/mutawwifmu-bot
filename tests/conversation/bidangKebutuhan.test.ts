@@ -42,6 +42,22 @@ test("jawaban layanan bebas diterima tanpa dipaksa memilih menu", () => {
   assert.match(balasan, /tanggal|periode/i);
 });
 
+test("pertanyaan tanggal/periode meminta cakupannya: hanya Mekkah, hanya Madinah, atau keduanya", () => {
+  const percakapan = new Percakapan();
+  const balasan = teksBalasan(percakapan.kirim("Mutawwif dan hotel"));
+  assert.match(balasan, /kapan rencana tanggal atau periode/i);
+  assert.match(balasan, /Mekkah/);
+  assert.match(balasan, /Madinah/);
+  assert.match(balasan, /atau keduanya/i);
+
+  const inggris = new Percakapan("en");
+  const balasanInggris = teksBalasan(inggris.kirim("Mutawwif and hotel"));
+  assert.match(balasanInggris, /when is your planned travel date or period/i);
+  assert.match(balasanInggris, /Makkah/);
+  assert.match(balasanInggris, /Madinah/);
+  assert.match(balasanInggris, /or both/i);
+});
+
 test("pertanyaan kebutuhan detail menyebut rincian yang boleh disampaikan sekaligus", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Mutawwif dan hotel");
@@ -65,10 +81,8 @@ test("kebutuhan detail dapat diisi dalam satu jawaban panjang dan disimpan utuh 
   percakapan.kirim(layanan);
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim(detail);
-
   // Ringkasan sebelum persetujuan memuat jawaban panjang apa adanya.
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim(detail));
   assert.ok(ringkasan.includes(detail), "ringkasan memuat kebutuhan detail utuh");
 
   const turn = percakapan.kirim("Ya, setuju");

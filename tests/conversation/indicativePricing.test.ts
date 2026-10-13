@@ -19,7 +19,7 @@ const PERTANYAAN_HARGA: ReadonlyArray<
   readonly [pesan: string, topik: string, kataKunci: readonly RegExp[]]
 > = [
   ["Berapa harga mutawwif?", "price-mutawwif", [/SAR 300/, /SAR 400/, /per grup/]],
-  ["Berapa biaya visa umrah?", "price-document-arrangement", [/IDR 3\.200\.000/, /IDR 100\.000/, /per pax/]],
+  ["Berapa biaya visa umrah?", "price-document-arrangement", [/IDR 2\.980\.000/, /IDR 100\.000/, /per pax/]],
   ["Berapa harga airport handling?", "price-airport-handling", [/IDR 350\.000/, /SAR 300/, /SAR 900/, /2025–2026/]],
   ["Berapa harga transportasi dari Jeddah?", "price-transport", [/SAR 500/, /SAR 1\.650/, /per grup/]],
   ["Berapa harga city tour Madinah?", "price-city-tour", [/SAR 820/, /SAR 1\.395/, /free snack/]],

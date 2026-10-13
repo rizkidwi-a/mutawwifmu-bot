@@ -17,8 +17,9 @@ Batasi fungsi bot menjadi tiga: merespons cepat setiap chat masuk, menanyakan ke
    - Layanan yang diminati (menu dari Layanan MUTAWWIFMU: mutawwif, visa & dokumen, hotel, transportasi, airport handling, ziarah/city tour, tasreh, fotografi, lainnya);
    - Tanggal atau periode perjalanan;
    - Jumlah jemaah (termasuk keterangan anak/lansia bila disebutkan);
-   - Kebutuhan detail (kebutuhan visa per jemaah, rute/asal keberangkatan, hotel pesan mandiri atau lewat kami, catatan khusus);
-   - Kisaran anggaran (opsional, boleh dilewati).
+   - Kebutuhan detail (kebutuhan visa per jemaah, rute/asal keberangkatan, hotel pesan mandiri atau lewat kami, catatan khusus).
+
+   Pertanyaan kisaran anggaran dihapus dari urutan pengumpulan: setelah kebutuhan detail dijawab, bot langsung menampilkan Ringkasan Kebutuhan dan meminta persetujuan penerusan ke admin. Bidang `budgetRange` tetap ada pada tipe, tetapi barisnya tidak lagi ditampilkan pada Ringkasan Kebutuhan maupun pesan admin.
 3. **Ringkasan untuk admin.** Ringkasan per bidang ditampilkan kepada calon jemaah, meminta persetujuan penerusan, lalu dikirim ke nomor admin bersama identitas pengirim dan alasan handoff; riwayat percakapan tidak disertakan (ADR-0010). Handoff tanpa Permintaan Tindak Lanjut tetap mengirim identitas dan alasan, tanpa riwayat.
 4. **Harga Indikatif.** Pertanyaan harga yang angkanya tercantum materi dijawab dengan Harga Indikatif, selalu dengan penegasan bahwa angka bersifat indikatif dan dapat berubah setelah diperiksa admin.
 5. **Pembaruan kebutuhan.** Setelah ringkasan terkirim, calon jemaah masih dapat menambah atau mengubah kebutuhan; ringkasan yang diperbarui dikirim ulang ke admin dengan penanda pembaruan (keputusan rinci pada tiket 05).

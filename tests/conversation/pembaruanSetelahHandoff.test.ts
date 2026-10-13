@@ -22,7 +22,6 @@ function kirimRingkasanPertama(percakapan: Percakapan): BotTurn {
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("Sekitar 50 juta");
   return percakapan.kirim("Ya, setuju");
 }
 
@@ -55,7 +54,8 @@ test("Ringkasan Kebutuhan yang diperbarui mempertahankan nilai bidang yang sudah
   assert.ok(balasan.includes("- Tanggal/periode: Rencana Desember 2025"));
   assert.ok(balasan.includes("- Jumlah jemaah: 4 orang"));
   assert.ok(balasan.includes("- Kebutuhan detail: Butuh kamar keluarga"));
-  assert.ok(balasan.includes("- Kisaran anggaran: Sekitar 50 juta"));
+  // Baris kisaran anggaran dihapus dari Ringkasan Kebutuhan yang diperbarui.
+  assert.doesNotMatch(balasan, /Kisaran anggaran/);
 });
 
 test("pengiriman ulang hanya terjadi setelah persetujuan calon jemaah dan ditandai sebagai revisi", () => {
@@ -232,7 +232,6 @@ test("pembaruan berbahasa Inggris memakai ringkasan yang diperbarui dan persetuj
   percakapan.kirim("December 2025");
   percakapan.kirim("4 travellers");
   percakapan.kirim("Visa for my parents only");
-  percakapan.kirim("no budget for now");
   percakapan.kirim("Yes, please");
 
   const ubah = percakapan.kirim("Please add airport handling");

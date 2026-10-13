@@ -13,13 +13,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Percakapan, teksBalasan } from "./pembantuPercakapan.ts";
 
-/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran dilewati). */
+/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran tidak ditanyakan). */
 function kumpulkan(percakapan: Percakapan): void {
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
 }
 
 /** Kasus misfire historis dari `.scratch/eval-classify.txt` (HARGA/price-hotel). */
@@ -58,8 +57,7 @@ test("koreksi saat pengumpulan mengulang bidang lalu melanjutkan ke bidang berik
   const ulang = percakapan.kirim("6 orang");
   // Kembali ke state sebelumnya: pengumpulan berlanjut ke kebutuhan detail.
   assert.match(teksBalasan(ulang), /kebutuhan detail/i);
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.match(ringkasan, /Jumlah jemaah: 6 orang/);
   assert.match(ringkasan, /Tanggal\/periode: Rencana Desember 2025/);
 });
@@ -99,19 +97,15 @@ test("koreksi setelah ringkasan terkirim masuk alur PEMBARUAN dengan persetujuan
   assert.equal(teruskan.request?.travellerCount, "6 orang");
 });
 
-test("koreksi kisaran anggaran mengulang jawabannya dan tetap boleh dilewati", () => {
+test("bidang anggaran tidak lagi ditanyakan sehingga tidak dapat dikoreksi", () => {
   const percakapan = new Percakapan();
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("30 juta");
-  const hapus = percakapan.kirim("ganti bagian anggaran");
-  assert.match(teksBalasan(hapus), /Kisaran anggaran/);
-  assert.match(teksBalasan(hapus), /kisaran anggaran/i);
-  const ulang = percakapan.kirim("tidak usah");
-  const ringkasan = teksBalasan(ulang);
-  assert.match(ringkasan, /Kisaran anggaran: tidak disampaikan/);
+  // Pertanyaan anggaran dihapus: kebutuhan detail langsung ke Ringkasan Kebutuhan.
+  const ringkasan = teksBalasan(percakapan.kirim("ganti bagian anggaran"));
+  assert.match(ringkasan, /belum terisi/i);
   assert.match(ringkasan, /setuju/i);
 });
 
@@ -163,8 +157,8 @@ test("pernyataan bermuatan kata harga dan 'ganti hotel' tidak salah jadi perbaik
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   const pernyataan = percakapan.kirim(PERNYATAAN_HARGA);
-  // Menjadi jawaban kebutuhan detail, lalu lanjut ke anggaran.
-  assert.match(teksBalasan(pernyataan), /kisaran anggaran/i);
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  // Menjadi jawaban kebutuhan detail, lalu langsung ke Ringkasan Kebutuhan.
+  const ringkasan = teksBalasan(pernyataan);
+  assert.match(ringkasan, /Ringkasan Kebutuhan/);
   assert.ok(ringkasan.includes(`Kebutuhan detail: ${PERNYATAAN_HARGA}`));
 });

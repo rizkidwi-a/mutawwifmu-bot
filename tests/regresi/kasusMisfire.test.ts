@@ -55,7 +55,6 @@ const KONTEKS: ReadonlyArray<readonly [nama: string, siapkan: (p: Percakapan) =>
       percakapan.kirim("Rencana Desember 2025");
       percakapan.kirim("4 orang");
       percakapan.kirim("Butuh kamar keluarga");
-      percakapan.kirim("tidak usah");
       percakapan.kirim("Ya, setuju");
     },
   ],
@@ -88,7 +87,6 @@ test("kasus HARGA/price-hotel diperlakukan sebagai informasi kebutuhan, bukan te
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
   percakapan.kirim("Ya, setuju");
   const balasan = teksBalasan(percakapan.kirim(PERNYATAAN_HARGA));
   assert.deepEqual(templateDalamBalasan(balasan), []);

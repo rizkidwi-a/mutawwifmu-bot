@@ -107,7 +107,7 @@ test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 300/);
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 350/);
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 400/);
-  assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 3\.200\.000/);
+  assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 2\.980\.000/);
   assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 100\.000/);
   assert.match(faqAnswer("price-airport-handling", "id"), /IDR 350\.000/);
   assert.match(faqAnswer("price-airport-handling", "id"), /SAR 300/);

@@ -229,8 +229,19 @@ const COLLECT_INTERESTED_SERVICES_EN =
   "Which services are you interested in? (free text, you may name more than one)\n\n" +
   MENU_LAYANAN_EN;
 
-const COLLECT_TRAVEL_DATE_OR_PERIOD_ID = "Terima kasih. Kapan rencana tanggal atau periode perjalanan Anda?";
-const COLLECT_TRAVEL_DATE_OR_PERIOD_EN = "Thank you. When is your planned travel date or period?";
+/**
+ * Tanggal/periode keberangkatan bisa bermakna dua: periode selama di Mekkah,
+ * periode selama di Madinah, atau keduanya. Prompt meminta cakupannya disebut
+ * sekalian agar admin tidak salah membaca; jawaban tetap disimpan verbatim.
+ */
+const COLLECT_TRAVEL_DATE_OR_PERIOD_ID =
+  "Terima kasih. Kapan rencana tanggal atau periode perjalanan Anda? " +
+  "Agar tidak salah paham, mohon disebutkan sekalian cakupannya: " +
+  "apakah hanya selama di Mekkah saja, hanya selama di Madinah saja, atau keduanya?";
+const COLLECT_TRAVEL_DATE_OR_PERIOD_EN =
+  "Thank you. When is your planned travel date or period? " +
+  "To avoid ambiguity, please include the scope as well: " +
+  "is it for the time in Makkah only, in Madinah only, or both?";
 
 const COLLECT_TRAVELLER_COUNT_ID = "Berapa jumlah jemaah yang akan berangkat?";
 const COLLECT_TRAVELLER_COUNT_EN = "How many travellers will be going?";
@@ -250,6 +261,11 @@ const COLLECT_DETAILED_NEEDS_EN =
   "You may share them all at once in one message: visa needs per traveller, " +
   "route or departure city, hotel booked by yourself or through us, and any special notes.";
 
+/**
+ * Prompt kisaran anggaran — tidak lagi diajukan pada pengumpulan biasa
+ * (pertanyaan anggaran dihapus); hanya terpakai bila bidang itu diulang
+ * lewat perbaikan bidang.
+ */
 const COLLECT_BUDGET_ID =
   "Apakah ada kisaran anggaran yang ingin disampaikan? Ini opsional — Anda boleh melewatinya.";
 const COLLECT_BUDGET_EN =
@@ -299,8 +315,11 @@ const CONFIRM_RESENT_EN =
 
 /**
  * Bidang Permintaan Tindak Lanjut yang sedang dikumpulkan. Nilai disimpan apa
- * adanya dari calon jemaah; `budgetResolved` menandai bidang opsional sudah
- * dijawab atau dilewati. Bidang null berarti belum terisi.
+ * adanya dari calon jemaah; `budgetResolved` menandai pengumpulan bidang
+ * opsional anggaran sudah selesai — sejak hilangnya pertanyaan kisaran
+ * anggaran, tanda ini langsung terpasang saat kebutuhan detail terisi sehingga
+ * alur beralih ke persetujuan tanpa bertanya anggaran. Bidang null berarti
+ * belum terisi.
  */
 interface FollowUpDraft {
   readonly interestedServices: string | null;
@@ -594,8 +613,13 @@ function step(state: FlowState, text: string, language: Language): StepResult {
   const next = nextState(state, text);
   const routing = classifyInbound(text);
   const leadPertanyaan = indonesian ? CATAT_PERTANYAAN_ID : CATAT_PERTANYAAN_EN;
+  // Pertanyaan yang dicatat didahulukan daripada jawaban persetujuan: pesan
+  // berisi kata penolakan (mis. "boleh cek gak harganya?") tetap dicatat
+  // sebagai pertanyaan, bukan ditafsirkan sebagai penolakan penerusan.
+  const pertanyaanTercatat =
+    state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing);
   const menolak = CONSENT_NO.test(text);
-  const menjawabPersetujuan = menolak || isConsentYes(text);
+  const menjawabPersetujuan = !pertanyaanTercatat && (menolak || isConsentYes(text));
   const ditolak = {
     reply: indonesian ? CONSENT_REFUSED_ID : CONSENT_REFUSED_EN,
     actions: [],
@@ -801,6 +825,15 @@ function step(state: FlowState, text: string, language: Language): StepResult {
   const menyela = state.kind === "collecting" && isPertanyaanTercatat(text, routing);
 
   if (next.kind === "collecting") {
+    if (next.draft.detailedNeeds !== null) {
+      // Pengumpulan sudah lengkap: kisaran anggaran tidak lagi ditanya, jadi
+      // langsung ke permintaan persetujuan penerusan ke admin.
+      return {
+        reply: consentPrompt(next.draft, indonesian),
+        actions: [],
+        next: { kind: "awaiting-consent", draft: next.draft },
+      };
+    }
     const prompt = promptForNextField(next.draft, indonesian);
     if (state.kind === "collecting" && !menyela) {
       // Jawaban bidang biasa: cukup ajukan bidang berikutnya.
@@ -1115,7 +1148,9 @@ function nextState(state: FlowState, text: string): FlowState {
     state.kind === "awaiting-consent" ||
     state.kind === "awaiting-handoff-consent" ||
     state.kind === "awaiting-revision-consent";
-  if (menungguPersetujuan && (CONSENT_NO.test(text) || isConsentYes(text))) {
+  const pertanyaanTercatat =
+    state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing);
+  if (menungguPersetujuan && !pertanyaanTercatat && (CONSENT_NO.test(text) || isConsentYes(text))) {
     return setelahPersetujuan(state, text);
   }
 
@@ -1410,7 +1445,11 @@ function isConsentYes(text: string): boolean {
   return CONSENT_YES.test(text) || CONSENT_YES_ANYWHERE.test(text);
 }
 
-/** Isi bidang wajib berikutnya yang masih kosong, lalu bidang opsional anggaran. */
+/**
+ * Isi bidang wajib berikutnya yang masih kosong. Kebutuhan detail adalah
+ * bidang terakhir: begitu terisi, pengumpulan dianggap selesai (`budgetResolved`)
+ * dan alur langsung ke persetujuan penerusan — kisaran anggaran tidak ditanya.
+ */
 function fillNextField(draft: FollowUpDraft, text: string): FollowUpDraft {
   if (draft.interestedServices === null) {
     return { ...draft, interestedServices: text };
@@ -1422,13 +1461,9 @@ function fillNextField(draft: FollowUpDraft, text: string): FollowUpDraft {
     return { ...draft, travellerCount: text };
   }
   if (draft.detailedNeeds === null) {
-    return { ...draft, detailedNeeds: text };
+    return { ...draft, detailedNeeds: text, budgetResolved: true };
   }
-  return {
-    ...draft,
-    budgetRange: SKIP_ANSWER.test(text) ? null : text,
-    budgetResolved: true,
-  };
+  return { ...draft, budgetResolved: true };
 }
 
 /** Penjelasan singkat alasan handoff, lalu penjelasan tujuan penerusan + persetujuan. */
@@ -1513,7 +1548,9 @@ function promptForNextField(draft: FollowUpDraft, indonesian: boolean): string {
   if (draft.detailedNeeds === null) {
     return indonesian ? COLLECT_DETAILED_NEEDS_ID : COLLECT_DETAILED_NEEDS_EN;
   }
-  return indonesian ? COLLECT_BUDGET_ID : COLLECT_BUDGET_EN;
+  // Semua bidang terisi: pengumpulan selesai dan alur berpindah ke
+  // permintaan persetujuan penerusan. Kisaran anggaran tidak ditanyakan.
+  return "";
 }
 
 /**
@@ -1587,7 +1624,6 @@ function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
       `- Tanggal/periode: ${value(draft.travelDateOrPeriod)}`,
       `- Jumlah jemaah: ${value(draft.travellerCount)}`,
       `- Kebutuhan detail: ${value(draft.detailedNeeds)}`,
-      `- Kisaran anggaran: ${value(draft.budgetRange)}`,
       ...perubahan,
       ...lampiran,
       ...pertanyaan,
@@ -1598,7 +1634,6 @@ function ringkasanKebutuhan(draft: FollowUpDraft, indonesian: boolean): string {
     `- Travel date/period: ${value(draft.travelDateOrPeriod)}`,
     `- Number of travellers: ${value(draft.travellerCount)}`,
     `- Detailed needs: ${value(draft.detailedNeeds)}`,
-    `- Budget range: ${value(draft.budgetRange)}`,
     ...perubahan,
     ...lampiran,
     ...pertanyaan,

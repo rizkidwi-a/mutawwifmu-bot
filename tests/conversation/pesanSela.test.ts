@@ -21,14 +21,13 @@ const PERNYATAAN_HARGA =
   "sebenernya kita bukannya mau ganti hotel si.. cuma ganti dari harga free cancellation " +
   "to non refundable soalnya bedanya jauh";
 
-/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran dilewati). */
+/** Kumpulkan kebutuhan sampai Ringkasan Kebutuhan muncul (anggaran tidak ditanyakan). */
 function kumpulkan(percakapan: Percakapan): void {
   percakapan.kirim("Halo");
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
 }
 
 test("basa-basi saat pengumpulan dibalas singkat dan mengulang bidang yang ditanya", () => {
@@ -52,8 +51,7 @@ test("basa-basi tidak mengisi bidang dan tidak mencemari Ringkasan Kebutuhan", (
   percakapan.kirim("oke iya betul kak..");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.match(ringkasan, /Layanan yang diminati: Umrah premium, tujuan Mekkah/);
   assert.match(ringkasan, /Tanggal\/periode: Rencana Desember 2025/);
   assert.match(ringkasan, /Jumlah jemaah: 4 orang/);
@@ -100,7 +98,6 @@ test("pernyataan bermuatan kata harga saat pengumpulan menjadi jawaban bidang ap
   percakapan.kirim("4 orang");
   const turn = percakapan.kirim(PERNYATAAN_HARGA);
   assert.deepEqual(templateDalamBalasan(teksBalasan(turn)), []);
-  percakapan.kirim("tidak usah");
   const setuju = percakapan.kirim("Ya, setuju");
   const catat = setuju.actions.find((aksi) => aksi.kind === "record-follow-up-request");
   assert.ok(catat && catat.kind === "record-follow-up-request");
@@ -134,8 +131,7 @@ test("pertanyaan yang tidak didukung terbawa ke admin, bukan mengisi bidang", ()
   assert.match(teksBalasan(selingan), /tanggal|periode/i);
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.ok(ringkasan.includes(`Pertanyaan yang dicatat: ${pertanyaan}`));
   const setuju = percakapan.kirim("Ya, setuju");
   const catat = setuju.actions.find((aksi) => aksi.kind === "record-follow-up-request");
@@ -159,8 +155,7 @@ test("pertanyaan tiket 08 saat pengumpulan tetap tercatat, bukan mengisi bidang"
     assert.match(teksBalasan(selingan), /tanggal|periode/i, kelompok);
     percakapan.kirim("Rencana Desember 2025");
     percakapan.kirim("4 orang");
-    percakapan.kirim("Butuh kamar keluarga");
-    const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+    const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
     assert.ok(
       ringkasan.includes(`Pertanyaan yang dicatat: ${pesan}`),
       `${kelompok}: pertanyaan tidak terbawa ke Ringkasan Kebutuhan`,

@@ -48,9 +48,12 @@ export interface Reply {
 /**
  * Bidang Permintaan Tindak Lanjut yang dikumpulkan untuk admin (spec tiket
  * 02: layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode
- * perjalanan, jumlah jemaah, kebutuhan detail, kisaran anggaran opsional).
- * Setiap nilai disimpan verbatim apa adanya dari calon jemaah — tidak ada
- * komponen generatif yang memparafrase data jemaah.
+ * perjalanan, jumlah jemaah, kebutuhan detail). Pertanyaan kisaran anggaran
+ * sudah dihapus dari urutan pengumpulan; bidang `budgetRange` dipertahankan
+ * pada tipe (selalu null pada alur biasa) tetapi tidak lagi ditampilkan pada
+ * Ringkasan Kebutuhan maupun pesan admin. Setiap nilai disimpan verbatim apa
+ * adanya dari calon jemaah — tidak ada komponen generatif yang memparafrase
+ * data jemaah.
  */
 export interface FollowUpRequest {
   /**
@@ -68,7 +71,11 @@ export interface FollowUpRequest {
    * sendiri atau lewat kami, catatan) — disimpan utuh tanpa dipotong.
    */
   readonly detailedNeeds: string;
-  /** Kisaran anggaran bila diberikan; null bila calon jemaah melewatinya. */
+  /**
+   * Kisaran anggaran. Tidak ditanyakan lagi oleh bot (pertanyaan anggaran
+   * dihapus dari pengumpulan), jadi pada alur biasa selalu null; barisnya
+   * tidak lagi ditampilkan pada Ringkasan Kebutuhan maupun pesan admin.
+   */
   readonly budgetRange: string | null;
   /**
    * Pertanyaan non-harga yang dicatat apa adanya sebagai bagian kebutuhan

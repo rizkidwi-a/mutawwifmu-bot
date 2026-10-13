@@ -66,8 +66,7 @@ test("pertanyaan non-harga dicatat dan dibawa ke Ringkasan Kebutuhan", () => {
   percakapan.kirim("Umrah premium, tujuan Mekkah");
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
-  percakapan.kirim("Butuh kamar keluarga");
-  const ringkasan = teksBalasan(percakapan.kirim("tidak usah"));
+  const ringkasan = teksBalasan(percakapan.kirim("Butuh kamar keluarga"));
   assert.match(ringkasan, /Apa itu land arrangement\?/);
   const turn = percakapan.kirim("Ya, setuju");
   const catat = turn.actions.find((aksi) => aksi.kind === "record-follow-up-request");

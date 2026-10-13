@@ -107,7 +107,6 @@ function requestLines(request: FollowUpRequest): string[] {
     `- Tanggal/periode: ${request.travelDateOrPeriod}`,
     `- Jumlah jemaah: ${request.travellerCount}`,
     `- Kebutuhan detail: ${request.detailedNeeds}`,
-    `- Kisaran anggaran: ${request.budgetRange ?? "tidak disampaikan"}`,
     ...request.changeNotes.map((catatan) => `- Perubahan: ${catatan}`),
     ...lampiran,
     ...request.notedQuestions.map((q) => `- Pertanyaan yang dicatat: ${q}`),

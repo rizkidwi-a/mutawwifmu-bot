@@ -98,7 +98,6 @@ export function lengkapiPermintaanLaluSetujui(percakapan: Percakapan): FollowUpR
   percakapan.kirim("Rencana Desember 2025");
   percakapan.kirim("4 orang");
   percakapan.kirim("Butuh kamar keluarga");
-  percakapan.kirim("tidak usah");
   const turn = percakapan.kirim("Ya, setuju");
   const catat = turn.actions.find((aksi) => aksi.kind === "record-follow-up-request");
   if (catat === undefined || catat.kind !== "record-follow-up-request") {
