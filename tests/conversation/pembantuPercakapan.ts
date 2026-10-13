@@ -6,6 +6,7 @@
  */
 
 import { handleInbound, turnForInbound } from "../../src/conversation/handleInbound.ts";
+import type { InboundRouting } from "../../src/conversation/classifyInbound.ts";
 import type {
   BotTurn,
   ConversationContext,
@@ -24,14 +25,22 @@ export class Percakapan {
     this.promptIntake = this.kirim("1");
   }
 
-  /** Kirim pesan calon jemaah dan kembalikan giliran bot untuk pesan tersebut. */
-  kirim(text: string): BotTurn {
-    return this.kirimPesan({
-      id: `wamid.test.${this.riwayat.length}`,
-      from: "628123456789",
-      timestamp: "1727000000",
-      text,
-    });
+  /**
+   * Kirim pesan calon jemaah dan kembalikan giliran bot untuk pesan tersebut.
+   * `routing` (opsional) mensimulasikan hasil klasifikasi yang sudah dihitung
+   * runtime (mis. pemaham Gemini); hasilnya ikut disimpan pada giliran seperti
+   * yang dilakukan server, sehingga pemutaran ulang riwayat tetap konsisten.
+   */
+  kirim(text: string, routing?: InboundRouting): BotTurn {
+    return this.kirimPesan(
+      {
+        id: `wamid.test.${this.riwayat.length}`,
+        from: "628123456789",
+        timestamp: "1727000000",
+        text,
+      },
+      routing,
+    );
   }
 
   /** Kirim pesan non-teks (lampiran) dan kembalikan giliran bot untuk pesan tersebut. */
@@ -44,11 +53,11 @@ export class Percakapan {
     });
   }
 
-  private kirimPesan(pesan: InboundMessage): BotTurn {
-    const turn = handleInbound(pesan, { history: this.riwayat });
+  private kirimPesan(pesan: InboundMessage, routing?: InboundRouting): BotTurn {
+    const turn = handleInbound(pesan, { history: this.riwayat }, routing);
     const berikut: ConversationTurn[] = [
       ...this.riwayat,
-      turnForInbound(pesan),
+      turnForInbound(pesan, routing),
     ];
     if (turn.reply) {
       berikut.push({ role: "asisten", text: turn.reply.text });

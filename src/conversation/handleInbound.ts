@@ -353,14 +353,14 @@ const URGENT_TRIGGERS: ReadonlySet<HandoffTrigger> = new Set([
   "human-request",
 ]);
 
-function isUrgentHandoffRequest(text: string | null): boolean {
+function isUrgentHandoffRequest(text: string | null, hasilKlasifikasi?: InboundRouting): boolean {
   if (text === null) return false;
-  const routing = classifyInbound(text);
+  const routing = hasilKlasifikasi ?? classifyInbound(text);
   return routing.kind === "handoff" && URGENT_TRIGGERS.has(routing.trigger);
 }
 
-function isVendorPartnerMessage(text: string): boolean {
-  const routing = classifyInbound(text);
+function isVendorPartnerMessage(text: string, hasilKlasifikasi?: InboundRouting): boolean {
+  const routing = hasilKlasifikasi ?? classifyInbound(text);
   return routing.kind === "handoff" && routing.trigger === "agency-or-corporate";
 }
 
@@ -460,18 +460,37 @@ type InternalAction =
  * Kebutuhan) dan konteks percakapan dapat menyebut penerimaannya tanpa
  * menafsirkan isinya.
  */
-export function turnForInbound(message: InboundMessage): ConversationTurn {
-  return message.text === null
-    ? { role: "calon-jemaah", text: SEBUTAN_LAMPIRAN, attachment: true }
-    : { role: "calon-jemaah", text: message.text };
+export function turnForInbound(
+  message: InboundMessage,
+  hasilKlasifikasi?: InboundRouting,
+): ConversationTurn {
+  const dasar: ConversationTurn =
+    message.text === null
+      ? { role: "calon-jemaah", text: SEBUTAN_LAMPIRAN, attachment: true }
+      : { role: "calon-jemaah", text: message.text };
+  // Hasil klasifikasi ikut disimpan pada giliran agar pemutaran ulang riwayat
+  // memakai hasil yang sama dengan saat pesan diproses (tiket 01).
+  return hasilKlasifikasi === undefined ? dasar : { ...dasar, routing: hasilKlasifikasi };
 }
 
 /**
  * Seam pemrosesan pesan masuk yang disepakati: menerima pesan beserta konteks
  * percakapan, menghasilkan balasan serta tindakan yang terlihat.
+ *
+ * `hasilKlasifikasi` (opsional) adalah hasil `InboundRouting` untuk pesan ini
+ * yang sudah dihitung sebelumnya (mis. lewat pemaham Gemini di jalur webhook).
+ * Bila diberikan, SEMUA keputusan percakapan untuk pesan ini memakai hasil yang
+ * sama. Fungsi ini tetap sinkron/deterministik dan tidak pernah memanggil
+ * pemaham; tanpa `hasilKlasifikasi`, pesan diklasifikasi dengan `classifyInbound()`.
  */
-export function handleInbound(message: InboundMessage, context: ConversationContext): BotTurn {
-  if (context.history.length === 0 && !isUrgentHandoffRequest(message.text)) {
+export function handleInbound(
+  message: InboundMessage,
+  context: ConversationContext,
+  hasilKlasifikasi?: InboundRouting,
+): BotTurn {
+  const routing =
+    message.text === null ? undefined : (hasilKlasifikasi ?? classifyInbound(message.text));
+  if (context.history.length === 0 && !isUrgentHandoffRequest(message.text, routing)) {
     const language = message.text !== null && containsSalam(message.text)
       ? "id"
       : resolveReplyLanguage(context.history, message.text ?? "");
@@ -500,19 +519,28 @@ export function handleInbound(message: InboundMessage, context: ConversationCont
     }
     // Lampiran tidak pernah menjadi jawaban bidang; penerimaannya dicatat
     // terpisah oleh `nextStateLampiran`.
-    state = turn.attachment === true ? nextStateLampiran(state) : nextState(state, turn.text);
+    state =
+      turn.attachment === true
+        ? nextStateLampiran(state)
+        : nextState(state, turn.text, turn.routing);
   }
 
   const language = resolveReplyLanguage(context.history, message.text ?? "");
   if (awaitingPurposeSelection) {
-    return handlePurposeSelection(message, language);
+    return handlePurposeSelection(message, language, routing);
   }
   const result =
-    message.text === null ? stepLampiran(state, language) : step(state, message.text, language);
+    message.text === null
+      ? stepLampiran(state, language)
+      : step(state, message.text, language, routing);
   return { reply: { text: result.reply }, actions: result.actions };
 }
 
-function handlePurposeSelection(message: InboundMessage, language: Language): BotTurn {
+function handlePurposeSelection(
+  message: InboundMessage,
+  language: Language,
+  hasilKlasifikasi?: InboundRouting,
+): BotTurn {
   const selection = message.text === null ? null : parsePurposeSelection(message.text);
   if (selection === "prospective") {
     return {
@@ -523,11 +551,11 @@ function handlePurposeSelection(message: InboundMessage, language: Language): Bo
   if (selection !== null) {
     return purposeHandoff(selection, language);
   }
-  if (isUrgentHandoffRequest(message.text)) {
-    const result = step({ kind: "idle" }, message.text ?? "", language);
+  if (isUrgentHandoffRequest(message.text, hasilKlasifikasi)) {
+    const result = step({ kind: "idle" }, message.text ?? "", language, hasilKlasifikasi);
     return { reply: { text: result.reply }, actions: result.actions };
   }
-  if (message.text !== null && isVendorPartnerMessage(message.text)) {
+  if (message.text !== null && isVendorPartnerMessage(message.text, hasilKlasifikasi)) {
     return purposeHandoff("vendor_mitra", language);
   }
   return { reply: { text: retryPurposeMenu(language) }, actions: [] };
@@ -544,10 +572,10 @@ function stateAfterMenuInput(turn: ConversationTurn): FlowState {
   if (selection !== null) {
     return { kind: "admin-routed" };
   }
-  if (isUrgentHandoffRequest(turn.text)) {
-    return nextState({ kind: "idle" }, turn.text);
+  if (isUrgentHandoffRequest(turn.text, turn.routing)) {
+    return nextState({ kind: "idle" }, turn.text, turn.routing);
   }
-  return isVendorPartnerMessage(turn.text)
+  return isVendorPartnerMessage(turn.text, turn.routing)
     ? { kind: "admin-routed" }
     : { kind: "idle" };
 }
@@ -608,10 +636,15 @@ function purposeHandoff(reason: PurposeHandoffReason, language: Language): BotTu
 }
 
 /** Satu langkah pemrosesan teks: balasan, tindakan, dan state berikutnya. */
-function step(state: FlowState, text: string, language: Language): StepResult {
+function step(
+  state: FlowState,
+  text: string,
+  language: Language,
+  hasilKlasifikasi?: InboundRouting,
+): StepResult {
   const indonesian = language === "id";
-  const next = nextState(state, text);
-  const routing = classifyInbound(text);
+  const next = nextState(state, text, hasilKlasifikasi);
+  const routing = hasilKlasifikasi ?? classifyInbound(text);
   const leadPertanyaan = indonesian ? CATAT_PERTANYAAN_ID : CATAT_PERTANYAAN_EN;
   // Pertanyaan yang dicatat didahulukan daripada jawaban persetujuan: pesan
   // berisi kata penolakan (mis. "boleh cek gak harganya?") tetap dicatat
@@ -629,7 +662,7 @@ function step(state: FlowState, text: string, language: Language): StepResult {
   // Penyela pengumpulan ditangani sebelum jawaban persetujuan agar "ya, hapus
   // bagian tanggal" berarti perbaikan bidang, bukan persetujuan pengiriman.
   // Prioritas: pemicu mendesak > pertanyaan menyela > perbaikan bidang.
-  const mendesak = isUrgentHandoffRequest(text);
+  const mendesak = isUrgentHandoffRequest(text, routing);
   const penyela = mendesak ? null : deteksiPenyela(text);
   const pertanyaanHarga = routing.kind === "indicative-price" && isPertanyaan(text);
   if (!mendesak) {
@@ -1108,10 +1141,19 @@ function denganLampiran(draft: FollowUpDraft): FollowUpDraft {
   return { ...draft, attachmentCount: draft.attachmentCount + 1 };
 }
 
-/** Transisi state murni dari state saat ini dan teks calon jemaah. */
-function nextState(state: FlowState, text: string): FlowState {
-  const routing = classifyInbound(text);
-  const mendesak = isUrgentHandoffRequest(text);
+/**
+ * Transisi state murni dari state saat ini dan teks calon jemaah.
+ * `hasilKlasifikasi` dipakai bila klasifikasi pesan ini sudah dihitung
+ * sebelumnya; selain itu (termasuk pemutaran ulang giliran riwayat tanpa
+ * hasil tersimpan) memakai `classifyInbound()`.
+ */
+function nextState(
+  state: FlowState,
+  text: string,
+  hasilKlasifikasi?: InboundRouting,
+): FlowState {
+  const routing = hasilKlasifikasi ?? classifyInbound(text);
+  const mendesak = isUrgentHandoffRequest(text, routing);
   const penyela = mendesak ? null : deteksiPenyela(text);
   const pertanyaanHarga = routing.kind === "indicative-price" && isPertanyaan(text);
 

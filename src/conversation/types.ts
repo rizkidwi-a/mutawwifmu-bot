@@ -4,6 +4,7 @@
  * lalu menghasilkan balasan serta tindakan yang terlihat. Seam ini
  * provider-agnostic — tidak ada tipe transport WhatsApp di sini.
  */
+import type { InboundRouting } from "./classifyInbound.ts";
 
 /** Pesan masuk dari Calon Jemaah, sudah dinormalisasi dari kanal provider. */
 export interface InboundMessage {
@@ -33,6 +34,14 @@ export interface ConversationTurn {
    * pernah menjadi jawaban bidang Permintaan Tindak Lanjut.
    */
   readonly attachment?: true;
+  /**
+   * Hasil klasifikasi yang dipakai saat giliran ini diproses (tiket 01:
+   * hasil `InboundRouting` yang sudah dihitung, mis. dari pemaham Gemini).
+   * Disimpan bersama giliran agar pemutaran ulang riwayat memakai hasil yang
+   * sama — semua keputusan percakapan untuk pesan itu konsisten, tanpa
+   * mengklasifikasi ulang. Tanpa nilai, pemutaran ulang memakai `classifyInbound()`.
+   */
+  readonly routing?: InboundRouting;
 }
 
 /** Konteks percakapan yang dibawa ke seam. */

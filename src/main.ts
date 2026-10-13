@@ -5,14 +5,22 @@
 import { createTransport } from "./adapters/factory.ts";
 import { WhatsAppAdminChannel } from "./adminChannel.ts";
 import { loadConfig } from "./config.ts";
+import { buatKlasifikatorPesan } from "./conversation/klasifikasiMasuk.ts";
 import { InMemoryConversationStore } from "./conversationStore.ts";
 import { CsvConversationTranscript } from "./conversationTranscript.ts";
+import { bacaKonfigGemini } from "./knowledge/geminiPemaham.ts";
 import { InMemoryMetrics } from "./metrics.ts";
 import { FileJedaStore } from "./jedaStore.ts";
 import { createAppServer } from "./server.ts";
 
 const config = loadConfig(process.env);
 const { sender, inbound } = createTransport(config.whatsapp);
+
+// Pemaham bahasa Gemini (ADR-0008) bersifat opt-in: hanya aktif bila
+// GEMINI_API_KEY dikonfigurasi di .env. Tanpa kunci, klasifikasi regex tetap
+// menjadi default dan proses bot tetap berjalan.
+const konfigGemini = bacaKonfigGemini(process.env);
+const klasifikasiPesan = buatKlasifikatorPesan(konfigGemini);
 
 // Kanal admin sesuai keputusan pemilik (ADR-0006): handoff dikirim sebagai
 // pesan WhatsApp ke nomor admin yang dikonfigurasi, melalui provider yang sama.
@@ -33,11 +41,15 @@ const server = createAppServer({
   metrics,
   transcript,
   jeda,
+  klasifikasiPesan,
 });
 
 server.listen(config.port, () => {
   console.log(
     `Bot WhatsApp MUTAWWIFMU siap — provider ${config.whatsapp.provider}, ` +
-      `nomor pengirim ${config.whatsapp.senderNumber}, port ${config.port}`,
+      `nomor pengirim ${config.whatsapp.senderNumber}, port ${config.port}, ` +
+      (konfigGemini === null
+        ? "pemaham Gemini nonaktif (GEMINI_API_KEY kosong)"
+        : `pemaham Gemini aktif (${konfigGemini.model})`),
   );
 });

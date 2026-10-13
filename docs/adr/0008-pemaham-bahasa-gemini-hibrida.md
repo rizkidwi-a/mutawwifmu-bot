@@ -48,3 +48,7 @@ Empat lapis pengaman (bagian keputusan, bukan catatan kaki):
 - Kunci `GEMINI_API_KEY` hanya di `.env`, tidak pernah ditulis ke berkas mana pun.
 
 Catatan 2026-10-08: model default `gemini-2.5-flash` pensiun (404 untuk user baru); diganti `gemini-3.8-flash` yang terverifikasi 200.
+
+Catatan 2026-10-13: wiring async ke server sudah dilakukan sebagai classifier
+opt-in di jalur webhook — lihat ADR-0013. `handleInbound()` tetap sinkron;
+hasil klasifikasi disuntikkan dari luar dan melekat pada giliran riwayat.

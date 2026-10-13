@@ -31,6 +31,17 @@ test("tanpa GEMINI_API_KEY berarti LLM tidak tersedia (null)", () => {
   assert.equal(bacaKonfigGemini({ GEMINI_MODEL: "gemini-2.5-flash" }), null);
 });
 
+test("GEMINI_API_KEY sudah cukup; GEMINI_MODEL opsional memakai default yang ditetapkan", () => {
+  assert.deepEqual(bacaKonfigGemini({ GEMINI_API_KEY: "kunci" }), {
+    apiKey: "kunci",
+    model: "gemini-3.8-flash",
+  });
+  assert.deepEqual(
+    bacaKonfigGemini({ GEMINI_API_KEY: "kunci", GEMINI_MODEL: "model-lain" }),
+    { apiKey: "kunci", model: "model-lain" },
+  );
+});
+
 // --- pahamiDenganGemini: semua gagal → null (sinyal fallback) ---
 
 test("konfig null → null tanpa memanggil fetch", async () => {

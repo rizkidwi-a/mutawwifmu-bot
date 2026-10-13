@@ -6,14 +6,21 @@
  * 2. Bila hasilnya `null` (kunci hilang / error / timeout / tak valid) →
  *    turun ke `classifyInbound()` regex. Bot tidak boleh diam hanya karena
  *    LLM mati.
- * 3. Bila keyakinan < AMBANG_KEYAKINAN → abaikan LLM, pakai regex.
- * 4. Bila LLM menunjuk topik faq/indicative-price → validasi grounding angka
+ * 3. Pemicu handoff berisiko tinggi yang dikenali regex (lihat
+ *    `PEMICU_BERISIKO`) tetap menang atas hasil LLM beserta alasan handoff
+ *    spesifiknya.
+ * 4. Bila keyakinan < AMBANG_KEYAKINAN → abaikan LLM, pakai regex.
+ * 5. Bila LLM menunjuk topik faq/indicative-price → validasi grounding angka
  *    pada jawaban template; bila gagal → handoff `custom-quote-or-availability`.
  *
  * Fungsi ini async dan TIDAK menggantikan `classifyInbound()` sync —
  * baseline regex 73% tetap hidup sebagai pembanding dan sebagai fallback.
  */
-import { classifyInbound, type InboundRouting } from "./classifyInbound.ts";
+import {
+  classifyInbound,
+  type HandoffTrigger,
+  type InboundRouting,
+} from "./classifyInbound.ts";
 import {
   faqAnswer,
   isPriceTopic,
@@ -43,6 +50,22 @@ function handoffAngkaTidakTerjaga(): InboundRouting {
 }
 
 /**
+ * Pemicu handoff berisiko tinggi yang sudah dikenali regex (tiket 01).
+ * Regex harus tetap menang atas klasifikasi model untuk kelompok ini: model
+ * tidak boleh menurunkan permintaan manusia/darurat, booking/pembayaran,
+ * permintaan penawaran/ketersediaan, atau pesan korporasi menjadi FAQ/opener,
+ * dan alasan handoff spesifik dari regex dipertahankan apa adanya.
+ */
+const PEMICU_BERISIKO: ReadonlySet<HandoffTrigger> = new Set([
+  "emergency",
+  "active-trip",
+  "human-request",
+  "agency-or-corporate",
+  "booking-or-payment",
+  "custom-quote-or-availability",
+]);
+
+/**
  * Terapkan pengaman pada satu hasil pemahaman. `fallback` adalah hasil regex
  * yang dipakai bila LLM tidak usable. Murni/sync agar mudah dites.
  */
@@ -51,6 +74,9 @@ export function putuskanDenganPengaman(
   fallback: InboundRouting,
   materiAcuan?: string,
 ): InboundRouting {
+  if (fallback.kind === "handoff" && PEMICU_BERISIKO.has(fallback.trigger)) {
+    return fallback;
+  }
   if (pemahaman === null || pemahaman === undefined) return fallback;
   if (pemahaman.keyakinan < AMBANG_KEYAKINAN) return fallback;
   if (pemahaman.rute === "handoff") {

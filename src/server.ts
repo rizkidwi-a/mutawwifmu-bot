@@ -15,7 +15,9 @@ import {
   parseAdminCommand,
 } from "./adminCommands.ts";
 import type { AppConfig } from "./config.ts";
+import type { InboundRouting } from "./conversation/classifyInbound.ts";
 import { handleInbound, turnForInbound } from "./conversation/handleInbound.ts";
+import type { KlasifikasiPesan } from "./conversation/klasifikasiMasuk.ts";
 import type { ConversationAction, ConversationTurn, InboundMessage } from "./conversation/types.ts";
 import type { ConversationStore } from "./conversationStore.ts";
 import type { ConversationRole, ConversationTranscript } from "./conversationTranscript.ts";
@@ -39,6 +41,12 @@ export interface AppServerDeps {
   readonly transcript: ConversationTranscript;
   /** State Jeda Percakapan & Nonaktif Sementara (tiket 01); perintah admin + gerbang jeda. */
   readonly jeda: JedaStore;
+  /**
+   * Klasifikator pesan masuk opsional (tiket 01: pemaham Gemini bila
+   * `GEMINI_API_KEY` dikonfigurasi). Tanpa ini, seam mengklasifikasi sendiri
+   * dengan `classifyInbound()` — perilaku regex tetap menjadi default.
+   */
+  readonly klasifikasiPesan?: KlasifikasiPesan;
 }
 
 /**
@@ -115,7 +123,10 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
         continue;
       }
       const konteks = deps.conversations.load(pesan.from);
-      const turn = handleInbound(pesan, konteks);
+      // Klasifikasi pesan dihitung sekali per pesan (paling banyak satu request
+      // pemaham), lalu hasil yang sama dipakai untuk semua keputusan pesan ini.
+      const routing = await klasifikasiUntukPesan(deps, pesan);
+      const turn = handleInbound(pesan, konteks, routing);
       const deliveryFailed = await runActions(deps, pesan.from, turn.actions);
 
       let sentText: string | null = null;
@@ -127,7 +138,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
       // Giliran lampiran (pesan non-teks) ikut direkam apa adanya dengan
       // sebutannya, agar Ringkasan Kebutuhan dan transkrip dapat menyebutnya.
       recordTranscript(deps, pesan.from, "calon-jemaah", giliranMasuk.text);
-      const nextHistory: ConversationTurn[] = [...konteks.history, giliranMasuk];
+      // Hasil klasifikasi ikut disimpan pada giliran agar pemutaran ulang
+      // riwayat untuk pesan berikutnya memakai hasil yang sama (tiket 01).
+      const nextHistory: ConversationTurn[] = [
+        ...konteks.history,
+        routing === undefined ? giliranMasuk : { ...giliranMasuk, routing },
+      ];
       if (sentText !== null) {
         nextHistory.push({ role: "asisten", text: sentText });
         recordTranscript(deps, pesan.from, "asisten", sentText);
@@ -139,6 +155,32 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, deps: Ap
   }
 
   sendJson(res, 404, { error: "tidak ditemukan" });
+}
+
+/**
+ * Klasifikasi satu pesan masuk memakai klasifikator opsional (mis. pemaham
+ * Gemini). Pesan non-teks/kosong dan pesan dari nomor admin tidak pernah
+ * dikirim ke pemaham; pesan dari kontak yang dijeda sudah berhenti di gerbang
+ * jeda sebelum titik ini. Tanpa klasifikator, seam mengklasifikasi sendiri
+ * dengan regex. Kegagalan klasifikasi jatuh ke hasil regex, bukan menggagalkan
+ * pemrosesan pesan.
+ */
+async function klasifikasiUntukPesan(
+  deps: AppServerDeps,
+  pesan: InboundMessage,
+): Promise<InboundRouting | undefined> {
+  const teks = pesan.text;
+  if (teks === null || teks.trim() === "") return undefined;
+  if (pesan.from === deps.config.adminNumber) return undefined;
+  const klasifikasi = deps.klasifikasiPesan;
+  if (klasifikasi === undefined) return undefined;
+  try {
+    return await klasifikasi(teks);
+  } catch (error) {
+    // Tanpa isi pesan di log: cukup tandai bahwa jalur pemaham gagal.
+    console.error("Klasifikasi pesan masuk gagal, memakai hasil regex:", error);
+    return undefined;
+  }
 }
 
 /**

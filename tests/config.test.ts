@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig, normalizePhoneNumber } from "../src/config.ts";
+import { bacaKonfigGemini } from "../src/knowledge/geminiPemaham.ts";
 import { handleInbound } from "../src/conversation/handleInbound.ts";
 import type { InboundMessage } from "../src/conversation/types.ts";
 
@@ -18,6 +19,16 @@ test("identitas provider WhatsApp dibaca dari konfigurasi", () => {
   assert.equal(config.whatsapp.provider, "whatsapp-cloud-api");
   assert.equal(config.whatsapp.phoneNumberId, "PNID-DEV-1");
   assert.equal(config.whatsapp.apiBaseUrl, "https://graph.facebook.com/v26.0");
+});
+
+test("konfigurasi tanpa kunci Gemini tetap sah — integrasi opt-in tidak menggagalkan startup", () => {
+  const env: Record<string, string | undefined> = { ...envDasar };
+  delete env.GEMINI_API_KEY;
+  delete env.GEMINI_MODEL;
+  const config = loadConfig(env);
+  assert.equal(config.whatsapp.provider, "whatsapp-cloud-api");
+  // Tanpa kunci, pemaham LLM tidak tersedia dan bot tetap berjalan dengan regex.
+  assert.equal(bacaKonfigGemini(env), null);
 });
 
 test("nomor pengirim dinormalisasi ke format E.164 tanpa tanda plus", () => {
