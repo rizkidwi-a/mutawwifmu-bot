@@ -297,6 +297,37 @@ const CATAT_PERUBAHAN_EN = "Thank you, I've noted the change to your needs.";
 const BASA_BASI_ID = "Terima kasih atas pesan Anda.";
 const BASA_BASI_EN = "Thank you for your message.";
 
+/**
+ * Menu Lanjutan pasca-handoff (`.scratch/pasca-handoff`): jalan keluar setelah
+ * Ringkasan Kebutuhan terkirim. Menyebut cara memperbarui bagian tertentu lewat
+ * kata kunci (Perbaikan Bidang yang sudah ada) dan cara mengulang percakapan,
+ * sehingga pesan yang tidak dikenali tidak lagi dijawab "Terima kasih atas
+ * pesan Anda." tanpa langkah berikutnya.
+ */
+const MENU_LANJUTAN_ID =
+  "Ringkasan Kebutuhan Anda sudah diteruskan ke tim kami. " +
+  "Bila ada yang ingin diubah, sebutkan bagiannya — layanan yang diminati, tanggal/periode, " +
+  "jumlah jemaah, atau kebutuhan detail (contoh: \"ubah jumlah jemaah\"). " +
+  "Untuk mengulang percakapan dari awal, balas \"ulangi\".";
+const MENU_LANJUTAN_EN =
+  "Your needs summary has been forwarded to our team. " +
+  "If anything needs changing, mention the part — services of interest, travel date/period, " +
+  "number of travellers, or detailed needs (for example: \"change number of travellers\"). " +
+  "To start the conversation over, reply \"ulangi\".";
+
+/**
+ * Permintaan mengulang percakapan dari awal (`.scratch/pasca-handoff` tiket 02).
+ * Hanya berlaku setelah Ringkasan Kebutuhan terkirim agar tidak menabrak
+ * Perbaikan Bidang di tengah pengumpulan; "ulangi bagian tanggal" tetap
+ * Perbaikan Bidang karena deteksi penyela diperiksa lebih dulu.
+ */
+const RESTART_REQUEST =
+  /\b(ulangi|ulang\s+(percakapan|chat|obrolan|dari\s+awal)|mulai\s+(dari\s+)?awal|dari\s+awal|reset|restart|percakapan\s+baru|chat\s+baru|new\s+conversation|start\s+over)\b/i;
+
+function isRestartRequest(text: string): boolean {
+  return RESTART_REQUEST.test(text);
+}
+
 /** Permintaan konfirmasi ulang yang singkat setelah basa-basi (tiket 05/06). */
 const REVISI_REASK_ID =
   "Mohon konfirmasi: apakah Anda setuju pengiriman ulang ringkasan yang diperbarui? (jawab ya atau tidak)";
@@ -750,7 +781,16 @@ function step(
 
   if (state.kind === "awaiting-revision-consent" && menjawabPersetujuan) {
     if (menolak) {
-      return ditolak;
+      // Penolakan pengiriman ulang tidak menghapus catatan perubahan; Menu
+      // Lanjutan memberi jalan keluar (perbarui bagian atau ulangi percakapan).
+      return {
+        reply: balasanDenganPrompt(
+          indonesian ? CONSENT_REFUSED_ID : CONSENT_REFUSED_EN,
+          indonesian ? MENU_LANJUTAN_ID : MENU_LANJUTAN_EN,
+        ),
+        actions: [],
+        next,
+      };
     }
     // Pengiriman ulang (tiket 05) selalu memakai persetujuan baru dan ditandai
     // sebagai revisi Ringkasan Kebutuhan yang sudah dikirim, bukan prospek baru.
@@ -777,6 +817,16 @@ function step(
   // perubahan, dan tidak memicu jawaban template — alur yang sedang berjalan
   // (bidang yang ditanya, konfirmasi, atau penutup) tetap dilanjutkan.
   if (state.kind !== "idle" && isBasaBasi(text)) {
+    if (state.kind === "sent") {
+      // Pasca-handoff: tidak ada prompt tertunda untuk state `sent`, jadi
+      // basa-basi dibalas Menu Lanjutan agar tidak macet pada "Terima kasih
+      // atas pesan Anda." tanpa langkah berikutnya (tiket 01).
+      return {
+        reply: indonesian ? MENU_LANJUTAN_ID : MENU_LANJUTAN_EN,
+        actions: [],
+        next,
+      };
+    }
     const lead = indonesian ? BASA_BASI_ID : BASA_BASI_EN;
     const prompt = promptSetelahBasaBasi(state, indonesian);
     return {
@@ -805,6 +855,21 @@ function step(
       reply: balasanDenganPrompt(jawaban, revisiConsentPrompt(state.draft, indonesian)),
       actions: [aksi],
       next,
+    };
+  }
+
+  // Ulangi percakapan pasca-handoff (tiket 02): balasan adalah pembuka layanan
+  // + menu tujuan, sehingga pemutaran riwayat berikutnya memulai percakapan
+  // baru dari kosong. Diletakkan setelah penyela/Perbaikan Bidang agar
+  // "ulangi bagian tanggal" tetap Perbaikan Bidang.
+  if (
+    (state.kind === "sent" || state.kind === "awaiting-revision-consent") &&
+    isRestartRequest(text)
+  ) {
+    return {
+      reply: openingReply(null, language),
+      actions: [],
+      next: { kind: "idle" },
     };
   }
 
@@ -1255,6 +1320,12 @@ function nextState(
     // perubahan — semuanya apa adanya.
     if (routing.kind === "indicative-price" && isPertanyaan(text)) {
       return state;
+    }
+    // Ulangi percakapan (tiket 02): state kembali ke idle; balasan pengulangan
+    // memuat menu tujuan sehingga pemutaran riwayat berikutnya memulai
+    // percakapan baru. Pesan pemicu tidak dicatat sebagai perubahan.
+    if (isRestartRequest(text)) {
+      return { kind: "idle" };
     }
     const diperbarui = isPertanyaanTercatat(text, routing)
       ? catatPertanyaan(state.draft, text)
