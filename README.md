@@ -1,163 +1,168 @@
-# Asisten Percakapan WhatsApp MUTAWWIFMU
+# Asisten WhatsApp Pra-Pemesanan MUTAWWIFMU
 
-Asisten WhatsApp untuk calon jemaah yang mencari informasi layanan MUTAWWIFMU sebelum pemesanan. Spesifikasi: `.scratch/whatsapp-customer-service-chatbot/spec.md`; konteks domain: `CONTEXT.md`.
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A5%2022.18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-Cloud%20API%20%7C%20Fonnte-25D366?logo=whatsapp&logoColor=white)](https://developers.facebook.com/docs/whatsapp/cloud-api/)
 
-Saat ini transport WhatsApp aktif melalui nomor pengembangan `+62 895 0700 3830` (Fonnte). Perilaku percakapan mencakup balasan awal yang aman, pengumpulan Permintaan Tindak Lanjut (layanan yang diminati dari menu Layanan MUTAWWIFMU, tanggal/periode, jumlah jemaah, kebutuhan detail; anggaran opsional), Ringkasan Kebutuhan per bidang yang ditampilkan kepada calon jemaah untuk diperiksa sebelum persetujuan, lampiran (pesan non-teks) yang dicatat tanpa isinya ditafsirkan, handoff ke admin yang selalu diawali persetujuan calon jemaah, pembaruan kebutuhan setelah ringkasan terkirim (dikirim ulang ke admin dengan penanda "PEMBARUAN"), pesan basa-basi yang dibalas singkat tanpa merusak alur intake, pertanyaan menyela berkata kunci ("ingin bertanya", "ada yang ingin ditanyakan") yang disimpan di bagian pertanyaan dan dikonfirmasi admin, perbaikan bidang terarah ("hapus bagian tanggal") yang mengulang jawaban bagian itu lalu kembali ke alur sebelumnya, pertanyaan non-harga yang dicatat apa adanya dan dibawa ke admin, serta Harga Indikatif dari angka harga yang tercantum materi. Setelah Ringkasan Kebutuhan terkirim, setiap pesan berikutnya tetap punya jalan keluar: pembaruan kebutuhan lewat Perbaikan Bidang kata kunci ("ubah jumlah jemaah"), Menu Lanjutan untuk basa-basi/pesan tak dikenali, dan Ulangi Percakapan ("ulangi") untuk memulai dari awal. Pertanyaan harga tetap dijawab di semua fase percakapan — termasuk di akhir percakapan dan setelah handoff ke admin — baik dari materi (Harga Indikatif) maupun dengan penjelasan bahwa penawaran/konfirmasi harga ditangani tim.
+Asisten percakapan WhatsApp untuk membantu calon jemaah mendapatkan informasi pra-pemesanan, menyusun kebutuhan perjalanan, dan tersambung ke admin saat pertanyaan perlu ditangani manusia.
 
-## Menjalankan
+> Fokus proyek ini bukan sekadar membalas pesan: bot harus menjaga alur percakapan tetap berguna, menjawab berdasarkan materi yang tersedia, dan meneruskan kebutuhan kepada admin hanya setelah calon jemaah menyetujuinya.
 
-Prasyarat: Node.js >= 22.18.
+## Masalah yang diselesaikan
 
-```bash
-npm install
-cp .env.example .env   # isi kredensial provider yang dipilih
-npm start              # proses bot berjalan setiap saat di PORT (default 3000)
-```
+Dalam layanan pra-pemesanan, calon jemaah dapat bertanya tentang layanan dan harga sambil menyampaikan kebutuhan perjalanan secara bertahap. Bot yang hanya memahami satu tahap percakapan berisiko mengulang balasan umum, kehilangan konteks, atau mencatat pertanyaan tanpa menjawabnya—terutama setelah ringkasan dikirim atau percakapan dialihkan ke admin. Sementara itu, harga khusus dan informasi yang tidak tersedia di materi harus dikonfirmasi oleh tim, bukan ditebak.
 
-Proses bot dirancang berjalan 24/7 sebagai layanan panjang (mis. via systemd/container), sehingga balasan otomatis tidak bergantung pada jam kerja admin.
+Proyek ini menangani masalah tersebut dengan alur percakapan multi-giliran yang memisahkan jawaban berbasis materi dari kebutuhan yang harus ditindaklanjuti admin.
 
-`npm start` membaca `.env` sendiri lewat flag Node `--env-file-if-exists`, jadi tidak perlu alat pemuat environment tambahan. Perlu diketahui: **variabel yang sudah ada di shell menimpa isi `.env`**. Kalau bot start dengan nilai yang tidak sesuai `.env`, periksa dulu `echo $WHATSAPP_API_TOKEN` (PowerShell: `$env:WHATSAPP_API_TOKEN`).
-
-### Provider
-
-`WHATSAPP_PROVIDER` memilih integrasi; hanya variabel milik provider terpilih yang wajib diisi.
-
-| Provider | Kredensial | Catatan |
-| --- | --- | --- |
-| `whatsapp-cloud-api` (default) | Phone Number Id, token, app secret | Memerlukan akun Meta for Developers + WABA + OTP nomor. Lihat `docs/adr/0001-provider-whatsapp-cloud-api.md`. |
-| `fonnte` | token perangkat Fonnte | Onboarding tanpa Meta for Developers. Lihat `docs/adr/0003-provider-bsp-fonnte.md`. |
-
-Migrasi dari `fonnte` ke `whatsapp-cloud-api` (langkah dashboard Meta, kredensial, webhook, smoke test):
-
-```bash
-bash scripts/wizard-migrasi-meta.sh   # wizard interaktif, satu langkah per layar
-```
-
-Versi bacaan + penjelasan: **`docs/tutorial-migrasi-ke-meta-cloud-api.md`**. Memerlukan akses akun Meta for Developers.
-
-### Webhook
-
-Provider WhatsApp mengirim pesan masuk sebagai webhook HTTPS publik ke `GET/POST /webhook` proses ini. Bentuk autentikasinya berbeda per provider:
-
-- **Cloud API** — `GET /webhook` menjalankan handshake Meta (`hub.verify_token` harus cocok dengan `WHATSAPP_WEBHOOK_VERIFY_TOKEN`); `POST /webhook` ditandatangani `X-Hub-Signature-256` (HMAC-SHA256 dengan `WHATSAPP_APP_SECRET`) dan ditolak tanpa tanda tangan sah.
-- **Fonnte** — tidak ada handshake; `GET /webhook` berakhir 404. `POST /webhook` harus dipanggil pada URL yang memuat token: `https://<host>/webhook?token=<WHATSAPP_WEBHOOK_VERIFY_TOKEN>`, karena Fonnte tidak menandatangani badan permintaan. Token juga boleh menjadi segmen terakhir path (`/webhook/<token>`).
-
-Pada dashboard Fonnte, webhook diisi di menu perangkat dengan **auto read aktif**, karena tanpa itu webhook tidak terpanggil.
-
-Untuk pengembangan lokal, teruskan port proses ke URL HTTPS publik (lalu daftarkan URL tersebut di dashboard provider):
-
-```bash
-ngrok http 3000        # atau: cloudflared tunnel --url http://localhost:3000
-```
-
-Keduanya perlu dipasang lebih dulu (`winget install ngrok.ngrok` / `winget install Cloudflare.cloudflared`). Tunnel hanya untuk pembuktian awal; untuk bot yang berjalan terus-menerus, jalankan proses bot di server/VPS dengan domain sendiri agar URL webhook stabil.
-
-Langkah verifikasi nomor per provider: `docs/whatsapp-number-cutover.md`.
-
-## FAQ layanan
-
-Materi bisnis (lihat `docs/adr/0004-faq-materi-pencocokan-aturan.md`) mencakup definisi Private Premium Umrah & Land Arrangement, mutawwif, visa/dokumen, hotel/akomodasi, transportasi/armada, airport handling, city tour, serta layanan lain dalam profil perusahaan — tour guide 190 negara, charity program, dukungan multibahasa, fotografer/videografer, dan custom itinerary. Sejak ADR-0009 (`docs/adr/0009-fokus-intake-kebutuhan.md`) pertanyaan non-harga tidak lagi dijawab dari materi: pertanyaannya dicatat apa adanya sebagai bagian kebutuhan dan dibawa ke admin bersama Ringkasan Kebutuhan. Hal ini juga berlaku bila pertanyaannya adalah pesan pertama percakapan (keputusan tiket 10): pesannya dicatat lebih dahulu dan alur pengumpulan kebutuhan berlanjut, bukan handoff tanpa isi. Jawaban yang tersisa di runtime hanyalah Harga Indikatif dari angka yang tercantum materi (lihat bagian berikut) — rincian yang tidak tercantum tidak dikarang — dan seluruh jawaban diberikan dalam bahasa yang digunakan calon jemaah (Bahasa Indonesia atau Inggris).
-
-Pertanyaan yang memerlukan konfirmasi tidak dijawab dari asumsi; pertanyaan yang tidak didukung materi atau tidak pasti dicatat dan dibawa ke admin, sedangkan kasus yang menuntut penanganan manusia (permintaan berbicara dengan manusia, perjalanan aktif, keadaan darurat) tetap menyela ke alur handoff dengan persetujuan. Tidak ada jawaban yang membuka transaksi; booking dan pembayaran tetap menjadi kasus handoff.
-
-## Pesan yang menyela pengumpulan
-
-Pesan yang datang di tengah pengumpulan kebutuhan ditangani menurut jenisnya (`.scratch/lead-intake/issues/06-regresi-dialog-chat-md.md`): basa-basi (sapaan, ucapan terima kasih, pengakuan singkat) dibalas singkat sambil mengulang bidang yang sedang ditanya — tanpa mengisi bidang atau mencemari Ringkasan Kebutuhan; pertanyaan, termasuk yang tidak didukung materi, dicatat apa adanya sebagai "Pertanyaan yang dicatat" dan dibawa ke admin; pernyataan — termasuk pernyataan bermuatan kata harga — diperlakukan sebagai informasi/kebutuhan dan disimpan apa adanya. Harga Indikatif hanya dijawab untuk pesan bertanda pertanyaan — termasuk bentuk tanya sehari-hari tanpa tanda tanya seperti "… dapat ga" atau "… bisa" — sehingga pesan informasi tidak pernah dijawab template yang tidak nyambung.
-
-## Harga Indikatif
-
-Pertanyaan angka harga yang tercantum materi dijawab sebagai Harga Indikatif (lihat `docs/adr/0005-harga-indikatif-penyempitan-pola-harga.md`): mutawwif per grup, dokumen/visa per pax, airport handling, transportasi per rute/armada, city tour per jumlah peserta, serta fotografer/videografer per sesi. Setiap jawaban menyatakan bahwa angka tersebut bukan penawaran final dan mengarahkan konfirmasi harga terkini ke tim MUTAWWIFMU. Pertanyaan harga yang angkanya tidak tercantum materi (mis. "kisaran harga paket umrah", "apakah ada pricelistnya?") juga dijawab — dengan penjelasan bahwa materi belum memuat kepastian harga/ketersediaan dan penawaran khusus serta konfirmasinya ditangani tim — dan tetap dicatat untuk admin bila alur berjalan mencatat pertanyaan (lihat `docs/adr/0015-pertanyaan-harga-di-semua-fase.md`). Prinsip ini berlaku di semua fase, termasuk saat menunggu persetujuan, sesudah "mau tanya", setelah Ringkasan Kebutuhan terkirim, dan setelah percakapan di-handoff ke admin (state `admin-routed`) — pertanyaan harga tidak pernah dibalas "Terima kasih atas pesan Anda." saja.
-
-Untuk harga hotel, materi memuat keterangan satuan yang bertentangan — per orang pada sampul dan per kamar pada bagian tabel — sehingga bot menyebutkan konflik tersebut, menyatakan satuannya belum terverifikasi, dan tidak menafsirkan angkanya sebagai harga per orang maupun per kamar. Satuan yang tidak tercantum materi (mis. per malam) juga tidak ditafsirkan sendiri. Permintaan penawaran khusus, konfirmasi harga/ketersediaan, serta pertanyaan harga yang angkanya tidak tercantum materi tetap diarahkan ke alur admin; bot tidak menjanjikan ketersediaan hotel/layanan dan tidak melakukan transaksi.
-
-## Handoff ke admin
-
-Bot meneruskan percakapan ke admin hanya setelah calon jemaah menyetujui penerusan informasinya; bila ditolak, informasi tidak diteruskan. Sebelum persetujuan diminta, calon jemaah melihat Ringkasan Kebutuhan per bidang untuk diperiksa; setelah disetujui, admin menerima nomor calon jemaah, alasan handoff, Ringkasan Kebutuhan, dan sebutan lampiran bila ada—tanpa riwayat percakapan. Handoff tanpa Permintaan Tindak Lanjut hanya memuat nomor dan alasan. Pesan non-teks (gambar/dokumen, mis. bukti booking atau bukti transfer) diterima dan dicatat sebagai lampiran tanpa bot menafsirkan isinya. Kasus yang diteruskan: permintaan berbicara dengan manusia, pertanyaan yang tidak didukung/tidak pasti, permintaan penawaran khusus/konfirmasi harga atau ketersediaan, pertanyaan agen/korporasi, booking/pembayaran, perjalanan aktif, dan keadaan darurat. Pesan konfirmasi tidak menjanjikan waktu balasan admin.
-
-Setelah Ringkasan Kebutuhan terkirim, calon jemaah masih dapat menambah atau mengubah kebutuhannya (lihat `.scratch/lead-intake/issues/05-pembaruan-setelah-handoff.md`). Perubahan dikumpulkan apa adanya — pertanyaan non-harga dicatat sebagai bagian kebutuhan, pertanyaan Harga Indikatif tetap dijawab, dan pesan non-teks menjadi lampiran — lalu Ringkasan Kebutuhan yang diperbarui ditampilkan untuk dimintai persetujuan. Pengiriman ulang ke admin selalu memakai persetujuan baru dan ditandai "PEMBARUAN" agar admin tahu ini revisi Ringkasan Kebutuhan yang sudah dikirim, bukan prospek baru. Riwayat ringkasan yang sudah terkirim tidak tertimpa diam-diam: setiap pengiriman ulang membawa seluruh catatan perubahan yang pernah disampaikan, dan nilai bidang hasil pengumpulan pertama tetap utuh apa adanya.
-
-Penerima handoff berada di balik port `AdminChannel` (`src/adminChannel.ts`) — spec melarang mengasumsikan CRM/shared inbox tertentu. Keputusan pemilik (lihat `docs/adr/0006-kanal-admin-whatsapp.md`): handoff dikirim sebagai **pesan WhatsApp ke nomor admin** yang dibaca dari `WHATSAPP_ADMIN_NUMBER`, melalui provider yang sama dengan bot; isi handoff juga dicatat ke log proses sebagai jejak audit. Mengganti implementasi `AdminChannel` tidak mengubah perilaku percakapan.
-
-Jumlah Permintaan Tindak Lanjut yang berhasil diteruskan (metrik utama) serta FAQ yang terjawab tanpa handoff (metrik pendamping) tersedia di `GET /metrics` dan dihitung oleh port `Metrics` (`src/metrics.ts`). Konteks percakapan multi-giliran disimpan di balik port `ConversationStore` (`src/conversationStore.ts`) dengan implementasi in-memory sementara; keputusan persistent store/retensi belum diambil.
-
-## Jeda & Ambil Alih
-
-Admin dapat menghentikan balasan otomatis untuk satu calon jemaah (**Jeda Percakapan**) atau untuk semua kontak (**Nonaktif Sementara**) lewat perintah WhatsApp dari `WHATSAPP_ADMIN_NUMBER` (lihat bagian perintah admin). Selama jeda, pesan yang masuk tetap tercatat satu baris di transkrip percakapan (peran calon jemaah, apa adanya termasuk sebutan lampiran) tetapi **tidak dibalas**, **tidak melewati seam percakapan**, dan **tidak mengubah state alur** — draft Permintaan Tindak Lanjut serta mode pembaruan setelah handoff tetap utuh sampai admin mengirim `#lanjut`/`#bot on`. Kontak lain tetap dibalas normal.
-
-State jeda disimpan persisten di `data/jeda-state.json` (di-ignore git karena memuat nomor pelanggan) sehingga bertahan saat proses restart. Tidak ada auto-resume: Jeda Percakapan hanya berakhir lewat `#lanjut <nomor>`; Nonaktif Sementara hanya berakhir lewat `#bot on`. Batasan yang disadari: selama jeda bot diam penuh — tanpa pemberitahuan apa pun ke pelanggan dan tanpa janji waktu balasan. Keputusan dan alasannya: `docs/adr/0011-jeda-dan-ambil-alih-admin.md`.
-
-### Deteksi otomatis pesan keluar
-
-Ambil Alih otomatis di luar cakupan saat ini; gunakan `#jeda <nomor>` atau `#jeda` sebagai pemicu eksplisit. **Fonnte:** dokumentasi webhook menjelaskan payload pesan masuk, tetapi tidak mendokumentasikan pesan yang dikirim dari nomor perangkat sendiri atau field `from_me`; perilaku pesan keluar belum diverifikasi dan tidak diasumsikan tidak ada. **WhatsApp Cloud API:** webhook pesan keluar berisi status `sent`/`delivered`/`read`, bukan isi pesannya; status tersebut tidak dipakai untuk menebak Ambil Alih. Detail kutipan dan fixture terdokumentasi: `.scratch/jeda-ambil-alih/evidence/05-provider-webhook.md`.
-
-## Perintah admin via WhatsApp
-
-Admin mengendalikan balasan bot lewat pesan WhatsApp dari nomor `WHATSAPP_ADMIN_NUMBER` (nomor terpisah dari nomor bot — lihat `docs/adr/0006-kanal-admin-whatsapp.md`). Perintah dikenali tanpa memandang huruf besar/kecil dan spasi longgar:
-
-| Perintah | Efek |
+| Tantangan | Penanganan |
 | --- | --- |
-| `#jeda <nomor>` | Jeda Percakapan untuk kontak tersebut (Ambil Alih) |
-| `#jeda` | Jeda kontak dari handoff terakhir; bila belum ada, bot meminta nomor eksplisit |
-| `#lanjut <nomor>` | Akhiri Jeda Percakapan untuk kontak tersebut |
-| `#bot off` | Nonaktif Sementara global: bot berhenti membalas semua kontak |
-| `#bot on` | Aktifkan kembali balasan otomatis |
-| `#status` | Ringkasan status global + daftar kontak yang dijeda beserta waktu mulai |
+| Kebutuhan calon jemaah disampaikan sedikit demi sedikit | Bot mengumpulkan layanan yang diminati, periode, jumlah jemaah, dan kebutuhan detail; lalu menampilkan ringkasan untuk diperiksa. |
+| Harga atau jawaban tidak tersedia di materi | Bot tidak mengarang angka. Pertanyaan harga khusus dan informasi yang perlu dikonfirmasi diarahkan ke tim. |
+| Handoff dapat terasa seperti akhir percakapan | Pertanyaan harga tetap dijawab di semua fase. Calon jemaah juga dapat memperbarui kebutuhan, memakai menu lanjutan, atau memulai ulang. |
+| Admin perlu konteks sebelum menindaklanjuti | Ringkasan kebutuhan diteruskan setelah persetujuan eksplisit; admin menerima alasan handoff dan konteks yang diperlukan. |
 
-Konfirmasi hanya dikirim ke nomor admin, singkat, dan tanpa janji waktu balasan. Konfirmasi `#jeda` menyebut nomor yang dijeda dan cara mengembalikannya (`#lanjut <nomor>`). Nomor pada parameter dinormalisasi E.164 seperti `normalizePhoneNumber`; nomor tidak valid dibalas permintaan nomor yang benar tanpa mengubah state. Perintah berawalan `#` yang tidak dikenal dari admin dibalas daftar perintah; pesan berawalan `#` dari nomor lain tetap diperlakukan sebagai pesan biasa ke jalur percakapan. Setiap perintah tercatat di log proses (siapa, perintah apa), bukan di transkrip CSV pelanggan.
+## Cara kerja
 
-> **Jangan mengetik perintah ini di chat pelanggan.** Admin membalas pelanggan dari nomor bot, sehingga perintah yang diketik di chat pelanggan akan terkirim ke pelanggan. Kirim perintah hanya dari nomor admin. Bila kelak `WHATSAPP_ADMIN_NUMBER` disamakan dengan nomor bot, jalur perintah ini perlu ditinjau ulang.
+1. **Memahami pesan masuk** menggunakan klasifikasi berbasis aturan; Gemini dapat diaktifkan secara opsional sebagai lapisan pemaham tambahan.
+2. **Menjawab FAQ yang didukung materi**, termasuk harga indikatif yang memang tersedia. Jawaban tetap berasal dari materi bisnis, bukan teks bebas yang dibuat model.
+3. **Mengumpulkan kebutuhan** calon jemaah secara bertahap dan memungkinkan pertanyaan menyela tanpa merusak alur.
+4. **Menampilkan Ringkasan Kebutuhan** untuk diperiksa sebelum informasi diteruskan.
+5. **Meminta persetujuan sebelum handoff**. Permintaan penawaran khusus, pertanyaan yang tidak didukung materi, booking/pembayaran, perjalanan aktif, keadaan darurat, dan permintaan berbicara dengan manusia mengikuti jalur penanganan yang sesuai.
+6. **Tetap membantu setelah handoff**: pertanyaan harga tetap mendapat jawaban yang sesuai; pembaruan kebutuhan dan pilihan untuk mengulang percakapan tetap tersedia.
 
-## Transkrip percakapan
+Pesan non-teks seperti gambar atau dokumen dicatat sebagai lampiran; bot tidak menafsirkan isi lampiran. Bot juga tidak menjanjikan waktu balasan admin.
 
-Selain handoff, setiap pesan teks masuk dan balasan yang benar-benar terkirim dicatat sebagai baris CSV agar riwayat mudah dibaca di Excel/Google Sheets (lihat `docs/adr/0007-transkrip-percakapan-csv.md`). Berkasnya di `data/transkrip-percakapan.csv` (dibuat otomatis, kolom `waktu`, `nomor`, `peran`, `pesan`; waktu WIB). `data/` diabaikan git karena memuat data pribadi — jangan di-commit atau disalin ke tempat publik. Penulisan bersifat best-effort: bila berkas gagal ditulis, balasan bot tetap terkirim dan kegagalannya hanya tercatat di log proses. Mengganti tujuan transkrip cukup mengganti implementasi port `ConversationTranscript` (`src/conversationTranscript.ts`).
+## Sorotan teknis
 
-## Konfigurasi
+- **Provider-agnostic conversation core**: logika percakapan dipisahkan dari transport WhatsApp.
+- **Dua adapter WhatsApp**: WhatsApp Cloud API dan Fonnte.
+- **Harga dan FAQ berbasis materi**: jawaban harga khusus diarahkan ke tim, tanpa mengarang nominal atau ketersediaan.
+- **Gemini opt-in**: tanpa `GEMINI_API_KEY`, bot tetap berjalan dengan klasifikasi berbasis aturan.
+- **Tes pada seam percakapan dan adapter** memakai test runner bawaan Node.js.
+- Endpoint webhook tersedia di `/webhook`; metrik aplikasi tersedia di `GET /metrics`.
 
-Semua identitas provider, nomor pengirim, dan nomor admin penerima handoff berasal dari environment (lihat `.env.example`). Mengganti nomor ke nomor produksi cukup lewat konfigurasi — perilaku percakapan tidak berubah. Jalur cutover: `docs/whatsapp-number-cutover.md`.
-
-Sebelum cutover, jalankan `npm run cutover:check` untuk memastikan konfigurasi provider sudah lengkap dan nomor pengirim bukan lagi nomor pengembangan (perintah keluar dengan kode 1 bila belum siap). Pergantian nomor tidak membawa riwayat percakapan — batasannya dijelaskan di `docs/whatsapp-number-cutover.md` bagian "Batasan migrasi riwayat percakapan".
-
-**Panduan langkah demi langkah untuk pemilik (checklist cutover yang dapat dicentang):** `docs/tutorial-cutover-nomor-produksi.md`.
-
-## Pengujian
-
-```bash
-npm test          # seluruh tes (perilaku seam + kontrak transport)
-npm run typecheck # pemeriksaan tipe
+```text
+WhatsApp Cloud API / Fonnte
+            │
+            ▼
+      Adapter provider ──► HTTP server (/webhook)
+                                  │
+                                  ▼
+                     Logika percakapan multi-giliran
+                         ┌────────┴─────────┐
+                         ▼                  ▼
+                 FAQ & materi bisnis   Handoff ke admin
 ```
 
-Seam pengujian yang disepakati adalah batas pemrosesan pesan masuk (`src/conversation/handleInbound.ts`): pesan + konteks percakapan → balasan + tindakan terlihat, provider-agnostic. Tes perilaku pada seam tersebut (pengumpulan bidang Permintaan Tindak Lanjut, anggaran opsional, larangan meminta data sensitif, permintaan persetujuan, penolakan, pemicu handoff) adalah tes utama. Tes transport memastikan pesan masuk dan balasan keluar benar-benar melalui kanal provider, dan tes wiring memastikan handoff diteruskan ke kanal admin serta terhitung sebagai metrik — keduanya tidak menggantikan tes perilaku pada seam tersebut.
+## Jalankan dari clone
 
-Regresi end-to-end dari dialog nyata ada di `tests/regresi/` (tiket 06): skenario multi-giliran yang disusun dari `data/Vira Arman/chat.md`, kumpulan kasus misfire `.scratch/eval-classify.txt` sebagai kasus tes negatif pada tiga konteks percakapan, serta replay seluruh transkrip di `data/` bila direktorinya tersedia (dilewati otomatis bila tidak ada, karena `data/` memuat data pribadi dan tidak ter-versioning).
+### 1. Siapkan kebutuhan
 
-## Struktur
+- Git
+- **Node.js 22.18 atau lebih baru** dan npm
+
+Runtime menjalankan TypeScript langsung; tidak ada langkah build terpisah.
+
+### 2. Clone dan pasang dependency
+
+```bash
+git clone https://github.com/rizkidwi-a/mutawwifmu-bot.git
+cd mutawwifmu-bot
+npm ci
+```
+
+### 3. Jalankan tes dan pemeriksaan tipe
+
+Kedua perintah ini dapat dijalankan tanpa kredensial WhatsApp:
+
+```bash
+npm test
+npm run typecheck
+```
+
+### 4. Siapkan konfigurasi lokal
+
+Untuk menjalankan bot yang terhubung ke provider, salin file contoh:
+
+```bash
+cp .env.example .env
+```
+
+Di Windows PowerShell, gunakan:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edit `.env` dan isi nomor serta kredensial milik akun uji Anda. Jangan masukkan secret ke source code, README, log, atau commit Git.
+
+### 5. Pilih provider dan isi kredensial
+
+Variabel bersama untuk semua provider:
+
+| Variabel | Keterangan |
+| --- | --- |
+| `WHATSAPP_PROVIDER` | `whatsapp-cloud-api` atau `fonnte`. |
+| `WHATSAPP_SENDER_NUMBER` | Nomor WhatsApp pengirim dalam format internasional. |
+| `WHATSAPP_ADMIN_NUMBER` | Nomor admin penerima handoff. |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token verifikasi webhook yang Anda tentukan. |
+
+Untuk **WhatsApp Cloud API** (provider default), isi juga `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_TOKEN`, dan `WHATSAPP_APP_SECRET`.
+
+Untuk **Fonnte**, set `WHATSAPP_PROVIDER=fonnte` dan isi `WHATSAPP_API_TOKEN`. Jika `.env` masih berisi URL Cloud API dari contoh, ubah `WHATSAPP_API_BASE_URL` menjadi `https://api.fonnte.com`. `WHATSAPP_COUNTRY_CODE` bersifat opsional; default-nya `62`.
+
+`PORT` default ke `3000`. `GEMINI_API_KEY` bersifat opsional; tanpa kunci ini klasifikasi berbasis aturan tetap aktif.
+
+> Kredensial, nomor, dan endpoint harus berasal dari akun Anda sendiri. Meng-clone repository saja tidak membuat koneksi WhatsApp aktif.
+
+### 6. Jalankan aplikasi dan hubungkan webhook
+
+```bash
+npm start
+```
+
+Server mendengarkan pada port yang dikonfigurasi (`3000` secara default). Agar pesan sungguhan dapat diterima, sediakan endpoint HTTPS yang dapat dijangkau provider—misalnya melalui tunnel untuk pengujian lokal atau deployment—lalu arahkan webhook provider ke `/webhook` dan samakan token verifikasinya.
+
+Panduan konfigurasi provider dan deployment:
+
+- [Migrasi ke WhatsApp Cloud API](docs/tutorial-migrasi-ke-meta-cloud-api.md)
+- [Pergantian nomor WhatsApp](docs/whatsapp-number-cutover.md)
+- [Tutorial cutover nomor produksi](docs/tutorial-cutover-nomor-produksi.md)
+- [Deployment ke EC2](docs/deploy-ec2.md)
+
+## Batasan dan penanganan data
+
+- State percakapan utama disimpan **di memori proses**; state tersebut hilang ketika proses berhenti atau dimulai ulang.
+- Transkrip pesan disimpan lokal sebagai CSV di `data/`. Transkrip dapat memuat nomor telepon dan isi pesan; perlakukan sebagai data pribadi dan jangan unggah ke repository publik.
+- Data di `data/`, file `.env`, dan log runtime diabaikan oleh Git melalui `.gitignore`.
+- Integrasi Gemini opsional hanya membantu pemahaman/klasifikasi pesan. Jawaban FAQ dan harga tetap dibatasi oleh materi bisnis yang tersedia.
+- Integrasi end-to-end memerlukan akun dan konfigurasi provider WhatsApp; tes lokal tidak menggantikan uji webhook pada akun Anda.
+
+## Struktur proyek
 
 ```text
 src/
-├── conversation/          # seam percakapan (provider-agnostic)
-│   ├── handleInbound.ts   # pemrosesan pesan masuk -> balasan + tindakan
-│   ├── classifyInbound.ts # routing pesan masuk: faq / indicative-price / handoff / opener
-│   ├── language.ts        # deteksi bahasa balasan
-│   └── types.ts
-├── knowledge/             # materi FAQ (jawaban disusun dari materi bisnis)
-├── adapters/
-│   ├── factory.ts         # pemilihan adapter sesuai WHATSAPP_PROVIDER
-│   ├── webhookSupport.ts  # helper HTTP bersama antar adapter webhook
-│   ├── fonnte/            # transport BSP Fonnte (webhook + pengirim)
-│   └── whatsapp-cloud/    # transport WhatsApp Cloud API (webhook + pengirim)
-├── adminChannel.ts        # port kanal penerimaan admin (handoff)
-├── config.ts              # konfigurasi dari environment
-├── cutoverPreflight.ts    # penilaian kesiapan konfigurasi cutover nomor produksi
-├── cutoverCheck.ts        # entry point npm run cutover:check
-├── conversationStore.ts   # port penyimpanan konteks percakapan
-├── conversationTranscript.ts # port transkrip percakapan (CSV untuk pemilik)
-├── inboundTransport.ts    # port penerimaan pesan masuk
-├── messageSender.ts       # port pengiriman pesan keluar
-├── metrics.ts             # port metrik keberhasilan
-├── server.ts              # server webhook (+ GET /metrics)
-└── main.ts                # entry point proses bot
+├── adapters/       # Adapter transport WhatsApp Cloud API dan Fonnte
+├── conversation/  # Klasifikasi dan logika percakapan multi-giliran
+├── knowledge/     # Materi FAQ, harga, guard angka, dan integrasi Gemini
+├── config.ts      # Konfigurasi dari environment
+├── server.ts      # Webhook dan endpoint metrics
+└── main.ts        # Entry point aplikasi
+
+tests/              # Tes unit dan integrasi
+
 docs/
-├── adr/                   # keputusan arsitektur (lihat CONTEXT.md)
-└── whatsapp-number-cutover.md
-data/                      # transkrip percakapan (diabaikan git; data pribadi)
+├── adr/            # Catatan keputusan arsitektur
+└── *.md            # Panduan provider, cutover, dan deployment
 ```
+
+## Dokumentasi
+
+- [Konteks domain](CONTEXT.md)
+- [Keputusan arsitektur](docs/adr/)
+- [Panduan migrasi Cloud API](docs/tutorial-migrasi-ke-meta-cloud-api.md)
+- [Panduan cutover nomor](docs/whatsapp-number-cutover.md)
+
+---
+
+Dibangun dengan **Node.js**, **TypeScript**, dan `node:test`.
