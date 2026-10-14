@@ -104,10 +104,17 @@ export function isPriceTopic(topic: FaqTopic): topic is PriceTopic {
  * sengaja tidak memuat "berapa" polos agar "berapa lama ..." tetap jatuh ke
  * rincian yang tidak didukung materi. Bentuk berimbuhan "-nya" ("harganya",
  * "biayanya") ikut dikenali karena transkrip nyata memakainya (tiket 09),
- * dan singkatan "hrg" dari korpus dasar ikut dikenali (tiket 11).
+ * dan singkatan "hrg" dari korpus dasar ikut dikenali (tiket 11). Varian
+ * "pricelist"/"price list"/"daftar harga" ikut dikenali karena muncul pada
+ * transkrip nyata ("apakah ada pricelistnya?", `.scratch/harga-di-semua-fase`).
  */
-const PRICE_WORD =
-  /\b((harga|biaya|tarif|ongkos)(nya)?|hrg|prices?|pricing|costs?|rates?|how much)\b/i;
+export const PRICE_WORD =
+  /\b((harga|biaya|tarif|ongkos)(nya)?|hrg|pricelist(nya)?|price\s?lists?(nya)?|daftar\s+harga(nya)?|prices?|pricing|costs?|rates?|how much)\b/i;
+
+/** Apakah pesan memuat kata penanda harga (lihat `PRICE_WORD`). */
+export function memuatKataHarga(text: string): boolean {
+  return PRICE_WORD.test(text);
+}
 
 /**
  * Kata penanda topik transportasi (dipakai pola `price-transport` sekaligus

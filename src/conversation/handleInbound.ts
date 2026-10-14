@@ -10,7 +10,7 @@ import {
   URUTAN_BIDANG,
   type BidangKebutuhan,
 } from "./penyelaPengumpulan.ts";
-import { jawabanFaq } from "../knowledge/businessFaq.ts";
+import { jawabanFaq, memuatKataHarga } from "../knowledge/businessFaq.ts";
 import type {
   BotTurn,
   ConversationContext,
@@ -61,6 +61,23 @@ const CATAT_PERTANYAAN_EN =
   "follow-up request for our team.";
 
 /**
+ * Jawaban pertanyaan harga yang angkanya tidak tercantum materi
+ * (`.scratch/harga-di-semua-fase`): angka tidak boleh dikarang, tetapi
+ * pertanyaannya tetap dijawab — penawaran khusus serta konfirmasi harga dan
+ * ketersediaan ditangani tim. Sengaja tidak memuat "Harga Indikatif", angka,
+ * klaim harga final, maupun janji ketersediaan/waktu balasan (invarian tes
+ * `indicativePricing` dan `topikGapHandoff`).
+ */
+const HARGA_KE_TIM_ID =
+  "Materi kami belum memuat kepastian harga atau ketersediaan untuk pertanyaan Anda. " +
+  "Penawaran khusus serta konfirmasi harga dan ketersediaan perlu ditangani tim " +
+  "customer service/penjualan MUTAWWIFMU.";
+const HARGA_KE_TIM_EN =
+  "Our materials do not yet include a confirmed price or availability for your question. " +
+  "Special quotes and price/availability confirmations need to be handled by the " +
+  "MUTAWWIFMU customer service/sales team.";
+
+/**
  * Balasan atas pertanyaan menyela berkata kunci (mis. "ingin bertanya",
  * "ada yang ingin ditanyakan"): pertanyaan disimpan di Bagian Pertanyaan dan
  * dikonfirmasi admin bersama Ringkasan Kebutuhan, bukan menjadi jawaban bidang
@@ -101,6 +118,54 @@ function isPertanyaan(text: string): boolean {
  */
 function isPertanyaanTercatat(text: string, routing: InboundRouting): boolean {
   return isPertanyaan(text) && routing.kind !== "opener";
+}
+
+/**
+ * Pertanyaan harga yang harus dijawab bot di semua fase percakapan
+ * (`.scratch/harga-di-semua-fase`): bertanda pertanyaan, memuat kata penanda
+ * harga (`memuatKataHarga`, mis. "kisaran harga ...", "biaya ...",
+ * "pricelist") atau ber-routing `indicative-price`. Pemicu mendesak dan
+ * booking/pembayaran dikecualikan agar prioritas "pemicu mendesak > pertanyaan
+ * harga" (ADR-0014) tidak berubah. Pertanyaan meta ("Apa maksudnya dari
+ * kisaran anggaran?") dan parafrase tanpa kata penanda harga tetap ke jalur
+ * catat-pertanyaan — batas pola yang disengaja (ADR-0005).
+ */
+function isPertanyaanHarga(text: string, routing: InboundRouting): boolean {
+  if (!isPertanyaan(text)) return false;
+  if (
+    routing.kind === "handoff" &&
+    (URGENT_TRIGGERS.has(routing.trigger) || routing.trigger === "booking-or-payment")
+  ) {
+    return false;
+  }
+  return routing.kind === "indicative-price" || memuatKataHarga(text);
+}
+
+/** Hasil jawaban harga: teks balasan beserta tindakan terlihat (mis. metrik). */
+interface JawabanHarga {
+  readonly reply: string;
+  readonly actions: readonly InternalAction[];
+}
+
+/**
+ * Jawaban atas pertanyaan harga: template Harga Indikatif bila angkanya
+ * tercantum materi, atau penjelasan penawaran/konfirmasi oleh tim bila tidak.
+ * Kembalikan `null` bila pesan bukan pertanyaan harga (lihat
+ * `isPertanyaanHarga`).
+ */
+function jawabanPertanyaanHarga(
+  text: string,
+  routing: InboundRouting,
+  language: Language,
+): JawabanHarga | null {
+  if (!isPertanyaanHarga(text, routing)) return null;
+  if (routing.kind === "indicative-price") {
+    return {
+      reply: jawabanFaq(routing.topic, text, language),
+      actions: [{ kind: "record-faq-answer", topic: routing.topic }],
+    };
+  }
+  return { reply: language === "id" ? HARGA_KE_TIM_ID : HARGA_KE_TIM_EN, actions: [] };
 }
 
 /**
@@ -677,11 +742,15 @@ function step(
   const next = nextState(state, text, hasilKlasifikasi);
   const routing = hasilKlasifikasi ?? classifyInbound(text);
   const leadPertanyaan = indonesian ? CATAT_PERTANYAAN_ID : CATAT_PERTANYAAN_EN;
+  // Jawaban pertanyaan harga (`.scratch/harga-di-semua-fase`): Harga Indikatif
+  // bila angkanya tercantum materi, atau penjelasan penawaran/konfirmasi oleh
+  // tim bila tidak — berlaku di semua fase, digabung dengan alur berjalan.
+  const jawabanHarga = jawabanPertanyaanHarga(text, routing, language);
   // Pertanyaan yang dicatat didahulukan daripada jawaban persetujuan: pesan
   // berisi kata penolakan (mis. "boleh cek gak harganya?") tetap dicatat
-  // sebagai pertanyaan, bukan ditafsirkan sebagai penolakan penerusan.
-  const pertanyaanTercatat =
-    state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing);
+  // sebagai pertanyaan, bukan ditafsirkan sebagai penolakan penerusan. Guard
+  // berlaku untuk semua state (termasuk menunggu persetujuan handoff/revisi).
+  const pertanyaanTercatat = isPertanyaanTercatat(text, routing);
   const menolak = CONSENT_NO.test(text);
   const menjawabPersetujuan = !pertanyaanTercatat && (menolak || isConsentYes(text));
   const ditolak = {
@@ -718,6 +787,23 @@ function step(
           next,
         };
       }
+      // Isi pertanyaan berupa pertanyaan harga langsung dijawab
+      // (`.scratch/harga-di-semua-fase`); yang bermateri juga tidak dicatat ke
+      // Bagian Pertanyaan (lihat `nextState`).
+      if (jawabanHarga !== null) {
+        const lead =
+          routing.kind === "indicative-price"
+            ? jawabanHarga.reply
+            : balasanDenganPrompt(
+                jawabanHarga.reply,
+                indonesian ? PERTANYAAN_MENYELA_ID : PERTANYAAN_MENYELA_EN,
+              );
+        return {
+          reply: balasanDenganPrompt(lead, promptMenyela(next, indonesian)),
+          actions: [...jawabanHarga.actions],
+          next,
+        };
+      }
       // Pesan apa pun (non-mendesak) berikutnya adalah isi pertanyaannya.
       return {
         reply: balasanDenganPrompt(
@@ -739,11 +825,19 @@ function step(
           next,
         };
       }
+      // Pertanyaan harga tanpa materi tetap dicatat ke Bagian Pertanyaan,
+      // tetapi jawabannya (penawaran oleh tim) tetap disampaikan lebih dulu.
+      const leadMenyela =
+        jawabanHarga !== null
+          ? balasanDenganPrompt(
+              jawabanHarga.reply,
+              indonesian ? PERTANYAAN_MENYELA_ID : PERTANYAAN_MENYELA_EN,
+            )
+          : indonesian
+            ? PERTANYAAN_MENYELA_ID
+            : PERTANYAAN_MENYELA_EN;
       return {
-        reply: balasanDenganPrompt(
-          indonesian ? PERTANYAAN_MENYELA_ID : PERTANYAAN_MENYELA_EN,
-          promptMenyela(next, indonesian),
-        ),
+        reply: balasanDenganPrompt(leadMenyela, promptMenyela(next, indonesian)),
         actions: [],
         next,
       };
@@ -806,6 +900,11 @@ function step(
   }
 
   if (state.kind === "admin-routed" && next.kind === "admin-routed") {
+    // Pertanyaan harga tetap dijawab meski percakapan sudah ditangani admin
+    // (`.scratch/harga-di-semua-fase`); pesan lain tetap pengakuan singkat.
+    if (jawabanHarga !== null) {
+      return { reply: jawabanHarga.reply, actions: [...jawabanHarga.actions], next };
+    }
     return {
       reply: indonesian ? BASA_BASI_ID : BASA_BASI_EN,
       actions: [],
@@ -874,8 +973,19 @@ function step(
   }
 
   if (next.kind === "awaiting-handoff-consent") {
+    const prompt = promptHandoff(next.reason, indonesian);
+    // Pertanyaan harga yang angkanya tercantum materi dijawab lebih dulu;
+    // pertanyaan harga tanpa materi sudah terjawab oleh lead handoff
+    // `custom-quote-or-availability` di dalam `promptHandoff`.
+    if (jawabanHarga !== null && routing.kind === "indicative-price") {
+      return {
+        reply: balasanDenganPrompt(jawabanHarga.reply, prompt),
+        actions: [...jawabanHarga.actions],
+        next,
+      };
+    }
     return {
-      reply: promptHandoff(next.reason, indonesian),
+      reply: prompt,
       actions: [],
       next,
     };
@@ -895,8 +1005,14 @@ function step(
       };
     }
     if (menyela) {
+      // Pertanyaan harga tanpa materi tetap dicatat, tetapi jawabannya
+      // (penawaran oleh tim) disampaikan lebih dulu.
+      const lead =
+        jawabanHarga !== null
+          ? balasanDenganPrompt(jawabanHarga.reply, leadPertanyaan)
+          : leadPertanyaan;
       return {
-        reply: balasanDenganPrompt(leadPertanyaan, promptBidang(state.sisa[0], indonesian)),
+        reply: balasanDenganPrompt(lead, promptBidang(state.sisa[0], indonesian)),
         actions: [],
         next,
       };
@@ -913,6 +1029,18 @@ function step(
     const reask = indonesian ? CONSENT_REASK_ID : CONSENT_REASK_EN;
     if (state.kind !== "awaiting-consent") {
       return { reply: consentPrompt(next.draft, indonesian), actions: [], next };
+    }
+    // Pertanyaan harga dijawab lebih dulu, lalu konfirmasi persetujuan diulang.
+    if (jawabanHarga !== null) {
+      const lead =
+        routing.kind === "indicative-price"
+          ? jawabanHarga.reply
+          : balasanDenganPrompt(jawabanHarga.reply, leadPertanyaan);
+      return {
+        reply: balasanDenganPrompt(lead, reask),
+        actions: [...jawabanHarga.actions],
+        next,
+      };
     }
     // Pertanyaan non-harga yang menyela konfirmasi dicatat apa adanya; balasan
     // tetap meminta konfirmasi persetujuan.
@@ -952,8 +1080,14 @@ function step(
     // ke admin (tiket 06); pesan tanpa tanda pertanyaan diperlakukan sebagai
     // informasi/kebutuhan dan tetap membuka pengumpulan dari state idle.
     const dicatat = isPertanyaanTercatat(text, routing);
+    const lead = dicatat ? leadPertanyaan : initialReplyFor(indonesian);
     return {
-      reply: balasanDenganPrompt(dicatat ? leadPertanyaan : initialReplyFor(indonesian), prompt),
+      // Pertanyaan harga tanpa materi tetap dicatat apa adanya, tetapi
+      // jawabannya (penawaran oleh tim) disampaikan lebih dulu.
+      reply: balasanDenganPrompt(
+        jawabanHarga !== null ? balasanDenganPrompt(jawabanHarga.reply, lead) : lead,
+        prompt,
+      ),
       actions: [],
       next,
     };
@@ -968,7 +1102,12 @@ function step(
         ? CATAT_PERUBAHAN_ID
         : CATAT_PERUBAHAN_EN;
     return {
-      reply: balasanDenganPrompt(lead, revisiConsentPrompt(next.draft, indonesian)),
+      // Pertanyaan harga tanpa materi tetap dicatat apa adanya, tetapi
+      // jawabannya (penawaran oleh tim) disampaikan lebih dulu.
+      reply: balasanDenganPrompt(
+        jawabanHarga !== null ? balasanDenganPrompt(jawabanHarga.reply, lead) : lead,
+        revisiConsentPrompt(next.draft, indonesian),
+      ),
       actions: [],
       next,
     };
@@ -1235,6 +1374,11 @@ function nextState(
         return state;
       }
       // Pesan apa pun (non-mendesak) berikutnya adalah isi pertanyaannya.
+      // Isi berupa pertanyaan harga yang dijawab dari materi tidak dicatat ke
+      // Bagian Pertanyaan (konsisten dengan jalur lain, `.scratch/harga-di-semua-fase`).
+      if (routing.kind === "indicative-price" && isPertanyaan(text)) {
+        return state.resume;
+      }
       return catatKePertanyaan(state.resume, text);
     }
     if (penyela !== null && !pertanyaanHarga && stateMemilikiDraft(state)) {
@@ -1255,8 +1399,10 @@ function nextState(
     state.kind === "awaiting-consent" ||
     state.kind === "awaiting-handoff-consent" ||
     state.kind === "awaiting-revision-consent";
-  const pertanyaanTercatat =
-    state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing);
+  // Pertanyaan apa pun (termasuk pertanyaan harga yang memuat kata penolakan
+  // seperti "boleh cek gak harganya?") bukan jawaban persetujuan — konsisten
+  // dengan guard yang sama pada `step`.
+  const pertanyaanTercatat = isPertanyaanTercatat(text, routing);
   if (menungguPersetujuan && !pertanyaanTercatat && (CONSENT_NO.test(text) || isConsentYes(text))) {
     return setelahPersetujuan(state, text);
   }
@@ -1333,9 +1479,14 @@ function nextState(
     return { kind: "awaiting-revision-consent", draft: diperbarui };
   }
   if (menungguPersetujuan) {
-    if (state.kind === "awaiting-consent" && isPertanyaanTercatat(text, routing)) {
+    if (
+      state.kind === "awaiting-consent" &&
+      isPertanyaanTercatat(text, routing) &&
+      routing.kind !== "indicative-price"
+    ) {
       // Pertanyaan non-harga yang menyela konfirmasi dicatat sebagai bagian
-      // kebutuhan, bukan dijawab dari materi (ADR-0009).
+      // kebutuhan, bukan dijawab dari materi (ADR-0009). Pertanyaan harga yang
+      // dijawab dari materi tidak dicatat (konsisten dengan `collecting`/`sent`).
       return { kind: "awaiting-consent", draft: catatPertanyaan(state.draft, text) };
     }
     // Jawaban tidak jelas: tetap tunggu persetujuan (balasan meminta konfirmasi).
