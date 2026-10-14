@@ -51,7 +51,9 @@ const TOPIK_VALID: ReadonlySet<string> = new Set<string>([
   "price-transport",
   "price-city-tour",
   "price-photographer-videographer",
+  "price-tasreh",
   "price-hotel",
+  "tasreh",
 ]);
 
 function isFaqTopic(nilai: unknown): nilai is FaqTopic {

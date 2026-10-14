@@ -78,3 +78,31 @@ Polai dari perubahan `price-transport` (butir 1–5 sudah terbukti hijau):
   admin", tanpa klaim harga final/ketersediaan/transaksi.
 - Akses indeks array kena `noUncheckedIndexedAccess` — pakai guard, bukan
   asumsi indeks ada (lihat perbaikan di `bagiSpan`).
+
+## Sesi lanjutan: `harga-fotografi-tasreh-cgk` (2026-10-13)
+
+Resep di atas dipakai ulang untuk tiga indikator baru (spec + 4 tiket di
+`.scratch/harga-fotografi-tasreh-cgk/`, semuanya `resolved`):
+
+- **Fotografi** → modul `src/knowledge/fotoHarga.ts` (13 baris verbatim dari
+  `data/foto harga/`, label "Paket Spesial Ramadan" menggantikan "High
+  season"), matcher per lokasi/periode/segmen, `jawabanFaq` mendelegasikan
+  `price-photographer-videographer`. Berbeda dari transport: pertanyaan tanpa
+  lokasi dijawab **daftar lengkap**, bukan menu (hanya 13 baris).
+- **Tasreh** → topik `price-tasreh` (IDR 300.000 per pax) + `tasreh`
+  non-harga; `UNSUPPORTED_TOPIC` dipecah jadi dua pola (Raudhah/Nusuk vs
+  siskopatuh/kereta) supaya pengecualian hanya menyangkut pertanyaan harga
+  tasreh.
+- **Handling CGK** → IDR 300.000 per pax menggantikan "Handling Bandara
+  Jakarta IDR 350.000" (keputusan pemilik: opsi a).
+
+Gotcha baru (jangan diulang):
+
+- Pola fotografi sebelumnya tidak memuat kata `foto`, sehingga "harga foto di
+  Masjid Nabawi?" jatuh ke handoff `custom-quote-or-availability` — matcher
+  lokasi baru berguna hanya bila pola topiknya menangkap frasa sehari-hari.
+- Saat mengganti blok `answer:` besar di `ENTRIES`, ubah satu blok penuh per
+  panggilan edit; edit separuh (komentar di dalam objek) meninggalkan sintaks
+  rusak yang baru ketahuan saat typecheck.
+- Verifikasi hijau sesi ini: `npm test` (458), `npm run typecheck`,
+  `node scripts/probe-cakupan.ts` (121/121).

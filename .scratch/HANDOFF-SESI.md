@@ -9,16 +9,21 @@
 
 - Branch aktif `main` @ `e915131`, **ahead 1** dari `origin/main` (commit terakhir
   belum di-push).
-- `npm test` **407 lulus**, `npm run typecheck` bersih; probe
-  `node scripts/probe-cakupan.ts` **118/118** rute dan topik (semua kelompok
-  hijau: `dasar` 41/41, `transkrip-nyata` 54/54, `topik-gap` 16/16,
-  `varian-ejaan` 6/6, `typo` 6/6).
+- `npm test` **458 lulus**, `npm run typecheck` bersih; probe
+  `node scripts/probe-cakupan.ts` **121/121** rute dan topik (semua kelompok
+  hijau: `dasar` 44/44, `transkrip-nyata` 54/54, `topik-gap` 16/16,
+  `varian-ejaan` 7/7).
 - **Ada pekerjaan yang belum di-commit di working tree.** Jangan `checkout`/
   `reset`/`stash` sembarangan sebelum memutuskan nasibnya:
   - `src/knowledge/transportRute.ts` **baru** + `tests/knowledge/transportRute.test.ts` **baru**
-  - `src/conversation/handleInbound.ts`, `src/knowledge/businessFaq.ts` (modifikasi)
-  - `tests/conversation/indicativePricing.test.ts`, `tests/knowledge/businessFaq.test.ts` (modifikasi)
+  - `src/knowledge/fotoHarga.ts` **baru** + `tests/knowledge/fotoHarga.test.ts` **baru** (fitur harga-fotografi-tasreh-cgk)
+  - `src/conversation/handleInbound.ts`, `src/knowledge/businessFaq.ts`,
+    `src/conversation/classifyInbound.ts`, `src/knowledge/geminiPemaham.ts`, `CONTEXT.md` (modifikasi)
+  - `tests/conversation/indicativePricing.test.ts`, `tests/knowledge/businessFaq.test.ts`,
+    `tests/conversation/classifyInbound.test.ts`, `tests/regresi/deteksiMisfire.ts`,
+    `tests/korpus/dasar.json` (modifikasi)
   - `.scratch/harga-transportasi-per-rute/` — spec + 4 tiket, semuanya `resolved` (ditandai 21:16)
+  - `.scratch/harga-fotografi-tasreh-cgk/` — spec + 4 tiket, semuanya `resolved`
   - `.scratch/whatsapp-customer-service-chatbot/recover-ssh-22-userdata.sh` (skrip pemulihan SSH, 12 Okt)
   - `.scratch/whatsapp-customer-service-chatbot/HANDOFF-SESI.md` (berkas arsip, termodifikasi)
 - Branch **`feat/gemini-runtime-integration`** @ `5104f7b` (base `36a1321`,
@@ -76,6 +81,23 @@ digabung.
    user data cloud-init. Skrip: `recover-ssh-22-userdata.sh`.
 8. **Cloud API (tiket 09 lama) & cutover nomor produksi** — status tidak
    berubah: keduanya masih `ready-for-human`.
+9. **`harga-fotografi-tasreh-cgk`** — diimplementasikan di working tree
+   (belum di-commit), mengikuti resep `.scratch/catatan-sesi-harga-transportasi.md`:
+   - jawaban `price-photographer-videographer` kini dirender per lokasi sesi
+     dari modul `src/knowledge/fotoHarga.ts` (13 baris dari
+     `data/foto harga/WhatsApp Image 2026-10-12 at 13.54.15.md`); label
+     **Paket Spesial Ramadan** menggantikan "High season" BOOKLET; ditambah
+     durasi, meeting point, exclude (transport) dan add-on (SAR 50/100/300).
+   - topik baru `price-tasreh` (**IDR 300.000 per pax**) + `tasreh` non-harga;
+     pola `UNSUPPORTED_TOPIC` dipecah agar pertanyaan harga tasreh tetap
+     terjawab walau menyebut Raudhah/Nusuk (siskopatuh & kereta Haramain tetap
+     handoff).
+   - `price-airport-handling`: **Handling Bandara CGK IDR 300.000 per pax**
+     menggantikan angka BOOKLET "Handling Bandara Jakarta IDR 350.000"
+     (keputusan pemilik: harga memang sudah berubah).
+   - pola fotografi kini mengenali kata `foto` ("harga foto di Masjid Nabawi"
+     sebelumnya jatuh ke handoff).
+   Tiket 01–04 dan spec `resolved`. Lihat `.scratch/harga-fotografi-tasreh-cgk/`.
 
 ## EC2: status & operasional
 
@@ -158,7 +180,7 @@ di-stop/start kapan saja).
 1. **Preflight**
 
    ```bash
-   npm test && npm run typecheck        # terakhir: 407 hijau, typecheck bersih
+   npm test && npm run typecheck        # terakhir: 458 hijau, typecheck bersih
    cat .env                             # pastikan WHATSAPP_PROVIDER=fonnte & token ada
    ```
 
@@ -232,6 +254,11 @@ diperbaiki di tengah jalan.
 12. **Lampiran** — kirim gambar/dokumen → diakui sebagai lampiran, isinya tidak
     ditafsirkan.
 13. **Pemicu manusia** — "saya mau bicara dengan manusia" → langsung handoff.
+14. **Harga baru (fotografi / tasreh / CGK)** — "berapa harga foto di Masjid
+    Nabawi?" → hanya baris Nabawi + meeting point (tanpa angka lokasi lain);
+    "berapa biaya tasreh raudhah?" → Harga Indikatif **IDR 300.000 per pax**
+    (bukan handoff); "berapa harga handling bandara CGK?" → **IDR 300.000 per
+    pax**, tanpa lagi angka IDR 350.000.
 
 ## Peringatan untuk sesi baru
 
@@ -252,13 +279,14 @@ diperbaiki di tengah jalan.
   mati / port ter-drop, bukan aplikasi rusak. Konfirmasi ke pemilik dulu.
 - **Working tree punya pekerjaan belum di-commit yang hijau.** Sebelum
   berpindah branch atau menjalankan perintah git destruktif, pastikan nasib
-  pekerjaan `harga-transportasi-per-rute` sudah diputuskan.
+  pekerjaan `harga-transportasi-per-rute` **dan** `harga-fotografi-tasreh-cgk`
+  sudah diputuskan.
 
 ## Pekerjaan open (urutan yang diusulkan)
 
 | Butir | Status |
 | --- | --- |
-| Commit + push pekerjaan `harga-transportasi-per-rute` (hijau, di working tree) | **sesi berikutnya** — verifikasi lalu commit; tiket 01–04 sudah `resolved` |
+| Commit + push pekerjaan `harga-transportasi-per-rute` + `harga-fotografi-tasreh-cgk` (hijau, di working tree) | **sesi berikutnya** — verifikasi lalu commit; seluruh tiket sudah `resolved` |
 | Review & putuskan merge `feat/gemini-runtime-integration` (`5104f7b`, ADR-0013) | **sesi berikutnya** — butuh penyelesaian konflik `handleInbound.ts`; lalu probe ber-`GEMINI_API_KEY` |
 | Uji coba ulang bot + evaluasi bersama pemilik (perilaku terkini) | setelah dua butir di atas; pakai skenario di dokumen ini |
 | Konfirmasi status instance EC2 & uji `https://bot.47.130.22.165.nip.io` dari luar | **terbuka & mendesak** — tidak terjangkau sejak 2026-10-11; butuh konfirmasi pemilik |
@@ -274,11 +302,12 @@ diperbaiki di tengah jalan.
 - Runtime: Node >= 22.18, TypeScript via type stripping, **tanpa dependency
   runtime** (ADR-0002).
 - Seam percakapan provider-agnostic: `src/conversation/handleInbound.ts`
-  (`handleInbound(message, context): BotTurn`) — **jangan dirusak**; 407 tes
+  (`handleInbound(message, context): BotTurn`) — **jangan dirusak**; 458 tes
   menjaganya. Di branch Gemini, signature menerima hasil klasifikasi opsional.
 - Direktori tiket di `.scratch/`: `lead-intake` (issues 01–11, `resolved`),
   `jeda-ambil-alih`, `penyela-pengumpulan`, `tujuan-chat`,
-  `harga-transportasi-per-rute`, `pencocokan-korpus-transkrip`.
+  `harga-transportasi-per-rute`, `harga-fotografi-tasreh-cgk`,
+  `pencocokan-korpus-transkrip`.
   Spesifikasi lama `.scratch/whatsapp-customer-service-chatbot/`.
 - ADR di `docs/adr/` sampai **ADR-0012** di `main`; **ADR-0013**
   (`pemaham-gemini-di-jalur-webhook`) masih di branch. Terbaru di `main`:
@@ -287,7 +316,10 @@ diperbaiki di tengah jalan.
 - Deploy EC2: `docs/deploy-ec2.md` (Elastic IP `47.130.22.165`, layanan systemd
   `mutawwifmu`, repo `/home/ubuntu/bot`, domain `bot.47.130.22.165.nip.io`).
 - Materi bisnis: `BOOKLET MUTAWWIFMU.md`, `HOTEL RATES MUTAWWIFMU (2).md`,
-  `data/transportasi harga/WhatsApp Image 2026-10-12 at 13.48.14.md`.
+  `data/transportasi harga/WhatsApp Image 2026-10-12 at 13.48.14.md`,
+  `data/foto harga/WhatsApp Image 2026-10-12 at 13.54.15.md` (harga fotografi);
+  angka tasreh & handling CGK dari transkrip admin (`data/Cut Emelia`,
+  `data/Vira Arman`).
 - `data/` di-gitignore (data pribadi: transkrip + nomor). Korpus uji di
   `tests/korpus/` sengaja ter-versioning; tambah kasus cukup lewat JSON
   (lihat `tests/korpus/README.md`).

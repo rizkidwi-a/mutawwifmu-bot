@@ -14,6 +14,7 @@ const SEMUA_TOPIK: readonly FaqTopic[] = [
   "hotel-accommodation",
   "transport-fleet",
   "airport-handling",
+  "tasreh",
   "city-tour",
   "city-tour-makkah",
   "city-tour-madinah",
@@ -30,6 +31,7 @@ const SEMUA_TOPIK: readonly FaqTopic[] = [
   "price-transport",
   "price-city-tour",
   "price-photographer-videographer",
+  "price-tasreh",
   "price-hotel",
 ];
 
@@ -41,6 +43,7 @@ const TOPIK_HARGA: readonly FaqTopic[] = [
   "price-transport",
   "price-city-tour",
   "price-photographer-videographer",
+  "price-tasreh",
   "price-hotel",
 ];
 
@@ -111,9 +114,13 @@ test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
   assert.match(faqAnswer("price-mutawwif", "id"), /SAR 400/);
   assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 2\.980\.000/);
   assert.match(faqAnswer("price-document-arrangement", "id"), /IDR 100\.000/);
-  assert.match(faqAnswer("price-airport-handling", "id"), /IDR 350\.000/);
+  assert.match(faqAnswer("price-airport-handling", "id"), /Handling Bandara CGK/);
+  assert.match(faqAnswer("price-airport-handling", "id"), /IDR 300\.000/);
   assert.match(faqAnswer("price-airport-handling", "id"), /SAR 300/);
   assert.match(faqAnswer("price-airport-handling", "id"), /SAR 900/);
+  // Keputusan pemilik 2026-10-13: angka BOOKLET "Handling Bandara Jakarta"
+  // diganti angka CGK dari percakapan admin.
+  assert.doesNotMatch(faqAnswer("price-airport-handling", "id"), /350[.,]000/);
   assert.match(faqAnswer("price-transport", "id"), /SAR 400/);
   assert.match(faqAnswer("price-transport", "id"), /SAR 1\.950/);
   assert.match(faqAnswer("price-city-tour", "id"), /SAR 820/);
@@ -121,6 +128,12 @@ test("jawaban Harga Indikatif hanya memuat angka yang tercantum materi", () => {
   assert.match(faqAnswer("price-city-tour", "id"), /SAR 2\.095/);
   assert.match(faqAnswer("price-photographer-videographer", "id"), /SAR 600/);
   assert.match(faqAnswer("price-photographer-videographer", "id"), /SAR 4\.500/);
+  // Label bagian mengikuti materi foto 2026-10-12, bukan label BOOKLET.
+  assert.match(faqAnswer("price-photographer-videographer", "id"), /Paket Spesial Ramadan/);
+  assert.doesNotMatch(faqAnswer("price-photographer-videographer", "id"), /High season|Low season/);
+  // Tasreh: angka dari percakapan admin (dua sumber sepakat per pax).
+  assert.match(faqAnswer("price-tasreh", "id"), /IDR 300\.000 per pax/);
+  assert.match(faqAnswer("price-tasreh", "en"), /IDR 300,000 per pax/);
   // Visa Umrah Express tidak memuat angka di materi — jangan dikarang.
   assert.doesNotMatch(faqAnswer("price-document-arrangement", "id"), /Express[\s\S]*?IDR/);
 });
@@ -151,6 +164,8 @@ test("matchFaqTopic mengenali pertanyaan harga yang tercantum materi sebagai top
   assert.equal(matchFaqTopic("Berapa harga city tour Madinah?"), "price-city-tour");
   assert.equal(matchFaqTopic("Berapa tarif transportasi dari Jeddah?"), "price-transport");
   assert.equal(matchFaqTopic("Berapa harga airport handling di Jeddah?"), "price-airport-handling");
+  assert.equal(matchFaqTopic("Berapa biaya tasreh raudhah?"), "price-tasreh");
+  assert.equal(matchFaqTopic("How much does the tasreh cost?"), "price-tasreh");
   // Harga yang tidak tercantum materi tidak menjadi topik harga.
   assert.equal(matchFaqTopic("Berapa harga tour guide ke Jepang?"), "tour-guide");
 });
@@ -207,6 +222,8 @@ test("matchFaqTopic mengenali pertanyaan berbahasa Indonesia dan Inggris", () =>
   assert.equal(matchFaqTopic("What vehicles do you use for transfers?"), "transport-fleet");
   assert.equal(matchFaqTopic("Apakah ada pendampingan di bandara?"), "airport-handling");
   assert.equal(matchFaqTopic("Do you handle airport pickup and drop-off?"), "airport-handling");
+  assert.equal(matchFaqTopic("Ada layanan tasreh tidak?"), "tasreh");
+  assert.equal(matchFaqTopic("Do you arrange tasreh for Raudhah?"), "tasreh");
 });
 
 test("matchFaqTopic mengenali city tour per destinasi lebih dahulu", () => {

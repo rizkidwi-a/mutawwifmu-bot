@@ -31,8 +31,17 @@
  * dirender per rute lewat `jawabanFaq()` sesuai kata kunci tujuan pada pesan
  * (lihat `transportRute.ts`). `faqAnswer("price-transport")` tetap memuat
  * seluruh rute sebagai materi acuan grounding angka.
+ *
+ * Fitur harga-fotografi-tasreh-cgk: angka `price-photographer-videographer`
+ * kini dari `data/foto harga/` (2026-10-12) dan dirender per lokasi lewat
+ * `jawabanFaq()` (lihat `fotoHarga.ts`) — label "Paket Spesial Ramadan"
+ * menggantikan "High season" BOOKLET. Topik baru `price-tasreh` memuat angka
+ * IDR 300.000 per pax dari percakapan admin (sumber: chat Cut Emelia dan Vira
+ * Arman), dan `price-airport-handling` memakai angka CGK IDR 300.000 per pax
+ * sebagai pengganti angka BOOKLET "Handling Bandara Jakarta".
  */
 import type { Language } from "../conversation/language.ts";
+import { susunJawabanFoto, susunMateriFoto } from "./fotoHarga.ts";
 import { susunJawabanTransport, susunMateriTransport } from "./transportRute.ts";
 
 /**
@@ -49,6 +58,7 @@ export type PriceTopic =
   | "price-transport"
   | "price-city-tour"
   | "price-photographer-videographer"
+  | "price-tasreh"
   | "price-hotel";
 
 /** Topik FAQ yang didukung materi bisnis MUTAWWIFMU. */
@@ -63,6 +73,7 @@ export type FaqTopic =
   | "airport-handling"
   | "charity-program"
   | "photographer-videographer"
+  | "tasreh"
   | "custom-itinerary"
   | "city-tour"
   | "city-tour-makkah"
@@ -79,6 +90,7 @@ const PRICE_TOPICS: ReadonlySet<FaqTopic> = new Set<FaqTopic>([
   "price-transport",
   "price-city-tour",
   "price-photographer-videographer",
+  "price-tasreh",
   "price-hotel",
 ]);
 
@@ -109,6 +121,13 @@ const KATA_TRANSPORT =
 
 /** Pola penolak: pesan TIDAK memuat kata penanda transportasi. */
 const TANPA_KATA_TRANSPORT = new RegExp(`^(?!.*${KATA_TRANSPORT.source})`, "i");
+
+/**
+ * Kata penanda layanan tasreh — pengurusan izin masuk Raudhah yang diterbitkan
+ * sebagai barcode (materi: chat Cut Emelia dan Vira Arman, 2026). Varian
+ * ejaan "tasreg" ikut dikenali karena dipakai calon jemaah.
+ */
+const PENANDA_TASREH = /\b(tasreh|tasreg)\b/i;
 
 /**
  * Penanda topik mutawwif (tiket 09, diperluas tiket 11). "membimbing" dan
@@ -186,27 +205,16 @@ const ENTRIES: readonly FaqEntry[] = [
     topic: "price-photographer-videographer",
     patterns: [
       PRICE_WORD,
-      /\b(fotografer|videografer|photograph(y|ers?)?|videograph(y|ers?)?|kameraman|dokumentasi|documentation|sesi foto|photos?|videos?)\b/i,
+      // "foto" (bentuk sehari-hari) ikut dikenali agar "harga foto di Masjid
+      // Nabawi" mencapai matcher lokasi, bukan jatuh ke handoff.
+      /\b(fotos?|fotografer|videografer|photograph(y|ers?)?|videograph(y|ers?)?|kameraman|dokumentasi|documentation|photos?|videos?)\b/i,
     ],
     answer: {
-      id:
-        "Harga Indikatif layanan fotografer/videografer — bukan penawaran final. " +
-        "Low season: Pelataran Masjidil Haram SAR 600 (sendiri/couple) dan SAR 1.000 (keluarga lebih dari 2 pax); " +
-        "Masjid Nabawi SAR 500 dan SAR 800; Jabal Kudai & Khandama SAR 500 dan SAR 750 per sesi; " +
-        "Paket Al-Ula SAR 1.250 per sesi (kamera profesional) atau SAR 900 per sesi (kamera iPhone minimal iPhone 15). " +
-        "High season dengan harga per sesi: Masjidil Haram SAR 750; Jabal Kudai & Khandama SAR 1.000; " +
-        "Masjid Nabawi SAR 600; Al-Ula SAR 4.500; akad nikah/momen spesial SAR 1.250. " +
-        "Harga sudah termasuk editing foto dan video profesional. " +
-        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi sesi dan harga terkini kepada tim kami.",
-      en:
-        "Indicative Prices for our photographer/videographer service — not a final offer. " +
-        "Low season: the courtyard of Masjidil Haram SAR 600 (solo/couple) and SAR 1,000 (family of more than 2 pax); " +
-        "Masjid Nabawi SAR 500 and SAR 800; Jabal Kudai & Khandama SAR 500 and SAR 750 per session; " +
-        "Al-Ula Package SAR 1,250 per session (professional camera) or SAR 900 per session (iPhone camera, minimum iPhone 15). " +
-        "High season, priced per session: Masjidil Haram SAR 750; Jabal Kudai & Khandama SAR 1,000; " +
-        "Masjid Nabawi SAR 600; Al-Ula SAR 4,500; akad nikah/special moments SAR 1,250. " +
-        "Prices already include professional photo and video editing. " +
-        "Figures may change after being reviewed by our admin — please confirm the session and current price with our team.",
+      // Materi = template (fitur harga-fotografi-tasreh-cgk): seluruh 13 baris
+      // dari `data/foto harga/` — label "Paket Spesial Ramadan" menggantikan
+      // "High season" BOOKLET, plus durasi, meeting point, dan add-on.
+      id: susunMateriFoto("id"),
+      en: susunMateriFoto("en"),
     },
   },
   {
@@ -263,18 +271,26 @@ const ENTRIES: readonly FaqEntry[] = [
     topic: "price-airport-handling",
     patterns: [PRICE_WORD, /\b(airport|bandara|imigrasi|immigration|bagasi|baggage|handling|arrival|departure)\b/i],
     answer: {
+      // Angka CGK (IDR 300.000 per pax) dari percakapan admin menggantikan
+      // angka BOOKLET "Handling Bandara Jakarta IDR 350.000" — keputusan
+      // pemilik 2026-10-13 (spec harga-fotografi-tasreh-cgk). Keterangan
+      // periode 2025–2026 hanya melekat pada baris Jeddah (daftar harga).
       id:
         "Harga Indikatif airport handling — bukan penawaran final: " +
-        "Handling Bandara Jakarta IDR 350.000 per pax; " +
+        "Handling Bandara CGK (keberangkatan dan kepulangan) IDR 300.000 per pax " +
+        "— mencakup pendampingan dari mobil ke bagasi dan dari bagasi kembali ke mobil. " +
         "Handling Bandara Jeddah untuk kedatangan dan kepulangan SAR 300 per grup; " +
-        "Handling Bandara Jeddah untuk kepulangan dan penjemputan (termasuk mutawwif gratis saat umroh 1x) SAR 900 per grup. " +
-        "Materi mencatat harga berlaku untuk periode 2025–2026 dan dapat berubah sewaktu-waktu, termasuk setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
+        "Handling Bandara Jeddah untuk kepulangan dan penjemputan (termasuk mutawwif gratis saat umroh 1x) SAR 900 per grup " +
+        "— kedua baris Jeddah mengikuti daftar harga yang mencatat periode 2025–2026. " +
+        "Harga dapat berubah sewaktu-waktu, termasuk setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
       en:
         "Indicative Prices for airport handling — not a final offer: " +
-        "Jakarta Airport Handling IDR 350,000 per pax; " +
+        "CGK Airport Handling (departure and return) IDR 300,000 per pax " +
+        "— covering assistance from the vehicle to the baggage area and back from baggage to the vehicle. " +
         "Jeddah Airport Handling for arrival and departure SAR 300 per group; " +
-        "Jeddah Airport Handling for departure and pickup (including a free mutawwif for 1x umrah) SAR 900 per group. " +
-        "Our materials note the prices apply to the 2025–2026 period and may change over time, including after being reviewed by our admin — please confirm the current price with our team.",
+        "Jeddah Airport Handling for departure and pickup (including a free mutawwif for 1x umrah) SAR 900 per group " +
+        "— both Jeddah lines follow the price list noted for the 2025–2026 period. " +
+        "Prices may change at any time, including after being reviewed by our admin — please confirm the current price with our team.",
     },
   },
   {
@@ -319,6 +335,25 @@ const ENTRIES: readonly FaqEntry[] = [
         "This is not a final offer and does not guarantee hotel availability; " +
         "figures may change after being reviewed by our admin — " +
         "please share the hotel, period, and room type you are interested in for our team to confirm.",
+    },
+  },
+  {
+    topic: "price-tasreh",
+    patterns: [PRICE_WORD, PENANDA_TASREH],
+    answer: {
+      // Angka dari percakapan admin (Cut Emelia: "pengurusan tasreh Raudhah
+      // seharga Rp300.000/pax"; Vira Arman: "tasreh diluar aplikasi kami ada
+      // ... IDR 300.000/Pax") — keduanya sepakat IDR 300.000 per pax.
+      id:
+        "Harga Indikatif pengurusan tasreh (barcode izin masuk Raudhah) — bukan penawaran final: " +
+        "IDR 300.000 per pax. " +
+        "Tasreh diterbitkan dalam bentuk barcode sebagai bukti izin masuk Raudhah sesuai jadwal yang tersedia. " +
+        "Angka dapat berubah setelah diperiksa admin — mohon konfirmasi harga terkini kepada tim kami.",
+      en:
+        "Indicative Price for tasreh arrangement (Raudhah entry barcode) — not a final offer: " +
+        "IDR 300,000 per pax. " +
+        "The tasreh is issued as a barcode as proof of entry to Raudhah according to the available schedule. " +
+        "Figures may change after being reviewed by our admin — please confirm the current price with our team.",
     },
   },
   {
@@ -452,15 +487,27 @@ const ENTRIES: readonly FaqEntry[] = [
     },
   },
   {
+    topic: "tasreh",
+    patterns: [PENANDA_TASREH],
+    answer: {
+      id:
+        "MUTAWWIFMU menyediakan layanan pengurusan tasreh — izin masuk Raudhah — yang diterbitkan dalam bentuk barcode sesuai jadwal yang tersedia. " +
+        "Rincian layanan dan angkanya perlu dikonfirmasi oleh tim kami.",
+      en:
+        "MUTAWWIFMU provides a tasreh arrangement service — permission to enter Raudhah — issued as a barcode according to the available schedule. " +
+        "Service details and pricing need to be confirmed by our team.",
+    },
+  },
+  {
     topic: "airport-handling",
     patterns: [/\b(airport handling|handling bandara|airport|bandara|imigrasi|immigration|bagasi|baggage|kedatangan|kepulangan|arrival|departure)\b/i],
     answer: {
       id:
         "Airport handling MUTAWWIFMU mencakup pendampingan kedatangan dan kepulangan di bandara: imigrasi, bagasi, hingga transfer ke hotel. " +
-        "Materi kami mencantumkan penanganan untuk Bandara Jakarta serta Bandara Jeddah (kedatangan dan kepulangan).",
+        "Materi kami mencantumkan penanganan untuk Bandara Jakarta (CGK) serta Bandara Jeddah (kedatangan dan kepulangan).",
       en:
         "MUTAWWIFMU's airport handling covers arrival and departure assistance at the airport: immigration, baggage, through to hotel transfer. " +
-        "Our materials list handling for Jakarta Airport and Jeddah Airport (arrival and departure).",
+        "Our materials list handling for Jakarta Airport (CGK) and Jeddah Airport (arrival and departure).",
     },
   },
   {
@@ -506,7 +553,7 @@ const ENTRIES: readonly FaqEntry[] = [
   {
     topic: "photographer-videographer",
     patterns: [
-      /\b(fotografer|videografer|photograph(y|ers?)?|videograph(y|ers?)?|kameraman|dokumentasi|documentation|sesi foto|photo(s| shoot)?|video(s| shoot)?)\b/i,
+      /\b(fotos?|fotografer|videografer|photograph(y|ers?)?|videograph(y|ers?)?|kameraman|dokumentasi|documentation|photos?|videos?)\b/i,
     ],
     answer: {
       id:
@@ -564,15 +611,19 @@ export function faqAnswer(topic: FaqTopic, language: Language): string {
 }
 
 /**
- * Jawaban FAQ untuk sebuah pesan (fitur harga-transportasi-per-rute).
- * Topik `price-transport` dirender per rute sesuai kata kunci tujuan pada
- * pesan; topik lain memakai `faqAnswer` apa adanya. `faqAnswer` tetap memuat
- * materi lengkap — termasuk seluruh rute transport — sebagai acuan grounding
- * angka (`pengamanAngka`).
+ * Jawaban FAQ untuk sebuah pesan (fitur harga-transportasi-per-rute dan
+ * harga-fotografi-tasreh-cgk). Topik `price-transport` dirender per rute sesuai
+ * kata kunci tujuan, dan `price-photographer-videographer` per lokasi sesi,
+ * keduanya dari pesan Calon Jemaah; topik lain memakai `faqAnswer` apa adanya.
+ * `faqAnswer` tetap memuat materi lengkap — termasuk seluruh rute transport dan
+ * seluruh baris harga foto — sebagai acuan grounding angka (`pengamanAngka`).
  */
 export function jawabanFaq(topic: FaqTopic, pesan: string, language: Language): string {
   if (topic === "price-transport") {
     return susunJawabanTransport(pesan, language);
+  }
+  if (topic === "price-photographer-videographer") {
+    return susunJawabanFoto(pesan, language);
   }
   return faqAnswer(topic, language);
 }

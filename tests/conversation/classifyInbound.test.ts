@@ -289,6 +289,30 @@ test("topik gap tiket 10 tetap handoff, termasuk varian ejaan dan bentuk tanya t
   }
 });
 
+test("pertanyaan harga tasreh lolos dari pola Raudhah/Nusuk, topik gap lain tetap handoff", () => {
+  // Pengecualian khusus (spec harga-fotografi-tasreh-cgk): tasreh kini punya
+  // materi harga, jadi pertanyaan angkanya dijawab Harga Indikatif walau
+  // pesan menyebut Raudhah.
+  assert.deepEqual(classifyInbound("Berapa biaya tasreh raudhah?"), {
+    kind: "indicative-price",
+    topic: "price-tasreh",
+  });
+  // Tanpa kata harga, Raudhah/Nusuk tetap topik gap → handoff.
+  for (const text of [
+    "raudhah itu apakah perlu pesan2 gitu?",
+    "nusuk card kebijakannya gimana",
+    // Siskopatuh dan kereta Haramain tidak ikut pengecualian.
+    "Berapa biaya siskopatuhnya?",
+    "Berapa biaya tasreh haramain?",
+  ]) {
+    assert.deepEqual(
+      classifyInbound(text),
+      { kind: "handoff", trigger: "unsupported-question" },
+      text,
+    );
+  }
+});
+
 test("pernyataan negatif atau sudah berjalan yang berakhir bisa bukan pertanyaan", () => {
   for (const text of ["saya tidak bisa", "gak bisa", "ga bisa", "belum bisa", "sudah bisa"]) {
     assert.deepEqual(classifyInbound(text), { kind: "opener" }, text);

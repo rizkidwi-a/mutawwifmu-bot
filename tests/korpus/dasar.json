@@ -33,6 +33,9 @@
     { "pesan": "harga fotografer berapa", "harapan": { "jenis": "faq", "topik": "price-photographer-videographer" }, "grup": "baku" },
     { "pesan": "kalo mau sewa mutawwif harganya brp?", "harapan": { "jenis": "faq", "topik": "price-mutawwif" }, "grup": "gaul" },
     { "pesan": "biaya ngurus dokumen sama visa berapa?", "harapan": { "jenis": "faq", "topik": "price-document-arrangement" }, "grup": "parafrase" },
+    { "pesan": "berapa biaya tasreh raudhah?", "harapan": { "jenis": "faq", "topik": "price-tasreh" }, "grup": "baku", "catatan": "Fitur harga-fotografi-tasreh-cgk: pertanyaan harga tasreh dijawab dari materi walaupun menyebut Raudhah (pengecualian pola topik gap)." },
+    { "pesan": "harga fotografer di masjid nabawi berapa?", "harapan": { "jenis": "faq", "topik": "price-photographer-videographer" }, "grup": "gaul" },
+    { "pesan": "handling bandara cgk harganya berapa?", "harapan": { "jenis": "faq", "topik": "price-airport-handling" }, "grup": "gaul" },
 
     { "pesan": "land arrangement itu apa sih?", "harapan": { "jenis": "faq", "topik": "land-arrangement" }, "grup": "gaul" },
     { "pesan": "akomodasi selama di tanah suci nginepnya dimana aja?", "harapan": { "jenis": "faq", "topik": "hotel-accommodation" }, "grup": "parafrase" },

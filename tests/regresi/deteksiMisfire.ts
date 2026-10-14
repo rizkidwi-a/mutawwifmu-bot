@@ -32,7 +32,9 @@ export const TOPIK_MATERI: readonly FaqTopic[] = [
   "price-transport",
   "price-city-tour",
   "price-photographer-videographer",
+  "price-tasreh",
   "price-hotel",
+  "tasreh",
 ];
 
 /** Topik materi yang jawaban templatenya (ID/EN) terkandung dalam balasan. */

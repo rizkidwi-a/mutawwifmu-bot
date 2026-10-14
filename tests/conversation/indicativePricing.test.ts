@@ -20,10 +20,11 @@ const PERTANYAAN_HARGA: ReadonlyArray<
 > = [
   ["Berapa harga mutawwif?", "price-mutawwif", [/SAR 300/, /SAR 400/, /per grup/]],
   ["Berapa biaya visa umrah?", "price-document-arrangement", [/IDR 2\.980\.000/, /IDR 100\.000/, /per pax/]],
-  ["Berapa harga airport handling?", "price-airport-handling", [/IDR 350\.000/, /SAR 300/, /SAR 900/, /2025–2026/]],
+  ["Berapa harga airport handling?", "price-airport-handling", [/Handling Bandara CGK/, /IDR 300\.000/, /SAR 300/, /SAR 900/, /2025–2026/]],
   ["Berapa harga transportasi dari Jeddah?", "price-transport", [/SAR 400/, /SAR 1\.550/, /per kendaraan/]],
   ["Berapa harga city tour Madinah?", "price-city-tour", [/SAR 820/, /SAR 1\.395/, /free snack/]],
-  ["Berapa harga fotografer?", "price-photographer-videographer", [/SAR 600/, /SAR 4\.500/, /editing/]],
+  ["Berapa harga fotografer?", "price-photographer-videographer", [/SAR 600/, /SAR 4\.500/, /editing/, /Paket Spesial Ramadan/]],
+  ["Berapa biaya tasreh raudhah?", "price-tasreh", [/IDR 300\.000 per pax/, /barcode/]],
 ];
 
 for (const [pesan, topik, kataKunci] of PERTANYAAN_HARGA) {
@@ -150,6 +151,56 @@ test("permintaan booking dan pembayaran terkait harga tetap ditangani admin, buk
  * baris rute yang terpicu kata kunci tujuan yang ditampilkan, dengan angka
  * tabel transport 2026-10-12 (SAR per kendaraan/per grup).
  */
+test("pertanyaan harga fotografi hanya menampilkan baris lokasi yang disebut", () => {
+  const percakapan = new Percakapan();
+  const turn = percakapan.kirim("Berapa harga foto di Masjid Nabawi?");
+  const balasan = teksBalasan(turn);
+  assert.match(balasan, /Harga Indikatif/);
+  assert.match(balasan, /bukan penawaran final/);
+  assert.match(balasan, /dapat berubah[^.]*setelah diperiksa admin/i);
+  assert.match(balasan, /Masjid Nabawi — Sendiri \/ Couple: SAR 500/);
+  assert.match(balasan, /Masjid Nabawi — Family \/ lebih dari 2 pax: SAR 800/);
+  assert.match(balasan, /Meeting point Masjid Nabawi: Depan Pintu 333/);
+  // Baris dan angka lokasi lain tidak bocor ke jawaban.
+  assert.doesNotMatch(balasan, /Masjidil Haram|Jabal Kudai|Al-Ula/);
+  assert.doesNotMatch(balasan, /SAR 4\.500|SAR 1\.000/);
+  const catat = turn.actions.find((aksi) => aksi.kind === "record-faq-answer");
+  assert.ok(catat && catat.kind === "record-faq-answer");
+  assert.equal(catat.topic, "price-photographer-videographer");
+  assert.deepEqual(turn.actions.filter((aksi) => aksi.kind === "hand-off-to-admin"), []);
+});
+
+test("pertanyaan harga tasreh dijawab Harga Indikatif walau menyebut Raudhah", () => {
+  for (const pesan of [
+    "Berapa biaya tasreh raudhah?",
+    "berapa harga tasreh untuk masuk raudhah per pax?",
+  ]) {
+    const percakapan = new Percakapan();
+    const turn = percakapan.kirim(pesan);
+    const balasan = teksBalasan(turn);
+    assert.match(balasan, /Harga Indikatif/);
+    assert.match(balasan, /bukan penawaran final/);
+    assert.match(balasan, /dapat berubah[^.]*setelah diperiksa admin/i);
+    assert.match(balasan, /IDR 300\.000 per pax/, pesan);
+    assert.match(balasan, /barcode/, pesan);
+    const catat = turn.actions.find((aksi) => aksi.kind === "record-faq-answer");
+    assert.ok(catat && catat.kind === "record-faq-answer", pesan);
+    assert.equal(catat.topic, "price-tasreh", pesan);
+    assert.deepEqual(
+      turn.actions.filter((aksi) => aksi.kind === "hand-off-to-admin"),
+      [],
+      pesan,
+    );
+  }
+});
+
+test("jawaban airport handling memakai angka CGK terbaru tanpa angka BOOKLET", () => {
+  const balasan = teksBalasan(new Percakapan().kirim("Berapa harga handling bandara CGK?"));
+  assert.match(balasan, /Handling Bandara CGK/);
+  assert.match(balasan, /IDR 300\.000/);
+  assert.doesNotMatch(balasan, /350[.,]000/);
+});
+
 test("pertanyaan harga transportasi hanya menampilkan rute sesuai tujuan yang disebut", () => {
   const percakapan = new Percakapan();
   const turn = percakapan.kirim("Berapa harga transportasi dari Jeddah Airport ke Makkah Hotel?");

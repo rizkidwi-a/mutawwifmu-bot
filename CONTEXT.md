@@ -62,6 +62,10 @@ _Avoid_: harga final, harga terkonfirmasi
 Layanan yang tercantum di profil perusahaan: mutawwif outsourcing, tour guide, visa dan dokumen, hotel dan akomodasi, transportasi, airport handling, charity program, dukungan multibahasa, fotografi dan videografi, serta custom itinerary.
 _Avoid_: hanya layanan hotel, jika yang dimaksud seluruh katalog perusahaan
 
+**Tasreh**:
+Izin masuk Raudhah yang diurus MUTAWWIFMU dan diterbitkan dalam bentuk barcode sesuai jadwal yang tersedia; angkanya termasuk Harga Indikatif.
+_Avoid_: Nusuk — aplikasi resmi tempat jemaah mengajukan izin masuk; tasreh adalah layanan pengurusannya, bukan aplikasinya_
+
 ## Operasional Admin
 
 **Jeda Percakapan**:

@@ -197,7 +197,17 @@ const POLICY_OR_PROCESS_REQUEST =
  * pola ini cukup memuat bentuk baku.
  */
 const UNSUPPORTED_TOPIC =
-  /\b(raudhah|raudah|rawdhah|raudhatul|rawda|nusuk|siskopatuh)\b|\b(?:(?:al\s?)?haramain|hhr)\b|\bkereta(?!\s*gantung)\b/i;
+  /\b(siskopatuh)\b|\b(?:(?:al\s?)?haramain|hhr)\b|\bkereta(?!\s*gantung)\b/i;
+
+/**
+ * Varian Raudhah/Nusuk dipisah dari `UNSUPPORTED_TOPIC` (fitur
+ * harga-fotografi-tasreh-cgk): pengurusan tasreh kini punya materi harga, jadi
+ * pertanyaan **harga tasreh** yang kebetulan menyebut Raudhah/Nusuk diberi
+ * pengecualian pada loop pemicu handoff. Pesan lain yang menyebut Raudhah atau
+ * Nusuk tetap diteruskan ke admin seperti sebelumnya.
+ */
+const UNSUPPORTED_TOPIC_RAUDHAH =
+  /\b(raudhah|raudah|rawdhah|raudhatul|rawda|nusuk)\b/i;
 
 /**
  * Kelompok 6 tiket 08 — kerjasama/kolaborasi pihak ketiga (mis. "ada kerjasama
@@ -254,6 +264,7 @@ const HANDOFF_PATTERNS: readonly HandoffPattern[] = [
   // materi tidak dicatat sebagai `faq`, melainkan diteruskan ke admin.
   { trigger: "unsupported-question", pattern: PARTNERSHIP_REQUEST },
   { trigger: "unsupported-question", pattern: UNSUPPORTED_TOPIC },
+  { trigger: "unsupported-question", pattern: UNSUPPORTED_TOPIC_RAUDHAH },
   { trigger: "unsupported-question", pattern: TIMING_OR_DEADLINE_REQUEST },
   { trigger: "unsupported-question", pattern: POLICY_OR_PROCESS_REQUEST },
   { trigger: "custom-quote-or-availability", pattern: PRICE_DELTA_REQUEST },
@@ -292,9 +303,15 @@ export function classifyInbound(text: string): InboundRouting {
   // dipakai untuk seluruh pencocokan (pemicu handoff maupun topik materi).
   const pesan = normalkanVarianEjaan(text);
   for (const { trigger, pattern } of HANDOFF_PATTERNS) {
-    if (pattern.test(pesan)) {
-      return { kind: "handoff", trigger };
+    if (!pattern.test(pesan)) continue;
+    // Pengecualian harga tasreh (spec harga-fotografi-tasreh-cgk): pesan yang
+    // terbaca sebagai pertanyaan harga tasreh melewati pola Raudhah/Nusuk agar
+    // dijawab Harga Indikatif. Topik lain tetap lolos bila pesan juga menyebut
+    // siskopatuh atau kereta Haramain (pola terpisah, tetap handoff).
+    if (pattern === UNSUPPORTED_TOPIC_RAUDHAH && matchFaqTopic(pesan) === "price-tasreh") {
+      continue;
     }
+    return { kind: "handoff", trigger };
   }
   // Permintaan penawaran/konfirmasi menyelap Harga Indikatif apa pun isinya.
   if (QUOTE_OR_AVAILABILITY_REQUEST.test(pesan)) {
