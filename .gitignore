@@ -4,6 +4,6 @@ node_modules/
 !.env.example
 dist/
 *.log
-.scratch/tmp/
+.scratch/
 # data/ memuat data pribadi (nomor + isi pesan transkrip percakapan)
 data/
