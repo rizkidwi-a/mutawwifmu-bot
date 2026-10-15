@@ -2,6 +2,8 @@
 
 Status: accepted
 
+Catatan: alternatif "Memperbaiki state `admin-routed`" yang ditolak di bawah dan konsekuensi "State `admin-routed` tetap membalas `BASA_BASI` apa adanya" dibatalkan khusus untuk kata kunci ulangi oleh [ADR-0016](0016-ulangi-dari-admin-routed.md); pesan lain pada state itu tetap `BASA_BASI`.
+
 ## Konteks
 
 Setelah Ringkasan Kebutuhan diteruskan ke admin (state `sent`), bot tidak punya

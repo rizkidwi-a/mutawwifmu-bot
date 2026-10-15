@@ -899,17 +899,33 @@ function step(
     };
   }
 
-  if (state.kind === "admin-routed" && next.kind === "admin-routed") {
+  if (state.kind === "admin-routed") {
     // Pertanyaan harga tetap dijawab meski percakapan sudah ditangani admin
     // (`.scratch/harga-di-semua-fase`); pesan lain tetap pengakuan singkat.
     if (jawabanHarga !== null) {
       return { reply: jawabanHarga.reply, actions: [...jawabanHarga.actions], next };
     }
-    return {
-      reply: indonesian ? BASA_BASI_ID : BASA_BASI_EN,
-      actions: [],
-      next,
-    };
+    // Ulangi percakapan dari `admin-routed` (tiket 02 `.scratch/tujuan-chat`):
+    // jalan keluar agar pengguna yang memilih tujuan 2/3/4 tidak terkunci pada
+    // "Terima kasih atas pesan Anda." sampai proses di-restart. Diletakkan
+    // setelah jawaban harga dan dijaga `!mendesak`, sehingga pemicu mendesak
+    // (mis. "ulangi, ada darurat") tetap menyela ke handoff sesuai prioritas
+    // ADR-0014. Balasan pembuka memuat menu tujuan sehingga pesan berikutnya
+    // diproses sebagai percakapan baru.
+    if (!mendesak && isRestartRequest(text)) {
+      return {
+        reply: openingReply(null, language),
+        actions: [],
+        next: { kind: "idle" },
+      };
+    }
+    if (next.kind === "admin-routed") {
+      return {
+        reply: indonesian ? BASA_BASI_ID : BASA_BASI_EN,
+        actions: [],
+        next,
+      };
+    }
   }
 
   // Basa-basi (tiket 06) dibalas singkat: tidak mengisi bidang, tidak mencatat
@@ -1412,6 +1428,10 @@ function nextState(
     return { kind: "awaiting-handoff-consent", reason: routing.trigger, resume: resumeDari(state) };
   }
   if (state.kind === "admin-routed") {
+    // Pertanyaan Harga Indikatif dijawab tanpa mengubah state; kata kunci
+    // ulangi mengembalikan percakapan ke awal (tiket 02 `.scratch/tujuan-chat`).
+    if (pertanyaanHarga) return state;
+    if (isRestartRequest(text)) return { kind: "idle" };
     return state;
   }
 

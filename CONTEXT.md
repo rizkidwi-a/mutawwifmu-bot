@@ -44,12 +44,16 @@ _Avoid_: FAQ, jika yang dimaksud jawaban dari materi
 Permintaan Calon Jemaah untuk mengosongkan dan mengulang jawaban bagian tertentu Permintaan Tindak Lanjut (mis. "hapus bagian tanggal"); bot meminta ulang jawaban bagian itu lalu alur kembali ke state sebelumnya.
 _Avoid_: Pembaruan Kebutuhan; reset seluruh Permintaan Tindak Lanjut
 
+**Menu Tujuan Chat**:
+Pembuka percakapan baru yang menyapa pengirim — membalas salam bila pesannya berisi salam, selain itu sapaan netral — dan menawarkan pilihan tujuan kontak: calon jemaah/informasi paket (lanjut ke intake), vendor/mitra bisnis, tim internal Mutawwifmu, atau keperluan lain; tiga pilihan terakhir langsung diteruskan ke admin tanpa menjalani intake calon jemaah.
+_Avoid_: menu lanjutan (menu pasca-handoff untuk memperbarui atau mengulang percakapan)
+
 **Menu Lanjutan**:
 Balasan pasca-handoff yang ditawarkan kepada Calon Jemaah saat Ringkasan Kebutuhan sudah terkirim dan pesannya tidak cocok penanganan spesifik; isinya menyebut cara memperbarui bagian tertentu dengan kata kunci (Perbaikan Bidang) dan cara mengulang percakapan.
 _Avoid_: menu tujuan chat (menu pembuka untuk memilih tujuan kontak)
 
 **Ulangi Percakapan**:
-Permintaan Calon Jemaah setelah Ringkasan Kebutuhan terkirim untuk memulai percakapan dari awal (mis. balas "ulangi"); bot kembali menampilkan pembuka layanan dan menu tujuan chat dengan Permintaan Tindak Lanjut baru yang kosong.
+Permintaan memulai percakapan dari awal (mis. balas "ulangi") setelah Ringkasan Kebutuhan terkirim atau setelah percakapan diteruskan ke admin lewat menu tujuan (vendor/mitra, tim internal, keperluan lain); bot kembali menampilkan pembuka layanan dan menu tujuan chat dengan Permintaan Tindak Lanjut baru yang kosong.
 _Avoid_: Perbaikan Bidang; Pembaruan Kebutuhan
 
 ## Penawaran
