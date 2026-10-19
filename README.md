@@ -125,7 +125,6 @@ Server mendengarkan pada port yang dikonfigurasi (`3000` secara default). Agar p
 
 Panduan konfigurasi provider dan deployment:
 
-- [Migrasi ke WhatsApp Cloud API](docs/tutorial-migrasi-ke-meta-cloud-api.md)
 - [Pergantian nomor WhatsApp](docs/whatsapp-number-cutover.md)
 - [Tutorial cutover nomor produksi](docs/tutorial-cutover-nomor-produksi.md)
 - [Deployment ke EC2](docs/deploy-ec2.md)
@@ -160,7 +159,6 @@ docs/
 
 - [Konteks domain](CONTEXT.md)
 - [Keputusan arsitektur](docs/adr/)
-- [Panduan migrasi Cloud API](docs/tutorial-migrasi-ke-meta-cloud-api.md)
 - [Panduan cutover nomor](docs/whatsapp-number-cutover.md)
 
 ---

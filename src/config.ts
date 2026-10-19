@@ -7,8 +7,7 @@
  * diwajibkan mengisi kredensialnya sendiri (lihat .env.example). Perilaku
  * percakapan tidak bergantung pada pilihan ini.
  *
- * Lihat docs/whatsapp-number-cutover.md untuk jalur pergantian nomor,
- * docs/tutorial-migrasi-ke-meta-cloud-api.md untuk migrasi Fonnte -> Cloud API,
+ * Lihat docs/whatsapp-number-cutover.md untuk jalur pergantian nomor
  * dan docs/adr/0003-provider-bsp-fonnte.md untuk keputusan provider.
  *
  * Versi Graph API default dapat ditimpa lewat WHATSAPP_API_BASE_URL; masa

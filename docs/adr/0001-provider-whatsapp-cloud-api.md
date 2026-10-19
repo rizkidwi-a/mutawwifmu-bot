@@ -17,7 +17,7 @@ Kandidat yang dipertimbangkan:
 
 Gunakan **WhatsApp Cloud API** (`https://graph.facebook.com/v21.0`) sebagai provider integrasi.
 
-Catatan: versi Graph API yang dipakai sekarang dinaikkan lewat konfigurasi; `WHATSAPP_API_BASE_URL` default kini `v26.0` (versi terdahulu memiliki masa berlaku terbatas — lihat <https://developers.facebook.com/docs/graph-api/changelog>). Keputusan ini tetap berlaku setelah migrasi aktif dari Fonnte ke Cloud API (tiket 09, `docs/tutorial-migrasi-ke-meta-cloud-api.md`).
+Catatan: versi Graph API yang dipakai sekarang dinaikkan lewat konfigurasi; `WHATSAPP_API_BASE_URL` default kini `v26.0` (versi terdahulu memiliki masa berlaku terbatas — lihat <https://developers.facebook.com/docs/graph-api/changelog>). Keputusan ini tetap berlaku sebagai desain provider yang dapat dikonfigurasi; rencana migrasi aktif dari Fonnte ke Cloud API (bekas tiket 09) **dibatalkan** oleh pemilik (2026-10-19) — Fonnte tetap provider produksi (ADR-0003).
 
 Alasan:
 
