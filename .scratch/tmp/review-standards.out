@@ -1,0 +1,16 @@
+## Standards review — ticket 10 WIP (HEAD 2b0a6a3)
+
+### (a) Documented standards
+
+**Breach — README "Pesan yang menyela pengumpulan" + `spec.md` Testing Decisions**: both state *"Harga Indikatif hanya dijawab untuk pesan bertanda pertanyaan, sehingga pesan informasi tidak pernah dijawab template yang tidak nyambung."* The diff widens `isPertanyaan` (`handleInbound.ts:54-56`) with a marker‑less alternative, so declaratives now get a price answer. Verified at runtime: `"harga mutawwif per grup bisa"` → `{kind:"indicative-price"}`, reply "Harga Indikatif layanan mutawwif…", action `record-faq-answer` — no `?`, no interrogative word. Neither README nor spec.md is updated, so a documented rule is now silently false (the narrowing *is* declared in the `classifyInbound.ts` header, this consequence is not).
+
+**Compliant**: tiket file `Status: resolved` (triage‑labels.md; not `done`), notes appended under `## Comments`, Indonesian + glossary terms ("Ringkasan Kebutuhan", "Permintaan Tindak Lanjut"), corpus matches `tests/korpus/README.md` (`pesan`/`harapan.jenis`/`grup`), seam‑only tests (README testing convention; `formatAdminHandoff` import has precedent in `tests/regresi`), `types.ts` untouched.
+
+### (b) Baseline smells (all judgement calls)
+
+1. **Duplicated Code / Shotgun Surgery** — the question predicate is split: `const PERTANYAAN` (`handleInbound.ts:47`) **and** `export const BENTUK_TANYA_SEHARI_HARI` (`classifyInbound.ts:218`), combined in `isPertanyaan`. Worse, one input, two consumers: `classifyInbound` tests it against `normalkanVarianEjaan(text)`, `handleInbound` against raw text. Any "what is a question" change edits two files; a third regex (`QUESTION_LIKE`) still exists.
+2. **Duplicated Code (tests)** — the same preamble repeats in 7 tests across 4 files: `assert.deepEqual(awal.actions, [])` / `assert.match(teksBalasan(awal), /catat|noted/i)` / `const request = setujuiPermintaanTindakLanjut(...)`. The diff extracted only the consent half of the shape.
+3. **Duplicated Code** — `PERTANYAAN_HANDOFF` (`handOffToAdmin.test.ts:63-65`) re-lists "Berapa lama masa berlaku visa umrah?", "Apakah tersedia city tour?", "Bisakah saya memesan paket umrah bulan depan?" already covered by `topikGapHandoff.test.ts`.
+4. **Mysterious Name** — `setujuiPermintaanTindakLanjut` names approval but also drives five intake answers; its hidden magic strings are asserted by callers (`assert.equal(request.interestedServices, "Umrah premium, tujuan Mekkah")`).
+5. **Duplicated fixtures** — 2/19 corpus cases duplicate existing messages ("siskapatuh itu wajib ga ya" = varian-ejaan, "20 sar itu brp idr?" = transkrip-nyata), inflating the 121‑case denominator.
+6. **Speculative Generality** — the guard `(?<!\b(?:tidak|tdk|gak|nggak|engga|belum)\s)` has no test; no case asserts a negated declarative ("saya gak bisa") stays out, yet that branch now reaches price answers.

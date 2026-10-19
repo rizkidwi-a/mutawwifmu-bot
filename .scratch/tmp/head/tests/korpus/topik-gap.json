@@ -1,0 +1,29 @@
+{
+  "catatan": "Varian tanya topik gap dari keputusan tiket 10 (Raudhah/Nusuk, siskopatuh, asuransi, refund/pembatalan, vaksin, kereta Haramain, metode pembayaran, T&C DP/pelunasan, perlengkapan/konsumsi/zam-zam, konversi SAR→IDR). Seluruhnya diputuskan tetap handoff, termasuk varian ejaan dan bentuk tanya sehari-hari tanpa tanda tanya; pesannya tetap harus terbaca sebagai pertanyaan agar tercatat pada Ringkasan Kebutuhan. Pesan disusun mengikuti pola tanya transkrip nyata dan sudah dianonimkan. Jalankan dengan: node scripts/probe-cakupan.ts",
+  "kasus": [
+    { "pesan": "mba raudah itu gimana caranya", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "raudhoh itu boleh masuk ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "tips apply nusuk dong", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+
+    { "pesan": "siskapatuh itu wajib ga ya", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "berapa biaya siskopatuhnya mas?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "asuransi perjalanan ketentuannya apa?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "insurance nya include ga?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+
+    { "pesan": "ada refund ga kalo misal batal berangkat", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "pengembalian dana bisa ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "vaksin di malaysia bisa", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "vaksinasi meningitis wajib ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+
+    { "pesan": "kereta haramain bagus ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "bayar cicilan bisa", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "t&c pelunasan bagaimana?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+
+    { "pesan": "perlengkapan umrohnya dapat ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "dapat air zam-zam ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "konsumsi termasuk ga", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+
+    { "pesan": "kurs sar ke idr berapa ya?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" },
+    { "pesan": "20 sar itu brp idr?", "harapan": { "jenis": "handoff" }, "grup": "topik-gap" }
+  ]
+}

@@ -1,0 +1,24 @@
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)
+Permintaan webhook gagal: Error: Pengiriman pesan WhatsApp gagal: HTTP 400 — 131030 (#131030) Recipient phone number not in allowed list
+    at Object.sendText (file:///C:/Users/Advan/.ab/chatbot/src/adapters/whatsapp-cloud/sender.ts:28:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async handleRequest (file:///C:/Users/Advan/.ab/chatbot/src/server.ts:95:9)

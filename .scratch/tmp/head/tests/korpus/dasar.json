@@ -1,0 +1,66 @@
+{
+  "catatan": "Korpus uji pemahaman bahasa Indonesia. Jalankan dengan: node scripts/probe-cakupan.ts",
+  "caraMenambah": {
+    "lokasi": "Simpan berkas JSON baru di folder ini (data/korpus/), apa pun namanya. Seluruh .json di folder ini otomatis digabung dan diuji.",
+    "formatSatuKasus": {
+      "pesan": "teks persis yang dikirim calon jemaah",
+      "harapan": {
+        "jenis": "faq | handoff | opener",
+        "topik": "opsional — hanya untuk jenis faq, mis. price-hotel. Hapus baris ini bila tidak ingin menuntut topik tertentu."
+      },
+      "grup": "label gaya bahasa, mis. gaul, typo, parafrase, campur-inggris, baku"
+    },
+    "artiJenis": {
+      "faq": "harusnya dijawab langsung dari materi bisnis",
+      "handoff": "memang layak diteruskan ke admin (booking, penawaran khusus, dsb.)",
+      "opener": "sapaan tanpa pertanyaan substantif"
+    },
+    "tip": "Tulis pesan apa adanya seperti orang chat di WhatsApp — tanpa kapitalisasi baku, boleh singkatan dan typo. Justru itu yang ingin diuji."
+  },
+  "kasus": [
+    { "pesan": "brp hrg hotel di mekah?", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
+    { "pesan": "harga hotel d makkah berapa", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "typo" },
+    { "pesan": "daftar harga hotel dong", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
+    { "pesan": "boleh minta pricelist?", "harapan": { "jenis": "faq" }, "grup": "campur-inggris" },
+    { "pesan": "minta price list hotel", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "campur-inggris" },
+    { "pesan": "price list nya lengkap gak?", "harapan": { "jenis": "faq" }, "grup": "campur-inggris" },
+    { "pesan": "kisaran biaya hotel per malam brp ya?", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "gaul" },
+    { "pesan": "tarif penginapan di madinah gimana", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "parafrase" },
+    { "pesan": "budget buat nginep di makkah kira-kira berapa", "harapan": { "jenis": "faq", "topik": "price-hotel" }, "grup": "parafrase" },
+    { "pesan": "harga city tour berapa?", "harapan": { "jenis": "faq", "topik": "price-city-tour" }, "grup": "baku" },
+    { "pesan": "biaya tur kotanya gimana?", "harapan": { "jenis": "faq", "topik": "price-city-tour" }, "grup": "parafrase" },
+    { "pesan": "ongkos transport selama disana berapa", "harapan": { "jenis": "faq", "topik": "price-transport" }, "grup": "parafrase" },
+    { "pesan": "harga fotografer berapa", "harapan": { "jenis": "faq", "topik": "price-photographer-videographer" }, "grup": "baku" },
+    { "pesan": "kalo mau sewa mutawwif harganya brp?", "harapan": { "jenis": "faq", "topik": "price-mutawwif" }, "grup": "gaul" },
+    { "pesan": "biaya ngurus dokumen sama visa berapa?", "harapan": { "jenis": "faq", "topik": "price-document-arrangement" }, "grup": "parafrase" },
+
+    { "pesan": "land arrangement itu apa sih?", "harapan": { "jenis": "faq", "topik": "land-arrangement" }, "grup": "gaul" },
+    { "pesan": "akomodasi selama di tanah suci nginepnya dimana aja?", "harapan": { "jenis": "faq", "topik": "hotel-accommodation" }, "grup": "parafrase" },
+    { "pesan": "selama disana nginepnya di hotel apa ya?", "harapan": { "jenis": "faq", "topik": "hotel-accommodation" }, "grup": "parafrase" },
+    { "pesan": "ada pemandu ibadah gak?", "harapan": { "jenis": "faq", "topik": "mutawwif" }, "grup": "gaul" },
+    { "pesan": "yang nemenin ibadah namanya apa ya", "harapan": { "jenis": "faq", "topik": "mutawwif" }, "grup": "parafrase" },
+    { "pesan": "transportasi selama disana pake apa?", "harapan": { "jenis": "faq", "topik": "transport-fleet" }, "grup": "gaul" },
+    { "pesan": "kendaraannya apa aja ya", "harapan": { "jenis": "faq", "topik": "transport-fleet" }, "grup": "parafrase" },
+    { "pesan": "soal visa sama dokumen gimana?", "harapan": { "jenis": "faq", "topik": "visa-documents" }, "grup": "gaul" },
+    { "pesan": "perlu siapin dokumen apa aja?", "harapan": { "jenis": "faq", "topik": "visa-documents" }, "grup": "parafrase" },
+    { "pesan": "kalau di bandara nanti dijemput gak?", "harapan": { "jenis": "faq", "topik": "airport-handling" }, "grup": "gaul" },
+    { "pesan": "ada yang urus bagasi sama imigrasi?", "harapan": { "jenis": "faq", "topik": "airport-handling" }, "grup": "parafrase" },
+    { "pesan": "ada fotografer buat dokumentasi?", "harapan": { "jenis": "faq", "topik": "photographer-videographer" }, "grup": "gaul" },
+    { "pesan": "bisa dibikinin video sama foto selama ibadah?", "harapan": { "jenis": "faq", "topik": "photographer-videographer" }, "grup": "parafrase" },
+    { "pesan": "mau kasih sedekah lewat kalian bisa?", "harapan": { "jenis": "faq", "topik": "charity-program" }, "grup": "gaul" },
+    { "pesan": "ada program donasi gak?", "harapan": { "jenis": "faq", "topik": "charity-program" }, "grup": "parafrase" },
+    { "pesan": "kalo di alula ada tour gak?", "harapan": { "jenis": "faq", "topik": "city-tour-alula" }, "grup": "gaul" },
+    { "pesan": "tour di thaif ada?", "harapan": { "jenis": "faq", "topik": "city-tour-thaif" }, "grup": "baku" },
+    { "pesan": "keliling madinah bisa dibantu?", "harapan": { "jenis": "faq", "topik": "city-tour-madinah" }, "grup": "parafrase" },
+
+    { "pesan": "saya mau booking paket untuk 2 orang", "harapan": { "jenis": "handoff" }, "grup": "baku" },
+    { "pesan": "bisa bayar DP dulu gak?", "harapan": { "jenis": "handoff" }, "grup": "gaul" },
+    { "pesan": "harga bisa nego gak?", "harapan": { "jenis": "handoff" }, "grup": "gaul" },
+    { "pesan": "apakah masih ada slot bulan puasa?", "harapan": { "jenis": "handoff" }, "grup": "baku" },
+    { "pesan": "saya mau bicara dengan manusia", "harapan": { "jenis": "handoff" }, "grup": "baku" },
+    { "pesan": "ada kerjasama untuk agen travel?", "harapan": { "jenis": "handoff" }, "grup": "baku" },
+
+    { "pesan": "halo", "harapan": { "jenis": "opener" }, "grup": "baku" },
+    { "pesan": "selamat pagi", "harapan": { "jenis": "opener" }, "grup": "baku" }
+  ]
+}
