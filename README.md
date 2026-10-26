@@ -34,14 +34,14 @@ Pesan WhatsApp masuk
 
 ## Cara menjalankan
 
-Ikuti langkah berikut berurutan. Tidak perlu keahlian pemrograman.
+Ikuti langkah berikut berurutan.
 
 ### 1. Siapkan aplikasi pendukung
 
 Pasang dulu (cari di Google: "cara install Git" / "cara install Node.js"):
 
-- **Git** — untuk mengunduh kode proyek.
-- **Node.js versi 22.18 atau lebih baru** — untuk menjalankan bot.
+- **Git** 
+- **Node.js versi 22.18 atau lebih baru** 
 
 ### 2. Unduh kode proyek
 
@@ -57,7 +57,7 @@ Perintah `npm ci` akan mengunduh otomatis semua yang dibutuhkan bot. Tunggu samp
 
 ### 3. Buat file konfigurasi
 
-Buat salinan file contoh bernama `.env`:
+Buat salinan file bernama `.env` di terminal projek yang sama:
 
 ```bash
 cp .env.example .env
@@ -69,11 +69,7 @@ Di Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Lalu buka file `.env` dengan text editor (misalnya Notepad) dan isi nilai yang diminta, mengikuti keterangan di dalam file tersebut.
-
-> **Penting:**
-> - Jangan pernah menulis isi file `.env` ke chat, email, atau commit Git. File ini berisi rahasia (token/kunci).
-> - Mengunduh kode proyek saja **tidak** membuat bot langsung terhubung ke WhatsApp. Kredensial harus diisi sendiri.
+Lalu buka file `.env` dengan text editor dan isi nilai yang diminta, mengikuti keterangan di dalam file tersebut.
 
 ### 4. Jalankan bot
 
@@ -146,6 +142,3 @@ docs/               # Dokumentasi teknis dan keputusan desain
 - [Keputusan arsitektur](docs/adr/) — alasan teknis di balik desain.
 - [Deployment ke EC2](docs/deploy-ec2.md) — menjalankan bot di server.
 
----
-
-Dibangun dengan **Node.js** dan **TypeScript**.

@@ -676,6 +676,46 @@ function stateAfterMenuInput(turn: ConversationTurn): FlowState {
     : { kind: "idle" };
 }
 
+const PURPOSE_CHOICE_WORD_TO_DIGIT: Readonly<Record<string, string>> = {
+  "satu": "1",
+  "one": "1",
+  "pertama": "1",
+  "first": "1",
+  "dua": "2",
+  "two": "2",
+  "kedua": "2",
+  "second": "2",
+  "tiga": "3",
+  "three": "3",
+  "ketiga": "3",
+  "third": "3",
+  "empat": "4",
+  "four": "4",
+  "keempat": "4",
+  "fourth": "4",
+};
+
+const PURPOSE_CHOICE_FILLERS: ReadonlySet<string> = new Set([
+  "pilihan",
+  "opsi",
+  "option",
+  "nomor",
+  "number",
+  "no",
+  "pilih",
+  "choose",
+]);
+
+function leadingPurposeChoiceDigit(normalized: string): string | undefined {
+  const tokens = normalized.split(" ");
+  let i = 0;
+  while (i < tokens.length && PURPOSE_CHOICE_FILLERS.has(tokens[i]!)) i++;
+  if (i >= tokens.length) return undefined;
+  const token = tokens[i]!;
+  if (/^[1-4]$/.test(token)) return token;
+  return PURPOSE_CHOICE_WORD_TO_DIGIT[token];
+}
+
 function parsePurposeSelection(text: string): PurposeSelection | null {
   const normalized = text.toLowerCase().trim().replace(/[.():]/g, "").replace(/\s+/g, " ");
   const choices: Readonly<Record<string, PurposeSelection>> = {
@@ -708,8 +748,9 @@ function parsePurposeSelection(text: string): PurposeSelection | null {
     "saya ingin menghubungi admin": "other",
     "contact an admin": "other",
   };
-  const numberedChoice = normalized.match(/^([1-4])(?:\s|$)/)?.[1];
-  return (numberedChoice ? choices[numberedChoice] : undefined) ?? choices[normalized] ?? null;
+  // Jawaban boleh memakai kata (bukan angka): "satu"/"pertama" = 1, dst.
+  const leadingChoice = leadingPurposeChoiceDigit(normalized);
+  return (leadingChoice ? choices[leadingChoice]! : undefined) ?? choices[normalized] ?? null;
 }
 
 function containsPurposeMenu(text: string): boolean {
