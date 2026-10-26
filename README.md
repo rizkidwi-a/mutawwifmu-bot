@@ -55,16 +55,7 @@ npm ci
 
 Perintah `npm ci` akan mengunduh otomatis semua yang dibutuhkan bot. Tunggu sampai selesai.
 
-### 3. Pastikan kode dalam keadaan baik
-
-```bash
-npm test
-npm run typecheck
-```
-
-Jika semua lulus (tidak ada tulisan error/gagal), lanjut ke langkah berikutnya.
-
-### 4. Buat file konfigurasi
+### 3. Buat file konfigurasi
 
 Buat salinan file contoh bernama `.env`:
 
@@ -84,13 +75,43 @@ Lalu buka file `.env` dengan text editor (misalnya Notepad) dan isi nilai yang d
 > - Jangan pernah menulis isi file `.env` ke chat, email, atau commit Git. File ini berisi rahasia (token/kunci).
 > - Mengunduh kode proyek saja **tidak** membuat bot langsung terhubung ke WhatsApp. Kredensial harus diisi sendiri.
 
-### 5. Jalankan bot
+### 4. Jalankan bot
 
 ```bash
 npm start
 ```
 
-Bot berjalan di komputer Anda pada port `3000` (bisa diubah lewat `.env`). Agar pesan WhatsApp sungguhan bisa masuk, alamat bot harus bisa diakses dari internet (HTTPS) lalu diarahkan ke endpoint `/webhook`. Cara umum untuk pengujian lokal: gunakan tunnel (misalnya ngrok); untuk produksi, lihat [Deployment ke EC2](docs/deploy-ec2.md).
+Bot berjalan di komputer Anda pada port `3000` (bisa diubah lewat `.env`). Biarkan terminal ini tetap terbuka selama bot dipakai.
+
+### 5. Dapatkan alamat webhook dan daftarkan ke penyedia WhatsApp
+
+**Apa itu webhook?** Webhook adalah "alamat rumah" bot di internet. Ketika ada pesan WhatsApp masuk, penyedia WhatsApp akan mengirim pesan itu ke alamat tersebut, lalu bot membalasnya. Tanpa webhook, pesan tidak akan pernah sampai ke bot.
+
+**Bentuk alamatnya:** `https://alamat-anda/webhook` — yaitu alamat publik bot Anda ditambah `/webhook`.
+
+**Cara mendapatkannya (pilih salah satu):**
+
+- **Untuk percobaan di komputer sendiri** — pasang tunnel, misalnya [ngrok](https://ngrok.com/):
+  1. Unduh dan pasang ngrok, lalu buka terminal baru.
+  2. Jalankan `ngrok http 3000`.
+  3. Ngrok akan menampilkan alamat HTTPS, contohnya `https://xxxx-xx-xx.ngrok-free.app`.
+  4. Alamat webhook Anda: `https://xxxx-xx-xx.ngrok-free.app/webhook`
+
+  Catatan: alamat tunnel berubah setiap kali ngrok diulang, jadi harus didaftarkan ulang.
+
+- **Untuk pemakaian tetap (produksi)** — bot dijalankan di server yang punya alamat tetap, contohnya di cloud. Langkahnya: [Deployment ke EC2](docs/deploy-ec2.md).
+
+**Cara mendaftarkan:**
+
+1. Buka dashboard/panel penyedia WhatsApp Anda (tempat Anda membuat/mengelola bot).
+2. Cari menu pengaturan **webhook**.
+3. Tempel alamat webhook yang sudah Anda buat di atas.
+4. Buat **token verifikasi** (kata rahasia bebas yang Anda tentukan sendiri) di dashboard tersebut, lalu isi token yang **sama persis** di file `.env` pada baris `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+5. Simpan. Jika pengaturan benar, dashboard akan menunjukkan status webhook aktif/terverifikasi.
+
+**Uji cepat:** buka `http://localhost:3000/metrics` di browser. Jika muncul data (bukan halaman error), bot sudah berjalan dengan baik.
+
+> Penyedia WhatsApp akan berganti di masa mendatang, jadi nama menu di dashboard bisa berbeda — yang penting tetap sama: alamat webhook menunjuk ke `/webhook` bot Anda, dan token verifikasinya cocok.
 
 ## Batasan yang perlu diketahui
 
