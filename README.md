@@ -91,13 +91,18 @@ Bot berjalan di komputer Anda pada port `3000` (bisa diubah lewat `.env`). Biark
 
 **Cara mendapatkannya (pilih salah satu):**
 
-- **Untuk percobaan di komputer sendiri** — pasang tunnel, misalnya [ngrok](https://ngrok.com/):
-  1. Unduh dan pasang ngrok, lalu buka terminal baru.
-  2. Jalankan `ngrok http 3000`.
-  3. Ngrok akan menampilkan alamat HTTPS, contohnya `https://xxxx-xx-xx.ngrok-free.app`.
-  4. Alamat webhook Anda: `https://xxxx-xx-xx.ngrok-free.app/webhook`
+- **Untuk percobaan di komputer sendiri** — pakai tunnel [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (gratis, tanpa daftar akun):
+  1. Pastikan bot (langkah 4) sedang berjalan.
+  2. Buka terminal **baru**, lalu jalankan:
 
-  Catatan: alamat tunnel berubah setiap kali ngrok diulang, jadi harus didaftarkan ulang.
+     ```bash
+     cloudflared tunnel --url http://localhost:3000
+     ```
+
+  3. Di output cloudflared, cari baris seperti `+ https://xxxx-xxxx.trycloudflare.com` — itu alamat publik bot Anda.
+  4. Alamat webhook Anda: `https://xxxx-xxxx.trycloudflare.com/webhook` (beberapa penyedia meminta token disisipkan di URL, misalnya `/webhook?token=...` — ikuti petunjuk di dashboard penyedia).
+
+  Catatan: alamat tunnel ini berubah setiap kali cloudflared diulang, jadi harus didaftarkan ulang setiap kali bot atau komputer dimulai lagi.
 
 - **Untuk pemakaian tetap (produksi)** — bot dijalankan di server yang punya alamat tetap, contohnya di cloud. Langkahnya: [Deployment ke EC2](docs/deploy-ec2.md).
 
